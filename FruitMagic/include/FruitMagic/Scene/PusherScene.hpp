@@ -1,19 +1,17 @@
 //----------------------------------------------------------------------------
 //! @file   PusherScene.hpp
 //! @brief  コインプッシャー台のシーン
-//! @detail プレイフィールド（床・側壁・背面パネル）、前後に往復するプッシャー、
-//!         仮の景品（コインと果物の代わりの球）を配置した、プッシャー開発の土台となるシーンです。
+//! @detail プレイフィールド（床・側壁・背面パネル）、前後に往復するプッシャー、景品、
+//!         コインの投入口と HUD を配置し、ゲームのシステムを登録します。
 //----------------------------------------------------------------------------
 #pragma once
 #include <Tsukino/EngineIntegration/Scene/GameSceneBase.hpp>
 #include <Tsukino/Core/ECS/Entity/Entity.hpp>
-#include <Tsukino/Engine/Asset/AssetHandle.hpp>
-#include <Tsukino/BuiltIn/ECS/Component/RigidbodyComponent.hpp>
-
-#include <hlsl++.h>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
+
+    class PrizeFactory;    // 前方宣言
 
     //! コインプッシャー台のシーンです。
     class PusherScene : public Tsukino::EngineIntegration::GameSceneBase {
@@ -39,23 +37,20 @@ namespace FruitMagic {
         //! @param  [in] api エンジンから提供されるAPIへの参照
         void OnInitialize(Tsukino::EngineIntegration::EngineAPI& api) override;
 
-        //! 箱型の物体（見た目＋Boxコライダー＋剛体）を生成します。
-        //! @param  [in] position   中心のワールド座標
-        //! @param  [in] halfExtent 各軸の半分サイズ
-        //! @param  [in] type       剛体の種類
-        //! @param  [in] visible    見た目を描画するか
-        //! @return 生成したエンティティ
-        Tsukino::ECS::Entity CreateBox(const hlslpp::float3& position, const hlslpp::float3& halfExtent, Tsukino::BuiltIn::ECS::RigidbodyType type, bool visible = true);
+        //! 筐体（床・壁・背面パネル・景品受け）とプッシャーを生成します。
+        //! @param  [in] factory 生成に使うファクトリ
+        void CreateCabinet(const PrizeFactory& factory);
 
-        //! 球型の物体（見た目＋Sphereコライダー＋Dynamic剛体）を生成します。
-        //! @param  [in] position 中心のワールド座標
-        //! @param  [in] radius   半径
-        //! @return 生成したエンティティ
-        Tsukino::ECS::Entity CreateSphere(const hlslpp::float3& position, float radius);
+        //! 起動時に台に置いておく景品を生成します。
+        //! @param  [in] factory 生成に使うファクトリ
+        void CreateInitialPrizes(const PrizeFactory& factory);
 
-        Tsukino::Asset::AssetHandle m_blockModel;                  // 箱の見た目に使うモデル
-        Tsukino::Asset::AssetHandle m_ballModel;                   // 球の見た目に使うモデル
-        float                       m_ballModelRadius = 1.0f;      // 球モデルのスケール1での半径（ロード時にメッシュから求める）
+        //! ライト・空・カメラを生成します。
+        void CreateEnvironment();
+
+        //! コインの投入口と HUD を生成します。
+        //! @param  [in] factory 生成に使うファクトリ
+        void CreatePlayerInterface(const PrizeFactory& factory);
 
         Tsukino::ECS::Entity m_pusherEntity{entt::null};    // 往復するプッシャー
         float                m_pusherTime = 0.0f;          // プッシャーの往復に使う経過時間（秒）

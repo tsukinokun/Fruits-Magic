@@ -1,8 +1,9 @@
 @echo off
 rem ---------------------------------------------------------------------------
-rem 初回セットアップ。
-rem   1) サブモジュール（TsukinoEngine とその依存ライブラリ）を取得
-rem   2) premake で Visual Studio ソリューションを生成
+rem First-time setup.
+rem   1) Fetch submodules (TsukinoEngine and its dependencies)
+rem   2) Generate the Visual Studio solution with premake
+rem NOTE: keep this file ASCII only (cmd.exe mis-parses multibyte text in batch files).
 rem ---------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0"

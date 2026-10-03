@@ -1,6 +1,7 @@
 @echo off
-rem Visual Studio のソリューションを生成して開く。
-rem ソースファイルを追加・削除したときもこれ（または build.bat 前の premake）で再生成する。
+rem Generate the Visual Studio solution and open it.
+rem Also run this after adding or removing source files.
+rem NOTE: keep this file ASCII only (cmd.exe mis-parses multibyte text in batch files).
 cd /d "%~dp0"
 External\TsukinoEngine\vendor\premake5.exe vs2022
 

@@ -8,6 +8,11 @@
 - エンジンの使い方・禁止事項は `External/TsukinoEngine/CLAUDE.md` を先に読む
   （特に `External/TsukinoEngine/External/` は読まない・grep しない）
 
+## 企画
+
+- `Docs/GameDesign.md` — 企画書（コンセプト・コアループ・果物・魔法・強化・放置）
+- `Docs/Roadmap.md` — マイルストーン（M1〜M8）。新しい機能に着手するときはまずここを確認
+
 ## エンジン API の引き方
 
 | ファイル | 内容 |

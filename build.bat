@@ -1,12 +1,15 @@
 @echo off
 rem ---------------------------------------------------------------------------
-rem FruitMagic（エンジン込み）のビルド。
-rem   build.bat            … Debug をビルド
-rem   build.bat Release    … Release をビルド
+rem Build FruitMagic (including the engine).
+rem   build.bat            ... Debug build
+rem   build.bat Release    ... Release build
 rem
-rem 成功時の出力は 0 行、失敗時はエラー行だけになる。
-rem MSBuild を直接叩かないこと（静音フラグを忘れると数千行出る）。
-rem External\TsukinoEngine\build.bat をベースにしている（MSBuild 探索の理由はそちらを参照）。
+rem Prints nothing on success and only error lines on failure.
+rem Do not call MSBuild directly (it prints thousands of lines without the quiet flags).
+rem Based on External\TsukinoEngine\build.bat (see it for why MSBuild is located this way).
+rem
+rem NOTE: keep this file ASCII only. cmd.exe mis-parses multibyte (Japanese) text
+rem       in batch files depending on the console code page.
 rem ---------------------------------------------------------------------------
 setlocal
 
@@ -18,7 +21,7 @@ set "SLN=%ROOT%.build\FruitMagic.sln"
 set "PREMAKE=%ROOT%External\TsukinoEngine\vendor\premake5.exe"
 
 rem ---------------------------------------------------------------------------
-rem MSBuild の場所を解決する（VS2022 → 最新 VS → 決め打ちパスの順）
+rem Locate MSBuild (VS2022 -> latest VS -> hard-coded path)
 rem ---------------------------------------------------------------------------
 set "MSBUILD="
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -32,12 +35,12 @@ if not exist "%MSBUILD%" (
 )
 
 rem ---------------------------------------------------------------------------
-rem プロジェクトファイルの生成。
-rem ソースファイルを追加・削除したときにも反映されるよう毎回 premake を通す（数百ms）
+rem Generate project files.
+rem Runs premake every time so that added/removed source files are picked up.
+rem The engine's premake5.lua prints deprecation warnings to stderr, so both
+rem streams are discarded on success; on failure premake is run again to show why.
 rem ---------------------------------------------------------------------------
 pushd "%ROOT%"
-rem エンジン側 premake5.lua の deprecated 警告が stderr に出るため、成功時は両方捨てる。
-rem 失敗したときだけもう一度実行して、原因を表示する
 "%PREMAKE%" vs2022 >nul 2>&1
 if errorlevel 1 (
     "%PREMAKE%" vs2022
@@ -47,8 +50,8 @@ if errorlevel 1 (
 )
 popd
 
-rem NuGet の復元。premake が吐くのは旧形式の packages.config なので
-rem -t:restore だけでは復元されず -p:RestorePackagesConfig=true が要る
+rem NuGet restore. premake emits the old packages.config format, so
+rem -t:restore alone is not enough and -p:RestorePackagesConfig=true is required.
 if not exist "%ROOT%.build\packages" (
     "%MSBUILD%" "%SLN%" -t:restore -p:RestorePackagesConfig=true -p:Configuration=%CONFIG% -p:Platform=x64 -nologo -v:q -clp:"ErrorsOnly;NoSummary"
     if errorlevel 1 exit /b 1
@@ -58,8 +61,8 @@ if not exist "%ROOT%.build\packages" (
 exit /b %ERRORLEVEL%
 
 rem ---------------------------------------------------------------------------
-rem vswhere で MSBuild を探すサブルーチン。
-rem for /f 内の引用符の扱いが壊れやすいため、エンジン側の build.bat の形を崩さないこと
+rem Find MSBuild with vswhere.
+rem Quoting inside for /f is fragile; keep the same form as the engine's build.bat.
 rem ---------------------------------------------------------------------------
 :find_vs2022
 for /f "usebackq tokens=*" %%i in (`^""%VSWHERE%" -version "[17.0,18.0)" -products * -requires Microsoft.Component.MSBuild -property installationPath^"`) do (
