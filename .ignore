@@ -1,0 +1,12 @@
+# ripgrep / Claude Code の Grep が走査しない場所（git の追跡には影響しない）。
+
+# エンジンが vendoring している 3rd party（約4,600ファイル）。
+# エンジンの API は External/TsukinoEngine/Docs/api-index.md から引く
+External/TsukinoEngine/External/
+External/TsukinoEngine/Tools/HeaderCheck/generated/
+External/TsukinoEngine/Docs/agent-manifest.json
+
+# ビルド生成物
+bin/
+bin-int/
+.build/

@@ -1,0 +1,30 @@
+# ビルド生成物
+[Bb]in/
+bin-int/
+[Oo]bj/
+x64/
+
+# premake が生成するプロジェクトファイル・NuGet パッケージ
+.build/
+packages/
+
+# Visual Studio キャッシュ
+.vs/
+*.user
+
+# プリコンパイル済みヘッダ・デバッグ情報
+*.pch
+*.pdb
+*.ipch
+
+# 実行時ログ
+Logs/
+*.log
+
+# アセットマネージャーが生成する中間ファイル
+Cache/
+**/Cache/
+
+# シェーダーキャッシュ
+*.cso
+*.pso
