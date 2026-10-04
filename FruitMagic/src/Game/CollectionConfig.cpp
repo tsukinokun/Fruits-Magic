@@ -128,6 +128,17 @@ namespace FruitMagic {
     }
 
     //----------------------------------------------------------------------------
+    //! id からバリエーションの添字を探します。
+    //----------------------------------------------------------------------------
+    int CollectionConfig::FindIndex(const std::string& id) const {
+        for(size_t i = 0; i < m_variants.size(); ++i) {
+            if(m_variants[i].id == id)
+                return static_cast<int>(i);
+        }
+        return -1;
+    }
+
+    //----------------------------------------------------------------------------
     //! 果物名にバリエーション名を付けた表示名を返します（例: 「いちご（色違い）」）。
     //----------------------------------------------------------------------------
     std::wstring CollectionConfig::DisplayName(const FruitDef& fruit, int variantIndex) const {

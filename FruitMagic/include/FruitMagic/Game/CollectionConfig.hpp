@@ -51,6 +51,11 @@ namespace FruitMagic {
         //! @return バリエーションの一覧
         const std::vector<VariantDef>& Variants() const { return m_variants; }
 
+        //! id からバリエーションの添字を探します。
+        //! @param  [in] id バリエーションの識別子
+        //! @return 添字。見つからなければ -1
+        int FindIndex(const std::string& id) const;
+
         //! バリエーションを抽選します。
         //! @param  [in,out] rng 乱数生成器
         //! @return バリエーションの添字（どれにも当たらなければ 0 = 通常）

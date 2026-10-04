@@ -31,5 +31,6 @@ namespace FruitMagic::ECS {
         Tsukino::ECS::Entity     label      = entt::null;                      // ボタンの上の文字（FontComponent を持つエンティティ）
         std::wstring             closedText;                                   // 閉じているときの文字（「図鑑 (Tab)」）
         std::wstring             openText;                                     // 開いているときの文字（「閉じる (Tab)」）
+        bool                     canOpen    = true;                            // 閉じている画面を開けるか（false なら閉じるだけのボタン）
     };
 }    // namespace FruitMagic::ECS

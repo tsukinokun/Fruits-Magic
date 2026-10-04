@@ -36,7 +36,8 @@ namespace FruitMagic::ECS {
         MenuKind toggled = MenuKind::None;
         registry.View<MenuButtonComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
             [&](Tsukino::ECS::Entity, MenuButtonComponent& button, Tsukino::BuiltIn::ECS::PointerTargetComponent& pointer) {
-                if(pointer.clicked || (input && input->IsKeyPressed(button.key)))
+                const bool pressed = pointer.clicked || (input && input->IsKeyPressed(button.key));
+                if(pressed && (button.canOpen || state.IsOpen(button.menu)))
                     toggled = button.menu;
             });
         if(toggled != MenuKind::None)

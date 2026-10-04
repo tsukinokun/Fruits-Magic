@@ -165,8 +165,10 @@ namespace FruitMagic::ECS {
             } else if(def.id == "checkerWidth") {
                 // データは穴の全幅。払い出し口からはみ出さない幅に丸める
                 stats.checkerHalfWidth = std::clamp(value * 0.5f, 0.5f, Layout::kPayoutHalfWidth);
+            } else if(def.id == "offlineHours") {
+                stats.offlineMaxHours = std::max(0.0f, value);
             } else {
-                Tsukino::Core::Log::Warn("UpgradeSystem: upgrade \"" + def.id + "\" has no effect. Known ids: pusherStroke, treeLevel, fairy, checkerWidth.");
+                Tsukino::Core::Log::Warn("UpgradeSystem: upgrade \"" + def.id + "\" has no effect. Known ids: pusherStroke, treeLevel, fairy, checkerWidth, offlineHours.");
             }
         }
     }

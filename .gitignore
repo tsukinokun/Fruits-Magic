@@ -21,6 +21,9 @@ packages/
 Logs/
 *.log
 
+# セーブデータ
+Saves/
+
 # アセットマネージャーが生成する中間ファイル
 Cache/
 **/Cache/

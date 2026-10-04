@@ -15,5 +15,6 @@ namespace FruitMagic {
         float pusherAmplitude    = Layout::kPusherAmplitude;    // プッシャーの往復の振幅（cm）。押し幅の強化で増える
         float autoLaunchInterval = 0.0f;                        // 妖精がコインを入れる間隔（秒）。0 なら入れない
         float checkerHalfWidth   = 4.0f;                        // チェッカーの穴の半幅（cm）
+        float offlineMaxHours    = 2.0f;                        // 閉じている間に報酬が貯まる上限時間（時間）
     };
 }    // namespace FruitMagic

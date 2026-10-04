@@ -49,6 +49,18 @@
         { "coins": 80, "fruit": 10, "value": 12 },
         { "coins": 160, "fruit": 25, "value": 15 }
       ]
+    },
+    {
+      "id": "offlineHours",
+      "name": "おるすばん時間",
+      "description": "閉じている間に妖精が働く時間が延びる",
+      "format": "{v}時間",
+      "base": 2,
+      "levels": [
+        { "coins": 60, "fruit": 5, "value": 4 },
+        { "coins": 150, "fruit": 20, "value": 8 },
+        { "coins": 400, "fruit": 60, "value": 24 }
+      ]
     }
   ]
 }

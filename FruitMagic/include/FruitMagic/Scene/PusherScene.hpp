@@ -28,7 +28,7 @@ namespace FruitMagic {
         //! @param  [in] deltaTime 前フレームからの経過時間（秒）
         void OnUpdate(Tsukino::EngineIntegration::EngineAPI& api, float deltaTime) override;
 
-        //! シーンの終了処理を行います。
+        //! シーンの終了処理を行います。セーブします。
         void OnExit() override;
 
     private:

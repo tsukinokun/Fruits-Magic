@@ -11,10 +11,12 @@
 #include <FruitMagic/Game/MagicState.hpp>
 #include <FruitMagic/Game/ManaConfig.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
+#include <FruitMagic/Game/OfflineReward.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
+#include <FruitMagic/Game/SaveData.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
@@ -36,6 +38,7 @@
 #include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
 #include <FruitMagic/ECS/System/PrizeDropSystem.hpp>
 #include <FruitMagic/ECS/System/RouletteSystem.hpp>
+#include <FruitMagic/ECS/System/SaveSystem.hpp>
 #include <FruitMagic/ECS/System/UpgradeSystem.hpp>
 #include <FruitMagic/ECS/System/WalletSystem.hpp>
 #include <FruitMagic/ECS/System/ZukanSystem.hpp>
@@ -117,6 +120,8 @@ namespace FruitMagic {
         constexpr float kUpgradeMaxRowPitch = 100.0f;   // 強化画面の行の高さの上限（強化が少ないとき）
         constexpr float kBuyButtonWidth    = 150.0f;    // 購入ボタンの幅
         constexpr float kBuyButtonHeight   = 46.0f;     // 購入ボタンの高さ
+        constexpr float kWelcomeWidth      = 720.0f;    // 「おかえり」画面の幅
+        constexpr float kWelcomeHeight     = 300.0f;    // 「おかえり」画面の高さ
 
         //! @brief プッシャーの振幅を強化の値へ近づける速さ（cm/秒）。一気に変えると速度が跳ねて景品を弾き飛ばすため
         constexpr float kPusherAmplitudeChangeSpeed = 4.0f;
@@ -162,6 +167,7 @@ namespace FruitMagic {
             Roulette,            // 当たりで果物を生成する（次のフレームの Transform・物理に乗る）
             ShakeMagic,          // 衝撃の要求を付ける（次のフレームの Physics で反映）。カメラも揺らす
             Hud,
+            Save,
             Light,
             SkyAtmosphere,
 #ifdef _DEBUG
@@ -200,6 +206,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::RouletteSystem>(eventBus), (int)SystemPriority::Roulette);
         m_scene.AddSystem(std::make_shared<ECS::ShakeMagicSystem>(eventBus), (int)SystemPriority::ShakeMagic);
         m_scene.AddSystem(std::make_shared<ECS::HudSystem>(eventBus), (int)SystemPriority::Hud);
+        m_scene.AddSystem(std::make_shared<ECS::SaveSystem>(), (int)SystemPriority::Save);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::LightSystem>(), (int)SystemPriority::Light);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::SkyAtmosphereSystem>(), (int)SystemPriority::SkyAtmosphere);
 #ifdef _DEBUG
@@ -228,17 +235,33 @@ namespace FruitMagic {
         registry.SetContext<MagicState>();
         CollectionConfig& collection = registry.SetContext<CollectionConfig>();
         collection.Load(dataRoot + "/Collection.json");
-        registry.SetContext<MenuState>();
+        MenuState& menu = registry.SetContext<MenuState>();
         registry.SetContext<UpgradeCatalog>().Load(dataRoot + "/Upgrades.json");
         registry.SetContext<TableStats>();
+        OfflineConfig& offline = registry.SetContext<OfflineConfig>();
+        offline.Load(dataRoot + "/Offline.json");
+        offline.savePath = SaveData::DefaultPath();
 
         GameState& state = registry.SetContext<GameState>();
         state.maxMana    = manaConfig.maxMana;
         state.harvestCounts.assign(catalog.Fruits().size(), std::vector<int>(collection.Variants().size(), 0));
 
-        // 強化のレベルを台の性能と果樹の段階へ反映する（セーブを読んだらその後にも呼ぶ）
+        //--------------------------------------------------------------
+        // セーブを読み、強化を台の性能と果樹の段階へ反映してから、閉じていた間の報酬を受け取る
+        // （報酬の計算に強化の値を使うため、この順番）
+        //--------------------------------------------------------------
+        long long  savedAt = 0;
+        const bool loaded  = SaveData::Load(registry, offline.savePath, savedAt);
         ECS::UpgradeSystem::ApplyUpgrades(registry);
         m_pusherAmplitude = registry.GetContext<TableStats>().pusherAmplitude;
+
+        OfflineReport& report = registry.SetContext<OfflineReport>();
+        if(loaded) {
+            std::mt19937 rng(std::random_device{}());
+            report = GrantOfflineReward(registry, SaveData::NowSeconds() - savedAt, rng);
+            if(report.awaySeconds >= offline.minSeconds)
+                menu.open = MenuKind::Welcome;
+        }
 
         PrizeFactory& factory = registry.SetContext<PrizeFactory>();
         factory.Initialize(*context->assetManager);
@@ -291,6 +314,9 @@ namespace FruitMagic {
     //! シーンの終了処理を行います。
     //----------------------------------------------------------------------------
     void PusherScene::OnExit() {
+        Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        if(registry.HasContext<OfflineConfig>() && SaveData::Save(registry, registry.GetContext<OfflineConfig>().savePath))
+            Tsukino::Core::Log::Info("PusherScene: saved.");
     }
 
     //----------------------------------------------------------------------------
@@ -842,6 +868,56 @@ namespace FruitMagic {
                                       hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22),
                            ECS::UpgradeElementKind::BuyLabel, u);
             }
+        }
+
+        //--------------------------------------------------------------
+        // 「おかえり」画面（閉じていた間の報酬）。起動時に開いていれば出し、ボタンで閉じる。
+        // 中身は起動時に決まるので、すべて決まった文字として作る。ほかの画面より手前に重ねる
+        //--------------------------------------------------------------
+        {
+            const OfflineReport& report = registry.GetContext<OfflineReport>();
+            const TableStats&    stats  = registry.GetContext<TableStats>();
+            const float          top    = kMenuCenterY - kWelcomeHeight * 0.5f;
+            const float          bottom = kMenuCenterY + kWelcomeHeight * 0.5f;
+
+            Tsukino::ECS::Entity panel = createPanel(hlslpp::float2(kMenuCenterX, kMenuCenterY), hlslpp::float2(kWelcomeWidth, kWelcomeHeight),
+                                                     hlslpp::float4(0.12f, 0.06f, 0.18f, 0.96f), 30);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
+            addPage(panel, MenuKind::Welcome);
+
+            auto addLine = [&](float y, float scale, const hlslpp::float4& color, const std::wstring& text) {
+                addPage(createText(hlslpp::float2(kMenuCenterX, y), scale, Tsukino::BuiltIn::ECS::HorizontalAlign::Center, color, 32), MenuKind::Welcome, text);
+            };
+
+            addLine(top + 40.0f, 1.3f, hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), L"おかえりなさい！");
+            addLine(top + 92.0f, 0.85f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), FormatDuration(report.awaySeconds) + L" のあいだに");
+            if(report.hasFairy) {
+                std::wstring reward = L"妖精が コイン +" + std::to_wstring(report.coins);
+                if(report.fruitCount > 0)
+                    reward += L" と 果実 +" + std::to_wstring(report.fruitPoints) + L"（果物 " + std::to_wstring(report.fruitCount) + L"個）";
+                addLine(top + 132.0f, 0.85f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), reward + L" を集めてくれました");
+            } else {
+                addLine(top + 132.0f, 0.75f, hlslpp::float4(0.85f, 0.8f, 0.95f, 1.0f), L"「妖精の自動投入」を強化すると、閉じている間もコインを集めてくれます");
+            }
+            if(report.capped) {
+                const long long limitSeconds = static_cast<long long>(stats.offlineMaxHours * 3600.0f);
+                addLine(top + 170.0f, 0.65f, hlslpp::float4(0.85f, 0.8f, 0.95f, 1.0f),
+                        L"（おるすばんは " + FormatDuration(limitSeconds) + L" までです。「おるすばん時間」の強化で延ばせます）");
+            }
+
+            // 閉じるボタン（Enter でも閉じる。閉じた後は開かない）
+            const hlslpp::float2 buttonCenter(kMenuCenterX, bottom - 48.0f);
+            Tsukino::ECS::Entity button = createPanel(buttonCenter, hlslpp::float2(200.0f, 50.0f), hlslpp::float4(0.35f, 0.78f, 0.45f, 1.0f), 31);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+            addPage(button, MenuKind::Welcome);
+
+            ECS::MenuButtonComponent& close = registry.AddComponent<ECS::MenuButtonComponent>(button);
+            close.menu                      = MenuKind::Welcome;
+            close.key                       = Tsukino::Input::KeyCode::Enter;
+            close.label      = addPage(createText(buttonCenter, 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 32),
+                                       MenuKind::Welcome);
+            close.openText   = L"受け取る (Enter)";
+            close.canOpen    = false;
         }
     }
 

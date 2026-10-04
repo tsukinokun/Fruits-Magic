@@ -1,0 +1,6 @@
+{
+  "payoutRatio": 0.5,
+  "fruitPerCoin": 0.03,
+  "minSeconds": 60,
+  "autosaveSeconds": 30
+}
