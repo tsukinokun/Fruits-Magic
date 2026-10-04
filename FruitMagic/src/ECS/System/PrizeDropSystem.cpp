@@ -48,6 +48,7 @@ namespace FruitMagic::ECS {
             e.kind  = prize.kind;
             e.value = prize.value;
             e.fruitIndex = prize.fruitIndex;
+            e.variantIndex = prize.variantIndex;
             e.zone  = isPayout ? DropZone::Payout : DropZone::Gutter;
             e.x     = transform.position.x;
             dropped.push_back(e);

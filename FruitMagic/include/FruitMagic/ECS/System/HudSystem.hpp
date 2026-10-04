@@ -50,7 +50,10 @@ namespace FruitMagic::ECS {
         int                            m_recentPayout = 0;        // 表示中の「払い出し」の合計
         int                            m_recentGutter = 0;        // 表示中の「溝に落ちた」数
         float                          m_popupTimer   = 0.0f;     // 払い出し表示を消すまでの残り時間（秒）
+        Tsukino::ECS::ScopedConnection m_zukanConnection;         // 図鑑登録の購読解除を自動で行う接続
         int                            m_harvestFruit = -1;       // 表示中の収穫した果物の添字（-1 は表示なし）
+        int                            m_harvestVariant = 0;      // 表示中の収穫した果物のバリエーションの添字
+        bool                           m_harvestIsNew = false;    // 表示中の収穫が図鑑への初登録か
         float                          m_harvestTimer = 0.0f;     // 収穫表示を消すまでの残り時間（秒）
     };
 }    // namespace FruitMagic::ECS

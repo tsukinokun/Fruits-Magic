@@ -35,5 +35,6 @@ namespace FruitMagic::ECS {
     private:
         Tsukino::ECS::ScopedConnection m_dropConnection;    // 購読解除を自動で行う接続
         std::vector<PrizeDroppedEvent> m_pendingDrops;      // 次の Update で処理する落下
+        float                          m_fraction = 0.0f;   // 図鑑ボーナスを掛けたときの、まだ加算していない端数
     };
 }    // namespace FruitMagic::ECS

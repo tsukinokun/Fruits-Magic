@@ -46,7 +46,8 @@ namespace FruitMagic {
         float spawnWeight = 1.0f;     // 出現抽選の重み
         int   unlockTreeLevel = 0;    // この果樹の段階以上で出現する
 
-        hlslpp::float3 color = hlslpp::float3(1.0f, 1.0f, 1.0f);    // 仮の見た目の色（モデル差し替えまで）
+        hlslpp::float3 color      = hlslpp::float3(1.0f, 1.0f, 1.0f);    // 見た目の色（通常）
+        hlslpp::float3 shinyColor = hlslpp::float3(1.0f, 1.0f, 1.0f);    // 色違いのときの色
         std::string    modelPath;                                     // 見た目のモデル（リポジトリルート相対）
 
         //! 当たり判定の外接する高さの半分を返します。
@@ -86,6 +87,12 @@ namespace FruitMagic {
         std::vector<FruitRank> m_ranks;     // ランクの一覧
         std::vector<FruitDef>  m_fruits;    // 果物の一覧
     };
+
+    //! 定義データ（JSON）のファイルを読み込みます。先頭の UTF-8 の BOM は取り除きます。
+    //! @param  [in] path 読み込むファイル
+    //! @return 中身。読めなかった場合は空文字列
+    //! @note   メモ帳などで保存すると BOM が付くことがあり、JSON の解析器はそれを読めないため
+    std::string ReadDataText(const std::string& path);
 
     //! 文字列を UTF-8 から表示用のワイド文字列へ変換します。
     //! @param  [in] utf8 UTF-8 の文字列

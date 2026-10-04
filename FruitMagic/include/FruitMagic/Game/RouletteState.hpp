@@ -19,6 +19,7 @@ namespace FruitMagic {
         RoulettePhase phase        = RoulettePhase::Idle;    // 今の段階
         int           stock        = 0;                      // ためている回転の数（回転中の分は含まない）
         int           displayFruit = -1;                     // 今表示している果物の添字（-1 はハズレ）
+        int           displayVariant = 0;                    // 今表示している果物のバリエーションの添字
         bool          resultHit    = false;                  // 結果が当たりか
     };
 }    // namespace FruitMagic

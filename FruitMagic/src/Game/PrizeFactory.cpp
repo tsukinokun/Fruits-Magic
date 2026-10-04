@@ -271,9 +271,10 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! 果物を定義データから生成します。
     //----------------------------------------------------------------------------
-    Tsukino::ECS::Entity PrizeFactory::CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, const hlslpp::float3& position) {
-        // 見た目は、モデルのマテリアルの基本色を果物の色に差し替えた複製を使う
-        const ModelInfo&     modelInfo = GetTintedModel(def.modelPath, def.color);
+    Tsukino::ECS::Entity PrizeFactory::CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, int variantIndex,
+                                                   const hlslpp::float3& color, float glow, const hlslpp::float3& position) {
+        // 見た目は、モデルのマテリアルの基本色を果物（バリエーション）の色に差し替えた複製を使う
+        const ModelInfo&     modelInfo = GetTintedModel(def.modelPath, color);
         Tsukino::ECS::Entity e         = registry.CreateEntity();
 
         //--------------------------------------------------------------
@@ -312,11 +313,11 @@ namespace FruitMagic {
         model.visible                                = true;
 
         // 輪郭を果物の色で少し光らせて、台の上で目立たせる（ポップな見た目の仮演出）
-        Tsukino::BuiltIn::ECS::RimGlowComponent& glow = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
-        glow.active                                   = true;
-        glow.rimColor                                 = def.color;
-        glow.rimIntensity                             = 0.6f;
-        glow.rimPower                                 = 3.0f;
+        Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
+        rim.active                                   = true;
+        rim.rimColor                                  = color;
+        rim.rimIntensity                              = glow;
+        rim.rimPower                                  = 3.0f;
 
         Tsukino::BuiltIn::ECS::RigidbodyComponent& rb = registry.AddComponent<Tsukino::BuiltIn::ECS::RigidbodyComponent>(e);
         SetupDynamicBody(rb, 0.5f);
@@ -327,6 +328,7 @@ namespace FruitMagic {
         prize.kind                 = ECS::PrizeKind::Fruit;
         prize.value                = def.value;
         prize.fruitIndex           = fruitIndex;
+        prize.variantIndex         = variantIndex;
 
         return e;
     }

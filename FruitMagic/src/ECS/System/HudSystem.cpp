@@ -7,6 +7,8 @@
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
+#include <FruitMagic/ECS/Event/ZukanRegisteredEvent.hpp>
+#include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
@@ -21,7 +23,6 @@
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 
 #include <algorithm>
-#include <numeric>
 #include <string>
 
 // 名前空間 : FruitMagic::ECS
@@ -33,17 +34,25 @@ namespace FruitMagic::ECS {
         //! @brief 収穫表示を出しておく時間（秒）
         constexpr float kHarvestPopupDuration = 2.0f;
 
+        //! @brief 「図鑑に登録！」を出しておく時間（秒）。通常の収穫表示より長く
+        constexpr float kRegisteredPopupDuration = 3.5f;
+
         //--------------------------------------------------------------
-        //! 果物の表示名を返します。
-        //! @param  [in] registry   レジストリ（FruitCatalog を参照する）
-        //! @param  [in] fruitIndex 果物の添字
+        //! 果物の表示名（バリエーション名付き）を返します。
+        //! @param  [in] registry     レジストリ（FruitCatalog・CollectionConfig を参照する）
+        //! @param  [in] fruitIndex   果物の添字
+        //! @param  [in] variantIndex バリエーションの添字
         //! @return 表示名。範囲外なら空文字列
         //--------------------------------------------------------------
-        std::wstring FruitName(Tsukino::ECS::Registry& registry, int fruitIndex) {
+        std::wstring FruitName(Tsukino::ECS::Registry& registry, int fruitIndex, int variantIndex = 0) {
             if(!registry.HasContext<FruitCatalog>())
                 return std::wstring();
             const auto& fruits = registry.GetContext<FruitCatalog>().Fruits();
-            return (fruitIndex >= 0 && fruitIndex < static_cast<int>(fruits.size())) ? fruits[fruitIndex].name : std::wstring();
+            if(fruitIndex < 0 || fruitIndex >= static_cast<int>(fruits.size()))
+                return std::wstring();
+            if(!registry.HasContext<CollectionConfig>())
+                return fruits[fruitIndex].name;
+            return registry.GetContext<CollectionConfig>().DisplayName(fruits[fruitIndex], variantIndex);
         }
     }    // namespace
 
@@ -54,9 +63,12 @@ namespace FruitMagic::ECS {
         m_dropConnection = eventBus.Subscribe<PrizeDroppedEvent>([this](const PrizeDroppedEvent& e) {
             if(e.kind == PrizeKind::Fruit) {
                 // 果物は払い出し口に落ちたときだけ「ゲット」を出す
+                // （初めての枠なら、この後の ZukanRegisteredEvent で「図鑑に登録！」に差し替わる）
                 if(e.zone == DropZone::Payout) {
-                    m_harvestFruit = e.fruitIndex;
-                    m_harvestTimer = kHarvestPopupDuration;
+                    m_harvestFruit   = e.fruitIndex;
+                    m_harvestVariant = e.variantIndex;
+                    m_harvestIsNew   = false;
+                    m_harvestTimer   = kHarvestPopupDuration;
                 }
                 return;
             }
@@ -67,6 +79,13 @@ namespace FruitMagic::ECS {
                 m_recentGutter += 1;
             }
             m_popupTimer = kPopupDuration;
+        });
+
+        m_zukanConnection = eventBus.Subscribe<ZukanRegisteredEvent>([this](const ZukanRegisteredEvent& e) {
+            m_harvestFruit   = e.fruitIndex;
+            m_harvestVariant = e.variantIndex;
+            m_harvestIsNew   = true;
+            m_harvestTimer   = kRegisteredPopupDuration;
         });
     }
 
@@ -92,7 +111,7 @@ namespace FruitMagic::ECS {
 
         const GameState     state    = registry.HasContext<GameState>() ? registry.GetContext<GameState>() : GameState{};
         const RouletteState roulette = registry.HasContext<RouletteState>() ? registry.GetContext<RouletteState>() : RouletteState{};
-        const int           harvestTotal = std::accumulate(state.harvestCounts.begin(), state.harvestCounts.end(), 0);
+        const int           harvestTotal = state.HarvestTotal();
 
         //--------------------------------------------------------------
         // 各テキストの更新
@@ -123,7 +142,12 @@ namespace FruitMagic::ECS {
                     break;
 
                 case HudTextKind::HarvestPopup:
-                    font.text = (m_harvestFruit >= 0) ? FruitName(registry, m_harvestFruit) + L" ゲット！" : std::wstring();
+                    if(m_harvestFruit < 0)
+                        font.text.clear();
+                    else if(m_harvestIsNew)
+                        font.text = L"図鑑に登録！ " + FruitName(registry, m_harvestFruit, m_harvestVariant);
+                    else
+                        font.text = FruitName(registry, m_harvestFruit, m_harvestVariant) + L" ゲット！";
                     break;
 
                 case HudTextKind::Roulette: {
@@ -133,7 +157,8 @@ namespace FruitMagic::ECS {
                             text = L"ルーレット ▶ " + ((roulette.displayFruit >= 0) ? FruitName(registry, roulette.displayFruit) : std::wstring(L"ハズレ"));
                             break;
                         case RoulettePhase::Result:
-                            text = roulette.resultHit ? L"当たり！ " + FruitName(registry, roulette.displayFruit) + L" が出た！" : std::wstring(L"ハズレ…");
+                            text = roulette.resultHit ? L"当たり！ " + FruitName(registry, roulette.displayFruit, roulette.displayVariant) + L" が出た！"
+                                                      : std::wstring(L"ハズレ…");
                             break;
                         case RoulettePhase::Idle:
                         default:

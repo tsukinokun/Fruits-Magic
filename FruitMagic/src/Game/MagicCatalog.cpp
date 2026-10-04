@@ -32,7 +32,7 @@ namespace FruitMagic {
     bool MagicCatalog::Load(const std::string& path) {
         m_magics.clear();
 
-        const std::string text = Tsukino::IO::FileSystem::ReadText(Tsukino::Core::Path(path));
+        const std::string text = ReadDataText(path);
         rj::Document      doc;
         doc.Parse(text.c_str());
         if(text.empty() || doc.HasParseError() || !doc.IsObject()) {

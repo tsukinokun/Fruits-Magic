@@ -28,7 +28,7 @@ namespace FruitMagic {
         //! @return 成功したら true（失敗はログに出す）
         //--------------------------------------------------------------
         bool ParseJsonFile(const std::filesystem::path& path, rj::Document& doc) {
-            const std::string text = Tsukino::IO::FileSystem::ReadText(Tsukino::Core::Path(path.generic_string()));
+            const std::string text = ReadDataText(path.generic_string());
             if(text.empty()) {
                 Tsukino::Core::Log::Warn("FruitCatalog: cannot read " + path.generic_string());
                 return false;
@@ -98,6 +98,17 @@ namespace FruitMagic {
             return hlslpp::float3(GetFloat(it->value, n0, fallback.x), GetFloat(it->value, n1, fallback.y), GetFloat(it->value, n2, fallback.z));
         }
     }    // namespace
+
+    //----------------------------------------------------------------------------
+    //! 定義データ（JSON）のファイルを読み込みます。先頭の UTF-8 の BOM は取り除きます。
+    //----------------------------------------------------------------------------
+    std::string ReadDataText(const std::string& path) {
+        std::string text = Tsukino::IO::FileSystem::ReadText(Tsukino::Core::Path(path));
+        if(text.size() >= 3 && static_cast<unsigned char>(text[0]) == 0xEF && static_cast<unsigned char>(text[1]) == 0xBB &&
+           static_cast<unsigned char>(text[2]) == 0xBF)
+            text.erase(0, 3);
+        return text;
+    }
 
     //----------------------------------------------------------------------------
     //! 文字列を UTF-8 から表示用のワイド文字列へ変換します。
@@ -222,6 +233,8 @@ namespace FruitMagic {
             def.spawnWeight     = GetFloat(doc, "spawnWeight", def.spawnWeight);
             def.unlockTreeLevel = GetInt(doc, "unlockTreeLevel", def.unlockTreeLevel);
             def.color           = GetFloat3(doc, "color", "rgb", def.color);
+            // 色違いの色。省略時は通常の色の RGB を回して、同じ明るさの別の色にする
+            def.shinyColor      = GetFloat3(doc, "shinyColor", "rgb", hlslpp::float3(def.color.z, def.color.x, def.color.y));
             def.modelPath       = GetString(doc, "model", def.shape == FruitShape::Box ? "Assets/Models/Block.fbx" : "Assets/Models/Ball.fbx");
 
             if(def.radius <= 0.0f || def.mass <= 0.0f || def.halfExtent.x <= 0.0f || def.halfExtent.y <= 0.0f || def.halfExtent.z <= 0.0f) {

@@ -32,15 +32,17 @@ namespace FruitMagic::ECS {
     private:
 
         //! 当たった果物を台に補充します。
-        //! @param  [in] registry   レジストリ
-        //! @param  [in] fruitIndex 補充する果物の添字
-        void SpawnFruit(Tsukino::ECS::Registry& registry, int fruitIndex);
+        //! @param  [in] registry     レジストリ
+        //! @param  [in] fruitIndex   補充する果物の添字
+        //! @param  [in] variantIndex 補充する果物のバリエーションの添字
+        void SpawnFruit(Tsukino::ECS::Registry& registry, int fruitIndex, int variantIndex);
 
         Tsukino::ECS::ScopedConnection m_enteredConnection;        // 購読解除を自動で行う接続
         int                            m_pendingEntered = 0;       // 次の Update でストックに積む数
         float                          m_timer          = 0.0f;    // 今の段階の残り時間（秒）
         float                          m_flipTimer      = 0.0f;    // 回転中の表示を切り替えるまでの時間（秒）
         int                            m_resultFruit    = -1;      // 抽選済みの結果（-1 はハズレ）
+        int                            m_resultVariant  = 0;       // 抽選済みの結果のバリエーション
         std::mt19937                   m_rng;                      // 抽選用の乱数
     };
 }    // namespace FruitMagic::ECS

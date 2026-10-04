@@ -1,0 +1,33 @@
+{
+  "variants": [
+    {
+      "id": "normal",
+      "name": "",
+      "chance": 0,
+      "valueMultiplier": 1,
+      "color": "base",
+      "glow": 0.6
+    },
+    {
+      "id": "shiny",
+      "name": "色違い",
+      "chance": 0.08,
+      "valueMultiplier": 3,
+      "color": "shiny",
+      "glow": 0.9
+    },
+    {
+      "id": "gold",
+      "name": "金色",
+      "chance": 0.01,
+      "valueMultiplier": 10,
+      "color": {
+        "r": 1.0,
+        "g": 0.78,
+        "b": 0.15
+      },
+      "glow": 1.4
+    }
+  ],
+  "manaBonusPerEntry": 0.05
+}

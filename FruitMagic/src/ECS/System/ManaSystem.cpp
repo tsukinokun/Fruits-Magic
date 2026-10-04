@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/ManaSystem.hpp>
 
+#include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/ManaConfig.hpp>
@@ -37,6 +38,10 @@ namespace FruitMagic::ECS {
         GameState&       state  = registry.GetContext<GameState>();
         const ManaConfig config = registry.HasContext<ManaConfig>() ? registry.GetContext<ManaConfig>() : ManaConfig{};
 
+        // 図鑑ボーナス: 登録した枠の数だけマナの獲得量が増える
+        const float bonusPerEntry = registry.HasContext<CollectionConfig>() ? registry.GetContext<CollectionConfig>().ManaBonusPerEntry() : 0.0f;
+        const float multiplier    = 1.0f + bonusPerEntry * static_cast<float>(state.RegisteredCount());
+
         for(const PrizeDroppedEvent& e : m_pendingDrops) {
             int gain = 0;
             if(e.kind == PrizeKind::Coin) {
@@ -48,7 +53,13 @@ namespace FruitMagic::ECS {
                     gain = (e.zone == DropZone::Payout) ? fruitMana : static_cast<int>(std::ceil(fruitMana * config.fruitGutterRatio));
                 }
             }
-            state.mana = std::min(state.maxMana, state.mana + gain);
+            //--------------------------------------------------------------
+            // 図鑑ボーナスを掛けた端数は持ち越す（切り上げると、1 のマナに 5% 掛けただけで 2 になってしまう）
+            //--------------------------------------------------------------
+            m_fraction += static_cast<float>(gain) * multiplier;
+            const int whole = static_cast<int>(std::floor(m_fraction));
+            m_fraction -= static_cast<float>(whole);
+            state.mana = std::min(state.maxMana, state.mana + whole);
         }
         m_pendingDrops.clear();
     }

@@ -64,12 +64,16 @@ namespace FruitMagic {
         Tsukino::ECS::Entity CreateCoin(Tsukino::ECS::Registry& registry, const hlslpp::float3& position);
 
         //! 果物を定義データから生成します。
-        //! @param  [in] registry   生成先のレジストリ
-        //! @param  [in] def        果物の定義
-        //! @param  [in] fruitIndex FruitCatalog::Fruits() での添字
-        //! @param  [in] position   中心のワールド座標
+        //! @param  [in] registry     生成先のレジストリ
+        //! @param  [in] def          果物の定義
+        //! @param  [in] fruitIndex   FruitCatalog::Fruits() での添字
+        //! @param  [in] variantIndex CollectionConfig::Variants() での添字（0 は通常）
+        //! @param  [in] color        見た目の色（バリエーションで決まる）
+        //! @param  [in] glow         輪郭の光の強さ（バリエーションで決まる）
+        //! @param  [in] position     中心のワールド座標
         //! @return 生成したエンティティ
-        Tsukino::ECS::Entity CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, const hlslpp::float3& position);
+        Tsukino::ECS::Entity CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, int variantIndex, const hlslpp::float3& color,
+                                         float glow, const hlslpp::float3& position);
 
         //! コインの半サイズを返します。
         //! @return コインの各軸の半分サイズ

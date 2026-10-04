@@ -5,6 +5,7 @@
 #include <FruitMagic/ECS/System/RouletteSystem.hpp>
 
 #include <FruitMagic/ECS/Event/CheckerEnteredEvent.hpp>
+#include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
@@ -64,9 +65,12 @@ namespace FruitMagic::ECS {
                 m_timer     = config.spinSeconds;
                 m_flipTimer = 0.0f;
 
-                m_resultFruit = -1;
+                m_resultFruit   = -1;
+                m_resultVariant = 0;
                 if(std::uniform_real_distribution<float>(0.0f, 1.0f)(m_rng) < config.hitChance) {
                     m_resultFruit = catalog.PickSpawnable(level, m_rng);
+                    if(registry.HasContext<CollectionConfig>())
+                        m_resultVariant = registry.GetContext<CollectionConfig>().PickVariant(m_rng);
                 }
                 break;
 
@@ -76,19 +80,21 @@ namespace FruitMagic::ECS {
                 //--------------------------------------------------------------
                 m_flipTimer -= deltaTime;
                 if(m_flipTimer <= 0.0f) {
-                    m_flipTimer        = kFlipInterval;
-                    state.displayFruit = (state.displayFruit >= 0) ? -1 : catalog.PickSpawnable(level, m_rng);
+                    m_flipTimer          = kFlipInterval;
+                    state.displayFruit   = (state.displayFruit >= 0) ? -1 : catalog.PickSpawnable(level, m_rng);
+                    state.displayVariant = 0;
                 }
 
                 m_timer -= deltaTime;
                 if(m_timer <= 0.0f) {
                     state.phase        = RoulettePhase::Result;
-                    state.displayFruit = m_resultFruit;
-                    state.resultHit    = (m_resultFruit >= 0);
+                    state.displayFruit   = m_resultFruit;
+                    state.displayVariant = m_resultVariant;
+                    state.resultHit      = (m_resultFruit >= 0);
                     m_timer            = config.resultSeconds;
 
                     if(state.resultHit) {
-                        SpawnFruit(registry, m_resultFruit);
+                        SpawnFruit(registry, m_resultFruit, m_resultVariant);
                     }
                 }
                 break;
@@ -107,7 +113,7 @@ namespace FruitMagic::ECS {
     //----------------------------------------------------------------------------
     //! 当たった果物を台に補充します。
     //----------------------------------------------------------------------------
-    void RouletteSystem::SpawnFruit(Tsukino::ECS::Registry& registry, int fruitIndex) {
+    void RouletteSystem::SpawnFruit(Tsukino::ECS::Registry& registry, int fruitIndex, int variantIndex) {
         if(!registry.HasContext<PrizeFactory>())
             return;
 
@@ -130,6 +136,17 @@ namespace FruitMagic::ECS {
         // 大きな果物は背面パネルに重ならないよう、その分だけ手前に置く
         const float z = std::max(Layout::kLaunchZ, Layout::kBackPanelFrontZ + halfDepth + 0.5f);
 
-        registry.GetContext<PrizeFactory>().CreateFruit(registry, def, fruitIndex, hlslpp::float3(x, y, z));
+        // バリエーションの色と光り方（設定が無ければ通常の見た目）
+        hlslpp::float3 color = def.color;
+        float          glow  = 0.6f;
+        if(registry.HasContext<CollectionConfig>()) {
+            const auto& variants = registry.GetContext<CollectionConfig>().Variants();
+            if(variantIndex >= 0 && variantIndex < static_cast<int>(variants.size())) {
+                color = variants[variantIndex].ColorOf(def);
+                glow  = variants[variantIndex].glow;
+            }
+        }
+
+        registry.GetContext<PrizeFactory>().CreateFruit(registry, def, fruitIndex, variantIndex, color, glow, hlslpp::float3(x, y, z));
     }
 }    // namespace FruitMagic::ECS

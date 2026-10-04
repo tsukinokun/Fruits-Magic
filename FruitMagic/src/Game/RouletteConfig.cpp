@@ -4,6 +4,8 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Game/RouletteConfig.hpp>
 
+#include <FruitMagic/Game/FruitCatalog.hpp>
+
 #include <Tsukino/Core/IO/FileSystem.hpp>
 #include <Tsukino/Core/Path.hpp>
 #include <Tsukino/Core/Log.hpp>
@@ -34,7 +36,7 @@ namespace FruitMagic {
     //! 設定ファイルを読み込みます。
     //----------------------------------------------------------------------------
     bool RouletteConfig::Load(const std::string& path) {
-        const std::string text = Tsukino::IO::FileSystem::ReadText(Tsukino::Core::Path(path));
+        const std::string text = ReadDataText(path);
         rj::Document      doc;
         doc.Parse(text.c_str());
         if(text.empty() || doc.HasParseError() || !doc.IsObject()) {

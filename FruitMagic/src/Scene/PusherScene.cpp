@@ -4,7 +4,9 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Scene/PusherScene.hpp>
 
+#include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/ZukanState.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
@@ -17,6 +19,7 @@
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
+#include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/ECS/System/CheckerSystem.hpp>
 #include <FruitMagic/ECS/System/CoinLauncherSystem.hpp>
@@ -28,6 +31,7 @@
 #include <FruitMagic/ECS/System/PrizeDropSystem.hpp>
 #include <FruitMagic/ECS/System/RouletteSystem.hpp>
 #include <FruitMagic/ECS/System/WalletSystem.hpp>
+#include <FruitMagic/ECS/System/ZukanSystem.hpp>
 #ifdef _DEBUG
 #include <FruitMagic/ECS/System/DebugTreeLevelSystem.hpp>
 #endif
@@ -93,6 +97,15 @@ namespace FruitMagic {
         constexpr float kMagicButtonHeight = 46.0f;     // 魔法ボタンの高さ
         constexpr float kMagicButtonGap    = 16.0f;     // 魔法ボタンの間隔
         constexpr float kMagicButtonY      = 640.0f;    // 魔法ボタンの中心の高さ
+        constexpr float kZukanButtonX      = 1170.0f;   // 図鑑ボタンの中心X
+        constexpr float kZukanButtonY      = 40.0f;     // 図鑑ボタンの中心Y
+        constexpr float kZukanButtonWidth  = 170.0f;    // 図鑑ボタンの幅
+        constexpr float kZukanButtonHeight = 42.0f;     // 図鑑ボタンの高さ
+        constexpr float kZukanCenterX      = 640.0f;    // 図鑑の画面の中心X
+        constexpr float kZukanCenterY      = 340.0f;    // 図鑑の画面の中心Y
+        constexpr float kZukanWidth        = 900.0f;    // 図鑑の画面の幅
+        constexpr float kZukanHeight       = 540.0f;    // 図鑑の画面の高さ
+        constexpr float kZukanMaxRowPitch  = 44.0f;     // 図鑑の行の高さの上限（果物が少ないとき）
 
         //! @brief プッシャーの半サイズ
         hlslpp::float3 PusherHalfExtent() {
@@ -115,7 +128,8 @@ namespace FruitMagic {
 #ifdef _DEBUG
             DebugTreeLevel = -1,
 #endif
-            Interaction = 0,     // マウスの下の UI（魔法ボタン）を先に決め、同じフレームの入力処理が読めるようにする
+            Interaction = 0,     // マウスの下の UI（魔法ボタン・図鑑）を先に決め、同じフレームの入力処理が読めるようにする
+            Zukan,
             MagicInput,
             CoinLauncher,        // 投入したコインを今フレームの Transform・物理に乗せる
             Transform,
@@ -143,6 +157,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::DebugTreeLevelSystem>(), (int)SystemPriority::DebugTreeLevel);
 #endif
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::InteractionSystem>(), (int)SystemPriority::Interaction);
+        m_scene.AddSystem(std::make_shared<ECS::ZukanSystem>(), (int)SystemPriority::Zukan);
         m_scene.AddSystem(std::make_shared<ECS::MagicInputSystem>(eventBus), (int)SystemPriority::MagicInput);
         m_scene.AddSystem(std::make_shared<ECS::CoinLauncherSystem>(), (int)SystemPriority::CoinLauncher);
         m_scene.AddSystem(std::make_shared<ECS::CheckerSystem>(eventBus), (int)SystemPriority::Checker);
@@ -188,10 +203,13 @@ namespace FruitMagic {
         manaConfig.Load(dataRoot + "/Mana.json");
         registry.SetContext<MagicCatalog>().Load(dataRoot + "/Magic.json");
         registry.SetContext<MagicState>();
+        CollectionConfig& collection = registry.SetContext<CollectionConfig>();
+        collection.Load(dataRoot + "/Collection.json");
+        registry.SetContext<ZukanState>();
 
         GameState& state = registry.SetContext<GameState>();
         state.maxMana    = manaConfig.maxMana;
-        state.harvestCounts.assign(catalog.Fruits().size(), 0);
+        state.harvestCounts.assign(catalog.Fruits().size(), std::vector<int>(collection.Variants().size(), 0));
 
         PrizeFactory& factory = registry.SetContext<PrizeFactory>();
         factory.Initialize(*context->assetManager);
@@ -346,7 +364,8 @@ namespace FruitMagic {
 
             const FruitDef& def = catalog.Fruits()[fruitIndex];
             const float     y   = coinHalfY * 2.0f + 0.5f + def.HalfHeightOfBounds() + 0.5f;
-            factory.CreateFruit(registry, def, fruitIndex, hlslpp::float3(fruitXs[i], y, static_cast<float>(i % 2) * 10.0f));
+            const VariantDef& normal = registry.GetContext<CollectionConfig>().Variants()[0];
+            factory.CreateFruit(registry, def, fruitIndex, 0, normal.ColorOf(def), normal.glow, hlslpp::float3(fruitXs[i], y, static_cast<float>(i % 2) * 10.0f));
         }
     }
 
@@ -578,6 +597,117 @@ namespace FruitMagic {
             ECS::MagicButtonComponent& magicButton = registry.AddComponent<ECS::MagicButtonComponent>(button);
             magicButton.slot                       = slot;
             magicButton.label                      = label;
+        }
+
+        //--------------------------------------------------------------
+        // 文字のエンティティを作る（図鑑とボタンで共通）
+        //--------------------------------------------------------------
+        auto createText = [&](const hlslpp::float2& position, float scale, Tsukino::BuiltIn::ECS::HorizontalAlign align, const hlslpp::float4& color, int sortOrder) {
+            Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+            t.position                                   = hlslpp::float3(position.x, position.y, 0.0f);
+            t.scale                                      = hlslpp::float3(scale, scale, 1.0f);
+            t.dirty                                      = true;
+
+            Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
+            font.color                                 = color;
+            font.horizontalAlign                       = align;
+            font.verticalAlign                         = Tsukino::BuiltIn::ECS::VerticalAlign::Middle;
+            font.outlineColor                          = hlslpp::float4(0.1f, 0.03f, 0.15f, 1.0f);
+            font.outlineWidth                          = 2.0f;
+            font.sortOrder                             = sortOrder;
+            return e;
+        };
+
+        //--------------------------------------------------------------
+        // 図鑑の開閉ボタン（右上）
+        //--------------------------------------------------------------
+        {
+            Tsukino::ECS::Entity button = createPanel(hlslpp::float2(kZukanButtonX, kZukanButtonY), hlslpp::float2(kZukanButtonWidth, kZukanButtonHeight),
+                                                      hlslpp::float4(0.95f, 0.55f, 0.65f, 1.0f), 10);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+
+            Tsukino::ECS::Entity label = createText(hlslpp::float2(kZukanButtonX, kZukanButtonY), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                                    hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 11);
+            registry.AddComponent<ECS::ZukanButtonComponent>(button).label = label;
+        }
+
+        //--------------------------------------------------------------
+        // 図鑑の画面（行＝果物、列＝バリエーション）。最初は閉じていて、ZukanSystem が開閉する。
+        // 果物・バリエーションの数は定義データから決まるので、行の高さ・列の間隔もそれに合わせる
+        //--------------------------------------------------------------
+        {
+            const FruitCatalog&     catalog    = registry.GetContext<FruitCatalog>();
+            const CollectionConfig& collection = registry.GetContext<CollectionConfig>();
+            const int               rows       = static_cast<int>(catalog.Fruits().size());
+            const int               columns    = static_cast<int>(collection.Variants().size());
+
+            auto addElement = [&](Tsukino::ECS::Entity e, ECS::ZukanElementKind kind, int fruitIndex = -1, int variantIndex = -1, const std::wstring& text = L"") {
+                ECS::ZukanElementComponent& element = registry.AddComponent<ECS::ZukanElementComponent>(e);
+                element.kind                        = kind;
+                element.openScale                   = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).scale;
+                element.fruitIndex                  = fruitIndex;
+                element.variantIndex                = variantIndex;
+                element.text                        = text;
+            };
+
+            // 背景のパネル。図鑑の上のクリックでコインが投入されないよう、クリックを受け止める
+            Tsukino::ECS::Entity panel = createPanel(hlslpp::float2(kZukanCenterX, kZukanCenterY), hlslpp::float2(kZukanWidth, kZukanHeight),
+                                                     hlslpp::float4(0.08f, 0.04f, 0.12f, 0.9f), 20);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
+            addElement(panel, ECS::ZukanElementKind::Panel);
+
+            const float top    = kZukanCenterY - kZukanHeight * 0.5f;
+            const float left   = kZukanCenterX - kZukanWidth * 0.5f;
+            const float bottom = kZukanCenterY + kZukanHeight * 0.5f;
+
+            // タイトル
+            addElement(createText(hlslpp::float2(kZukanCenterX, top + 32.0f), 1.3f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                  hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), 22),
+                       ECS::ZukanElementKind::StaticText, -1, -1, L"図鑑");
+
+            // 列の配置（バリエーションが増えたら間隔を詰める）
+            const float columnsLeft  = left + 330.0f;
+            const float columnsWidth = kZukanWidth - 330.0f - 40.0f;
+            const float columnPitch  = columnsWidth / static_cast<float>(std::max(1, columns));
+            auto        columnX      = [&](int v) { return columnsLeft + columnPitch * (static_cast<float>(v) + 0.5f); };
+
+            // 列の見出し
+            const float headerY = top + 78.0f;
+            for(int v = 0; v < columns; ++v) {
+                const std::wstring& name = collection.Variants()[v].name;
+                addElement(createText(hlslpp::float2(columnX(v), headerY), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                      hlslpp::float4(0.9f, 0.8f, 1.0f, 1.0f), 22),
+                           ECS::ZukanElementKind::StaticText, -1, -1, name.empty() ? std::wstring(L"通常") : name);
+            }
+
+            // 行（果物が増えたら行の高さを詰める）
+            const float rowsTop    = headerY + 30.0f;
+            const float rowsHeight = (bottom - 56.0f) - rowsTop;
+            const float rowPitch   = std::min(kZukanMaxRowPitch, rowsHeight / static_cast<float>(std::max(1, rows)));
+            const float swatchSize = std::min(26.0f, rowPitch - 6.0f);
+            const float textScale  = std::min(0.85f, rowPitch / 46.0f);
+            for(int f = 0; f < rows; ++f) {
+                const float y = rowsTop + rowPitch * (static_cast<float>(f) + 0.5f);
+
+                addElement(createText(hlslpp::float2(left + 36.0f, y), textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                      hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22),
+                           ECS::ZukanElementKind::RowName, f);
+
+                for(int v = 0; v < columns; ++v) {
+                    const float x = columnX(v);
+                    addElement(createPanel(hlslpp::float2(x - 30.0f, y), hlslpp::float2(swatchSize, swatchSize), hlslpp::float4(0.2f, 0.2f, 0.25f, 1.0f), 21),
+                               ECS::ZukanElementKind::Swatch, f, v);
+                    addElement(createText(hlslpp::float2(x - 10.0f, y), textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                          hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 22),
+                               ECS::ZukanElementKind::Count, f, v);
+                }
+            }
+
+            // 下部の集計
+            addElement(createText(hlslpp::float2(kZukanCenterX, bottom - 28.0f), 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                  hlslpp::float4(0.85f, 1.0f, 0.85f, 1.0f), 22),
+                       ECS::ZukanElementKind::Footer);
         }
     }
 
