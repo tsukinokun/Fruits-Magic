@@ -63,17 +63,17 @@ namespace FruitMagic::ECS {
         auto view = registry.View<CoinLauncherComponent, Tsukino::BuiltIn::ECS::TransformComponent>();
         view.each([&](Tsukino::ECS::Entity, CoinLauncherComponent& launcher, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
             //--------------------------------------------------------------
-            // 投入位置の移動
+            // 投入位置の移動。キーもマウスも画面上の左右に合わせる（画面の右はワールドの kScreenRightX 向き）
             //--------------------------------------------------------------
             if(input.IsKeyDown(Tsukino::Input::KeyCode::Left))
-                launcher.laneX -= launcher.laneSpeed * deltaTime;
+                launcher.laneX -= Layout::kScreenRightX * launcher.laneSpeed * deltaTime;
             if(input.IsKeyDown(Tsukino::Input::KeyCode::Right))
-                launcher.laneX += launcher.laneSpeed * deltaTime;
+                launcher.laneX += Layout::kScreenRightX * launcher.laneSpeed * deltaTime;
 
             if(mouseMoved && windowWidth > 0) {
-                // 画面の左端〜右端を、投入できる範囲の左端〜右端に対応させる
+                // 画面の左端〜右端を、投入できる範囲の画面上の左端〜右端に対応させる
                 const float t  = std::clamp(static_cast<float>(mouseX) / static_cast<float>(windowWidth), 0.0f, 1.0f);
-                launcher.laneX = (t * 2.0f - 1.0f) * Layout::kLaunchLaneHalfWidth;
+                launcher.laneX = (t * 2.0f - 1.0f) * Layout::kScreenRightX * Layout::kLaunchLaneHalfWidth;
             }
 
             launcher.laneX = std::clamp(launcher.laneX, -Layout::kLaunchLaneHalfWidth, Layout::kLaunchLaneHalfWidth);
