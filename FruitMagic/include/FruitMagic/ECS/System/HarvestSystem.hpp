@@ -18,7 +18,7 @@ namespace Tsukino::ECS {
 namespace FruitMagic::ECS {
 
     //! 払い出し口に落ちた果物を、果物 × バリエーションごとの収穫数（GameState::harvestCounts）と
-    //! 価値の合計（GameState::harvestValue）に記録するシステムです。
+    //! 価値の合計（GameState::harvestValue）に記録し、価値の分だけ果実（GameState::fruitPoints）を増やすシステムです。
     //! 枠を初めて収穫したときは ZukanRegisteredEvent を発行します。
     class HarvestSystem : public Tsukino::ECS::ISystem {
     public:

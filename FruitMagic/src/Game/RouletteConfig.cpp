@@ -49,15 +49,13 @@ namespace FruitMagic {
         ReadFloat(doc, "spinSeconds", spinSeconds);
         ReadFloat(doc, "resultSeconds", resultSeconds);
         ReadFloat(doc, "maxStock", stock);
-        ReadFloat(doc, "checkerHalfWidth", checkerHalfWidth);
         ReadFloat(doc, "checkerRange", checkerRange);
         ReadFloat(doc, "checkerPeriod", checkerPeriod);
 
         hitChance = std::clamp(hitChance, 0.0f, 1.0f);
         maxStock  = std::max(1, static_cast<int>(stock));
 
-        Tsukino::Core::Log::Info("RouletteConfig: hitChance=" + std::to_string(hitChance) + " maxStock=" + std::to_string(maxStock) +
-                                 " checkerHalfWidth=" + std::to_string(checkerHalfWidth));
+        Tsukino::Core::Log::Info("RouletteConfig: hitChance=" + std::to_string(hitChance) + " maxStock=" + std::to_string(maxStock));
         return true;
     }
 }    // namespace FruitMagic

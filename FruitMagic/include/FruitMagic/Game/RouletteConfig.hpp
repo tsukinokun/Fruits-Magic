@@ -2,6 +2,7 @@
 //! @file   RouletteConfig.hpp
 //! @brief  チェッカー（動く穴）とルーレットの設定
 //! @detail Assets/Data/Roulette.json から読み込みます。無い項目は既定値のままです。
+//!         穴の幅は強化で変わるので、Assets/Data/Upgrades.json の "checkerWidth" で決めます。
 //----------------------------------------------------------------------------
 #pragma once
 #include <string>
@@ -15,7 +16,6 @@ namespace FruitMagic {
         float spinSeconds     = 1.5f;     // 1回の回転にかける時間（秒）
         float resultSeconds   = 1.2f;     // 止まった結果を表示しておく時間（秒）
         int   maxStock        = 4;        // ためておける回転の数
-        float checkerHalfWidth = 4.0f;    // 穴の半幅（cm）
         float checkerRange    = 22.0f;    // 穴が往復する範囲（中心からの距離、cm）
         float checkerPeriod   = 4.0f;     // 穴の往復の周期（秒）
 

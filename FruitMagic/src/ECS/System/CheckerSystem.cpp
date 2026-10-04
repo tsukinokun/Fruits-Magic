@@ -9,6 +9,7 @@
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
@@ -39,10 +40,11 @@ namespace FruitMagic::ECS {
     //! 穴を動かし、払い出し口に落ちたコインが穴に入ったかを判定します。
     //----------------------------------------------------------------------------
     void CheckerSystem::Update(Tsukino::ECS::Registry& registry, float deltaTime) {
-        const RouletteConfig config = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
+        const RouletteConfig config    = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
+        const float          halfWidth = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().checkerHalfWidth : TableStats{}.checkerHalfWidth;
 
         // 穴が払い出し口からはみ出さない範囲で往復させる
-        const float range = std::max(0.0f, std::min(config.checkerRange, Layout::kPayoutHalfWidth - config.checkerHalfWidth));
+        const float range = std::max(0.0f, std::min(config.checkerRange, Layout::kPayoutHalfWidth - halfWidth));
 
         //--------------------------------------------------------------
         // 穴を左右に往復させる（目印の Transform も一緒に動かす）
@@ -54,7 +56,9 @@ namespace FruitMagic::ECS {
             checker.x    = std::sin(2.0f * kPi * checker.time / config.checkerPeriod) * range;
 
             transform.position = hlslpp::float3(checker.x, float(transform.position.y), float(transform.position.z));
-            transform.dirty    = true;
+            if(checker.scalePerHalfWidth > 0.0f)
+                transform.scale = hlslpp::float3(checker.scalePerHalfWidth * halfWidth, float(transform.scale.y), float(transform.scale.z));
+            transform.dirty = true;
             holes.push_back(checker.x);
         });
 
@@ -64,7 +68,7 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         for(float coinX : m_pendingCoinXs) {
             for(float holeX : holes) {
-                if(std::abs(coinX - holeX) <= config.checkerHalfWidth) {
+                if(std::abs(coinX - holeX) <= halfWidth) {
                     m_eventBus.Publish(CheckerEnteredEvent{coinX});
                     break;
                 }

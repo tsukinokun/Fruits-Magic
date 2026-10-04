@@ -8,15 +8,11 @@
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
-#include <FruitMagic/Game/ZukanState.hpp>
+#include <FruitMagic/Game/MenuState.hpp>
 
-#include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
-#include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
-#include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
-#include <Tsukino/Core/Input/InputSystem.hpp>
 
 #include <cmath>
 #include <string>
@@ -59,104 +55,72 @@ namespace FruitMagic::ECS {
     }    // namespace
 
     //----------------------------------------------------------------------------
-    //! 開閉の入力を読み、図鑑の要素を更新します。
+    //! 図鑑が開いていれば、要素の内容を更新します。
     //----------------------------------------------------------------------------
     void ZukanSystem::Update(Tsukino::ECS::Registry& registry, float /*deltaTime*/) {
-        if(!registry.HasContext<ZukanState>() || !registry.HasContext<GameState>() || !registry.HasContext<FruitCatalog>() ||
+        if(!registry.HasContext<MenuState>() || !registry.HasContext<GameState>() || !registry.HasContext<FruitCatalog>() ||
            !registry.HasContext<CollectionConfig>())
             return;
+        if(!registry.GetContext<MenuState>().IsOpen(MenuKind::Zukan))
+            return;
 
-        ZukanState&             zukan      = registry.GetContext<ZukanState>();
         const GameState&        state      = registry.GetContext<GameState>();
         const FruitCatalog&     catalog    = registry.GetContext<FruitCatalog>();
         const CollectionConfig& collection = registry.GetContext<CollectionConfig>();
+        const int               totalEntries = static_cast<int>(catalog.Fruits().size() * collection.Variants().size());
 
-        //--------------------------------------------------------------
-        // 開閉（Tab キー、または開閉ボタンのクリック）
-        //--------------------------------------------------------------
-        bool toggle = false;
-        Tsukino::EngineIntegration::EngineContext* ctx = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
-        if(ctx && ctx->inputSystem && ctx->inputSystem->IsKeyPressed(Tsukino::Input::KeyCode::Tab))
-            toggle = true;
-
-        registry.View<ZukanButtonComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
-            [&](Tsukino::ECS::Entity, ZukanButtonComponent& button, Tsukino::BuiltIn::ECS::PointerTargetComponent& pointer) {
-                if(pointer.clicked)
-                    toggle = true;
-                if(button.label != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label))
-                    registry.GetComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label).text = zukan.open ? L"閉じる (Tab)" : L"図鑑 (Tab)";
-            });
-        if(toggle)
-            zukan.open = !zukan.open;
-
-        //--------------------------------------------------------------
-        // 図鑑の要素の表示切替と内容の更新
-        //--------------------------------------------------------------
-        const int totalEntries = static_cast<int>(catalog.Fruits().size() * collection.Variants().size());
-
-        registry.View<ZukanElementComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
-            [&](Tsukino::ECS::Entity entity, ZukanElementComponent& element, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
-                //--------------------------------------------------------------
-                // スプライト: 閉じている間はスケール 0（描画も当たり判定もされない）
-                //--------------------------------------------------------------
-                if(auto* sprite = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(entity)) {
-                    transform.scale = zukan.open ? element.openScale : hlslpp::float3(0.0f, 0.0f, 1.0f);
-                    transform.dirty = true;
-
-                    if(element.kind == ZukanElementKind::Swatch && zukan.open) {
-                        const bool registered = CountOf(state, element.fruitIndex, element.variantIndex) > 0;
-                        if(registered && element.fruitIndex < static_cast<int>(catalog.Fruits().size()) &&
-                           element.variantIndex < static_cast<int>(collection.Variants().size())) {
-                            const hlslpp::float3 c = collection.Variants()[element.variantIndex].ColorOf(catalog.Fruits()[element.fruitIndex]);
-                            sprite->tintColor      = hlslpp::float4(c.x, c.y, c.z, 1.0f);
-                        } else {
-                            sprite->tintColor = kUnregisteredColor;
-                        }
-                    }
-                }
-
-                //--------------------------------------------------------------
-                // 文字: 閉じている間は空文字（描画されない）
-                //--------------------------------------------------------------
-                auto* font = registry.try_get<Tsukino::BuiltIn::ECS::FontComponent>(entity);
-                if(!font)
+        registry.View<ZukanElementComponent>().each([&](Tsukino::ECS::Entity entity, ZukanElementComponent& element) {
+            //--------------------------------------------------------------
+            // 色見本: 登録済みならその枠の色
+            //--------------------------------------------------------------
+            if(auto* sprite = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(entity)) {
+                if(element.kind != ZukanElementKind::Swatch)
                     return;
-                if(!zukan.open) {
-                    font->text.clear();
-                    return;
+                const bool registered = CountOf(state, element.fruitIndex, element.variantIndex) > 0;
+                if(registered && element.fruitIndex < static_cast<int>(catalog.Fruits().size()) &&
+                   element.variantIndex < static_cast<int>(collection.Variants().size())) {
+                    const hlslpp::float3 c = collection.Variants()[element.variantIndex].ColorOf(catalog.Fruits()[element.fruitIndex]);
+                    sprite->tintColor      = hlslpp::float4(c.x, c.y, c.z, 1.0f);
+                } else {
+                    sprite->tintColor = kUnregisteredColor;
+                }
+                return;
+            }
+
+            //--------------------------------------------------------------
+            // 文字
+            //--------------------------------------------------------------
+            auto* font = registry.try_get<Tsukino::BuiltIn::ECS::FontComponent>(entity);
+            if(!font)
+                return;
+
+            switch(element.kind) {
+                case ZukanElementKind::RowName: {
+                    if(element.fruitIndex < 0 || element.fruitIndex >= static_cast<int>(catalog.Fruits().size()))
+                        break;
+                    const FruitDef& def  = catalog.Fruits()[element.fruitIndex];
+                    const auto&     rank = catalog.Ranks()[def.rankIndex];
+                    font->text           = L"【" + rank.name + L"】" + (AnyRegistered(state, element.fruitIndex) ? def.name : std::wstring(L"？？？"));
+                    break;
                 }
 
-                switch(element.kind) {
-                    case ZukanElementKind::StaticText:
-                        font->text = element.text;
-                        break;
-
-                    case ZukanElementKind::RowName: {
-                        if(element.fruitIndex < 0 || element.fruitIndex >= static_cast<int>(catalog.Fruits().size()))
-                            break;
-                        const FruitDef& def  = catalog.Fruits()[element.fruitIndex];
-                        const auto&     rank = catalog.Ranks()[def.rankIndex];
-                        font->text           = L"【" + rank.name + L"】" + (AnyRegistered(state, element.fruitIndex) ? def.name : std::wstring(L"？？？"));
-                        break;
-                    }
-
-                    case ZukanElementKind::Count: {
-                        const int n = CountOf(state, element.fruitIndex, element.variantIndex);
-                        font->text  = (n > 0) ? L"×" + std::to_wstring(n) : std::wstring(L"？？？");
-                        break;
-                    }
-
-                    case ZukanElementKind::Footer: {
-                        const int registered = state.RegisteredCount();
-                        const int bonus      = static_cast<int>(std::lround(collection.ManaBonusPerEntry() * 100.0f * static_cast<float>(registered)));
-                        font->text           = L"登録 " + std::to_wstring(registered) + L" / " + std::to_wstring(totalEntries) + L"     マナ獲得 +" +
-                                     std::to_wstring(bonus) + L"%";
-                        break;
-                    }
-
-                    default:
-                        break;
+                case ZukanElementKind::Count: {
+                    const int n = CountOf(state, element.fruitIndex, element.variantIndex);
+                    font->text  = (n > 0) ? L"×" + std::to_wstring(n) : std::wstring(L"？？？");
+                    break;
                 }
-            });
+
+                case ZukanElementKind::Footer: {
+                    const int registered = state.RegisteredCount();
+                    const int bonus      = static_cast<int>(std::lround(collection.ManaBonusPerEntry() * 100.0f * static_cast<float>(registered)));
+                    font->text           = L"登録 " + std::to_wstring(registered) + L" / " + std::to_wstring(totalEntries) + L"     マナ獲得 +" +
+                                 std::to_wstring(bonus) + L"%";
+                    break;
+                }
+
+                default:
+                    break;
+            }
+        });
     }
 }    // namespace FruitMagic::ECS

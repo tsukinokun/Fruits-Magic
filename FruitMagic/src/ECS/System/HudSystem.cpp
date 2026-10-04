@@ -138,7 +138,7 @@ namespace FruitMagic::ECS {
                 }
 
                 case HudTextKind::HarvestTotal:
-                    font.text = L"収穫: " + std::to_wstring(harvestTotal);
+                    font.text = L"果実: " + std::to_wstring(state.fruitPoints) + L"   (収穫 " + std::to_wstring(harvestTotal) + L")";
                     break;
 
                 case HudTextKind::HarvestPopup:
@@ -172,9 +172,9 @@ namespace FruitMagic::ECS {
 
                 case HudTextKind::ControlsHint:
 #ifdef _DEBUG
-                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   F5: コリジョン表示   F2: 果樹Lv " + std::to_wstring(state.treeLevel);
+                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   F5: コリジョン表示   F2: コイン・果実 +100";
 #else
-                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入";
+                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化";
 #endif
                     break;
             }

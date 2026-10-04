@@ -6,34 +6,41 @@
 
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
-#include <FruitMagic/Game/ZukanState.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
 #include <FruitMagic/Game/ManaConfig.hpp>
+#include <FruitMagic/Game/MenuState.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
+#include <FruitMagic/Game/UpgradeCatalog.hpp>
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
-#include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
+#include <FruitMagic/ECS/Component/MenuComponent.hpp>
+#include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
+#include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
 #include <FruitMagic/ECS/System/CheckerSystem.hpp>
 #include <FruitMagic/ECS/System/CoinLauncherSystem.hpp>
+#include <FruitMagic/ECS/System/FairySystem.hpp>
 #include <FruitMagic/ECS/System/HarvestSystem.hpp>
 #include <FruitMagic/ECS/System/HudSystem.hpp>
 #include <FruitMagic/ECS/System/MagicInputSystem.hpp>
 #include <FruitMagic/ECS/System/ManaSystem.hpp>
+#include <FruitMagic/ECS/System/MenuSystem.hpp>
 #include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
 #include <FruitMagic/ECS/System/PrizeDropSystem.hpp>
 #include <FruitMagic/ECS/System/RouletteSystem.hpp>
+#include <FruitMagic/ECS/System/UpgradeSystem.hpp>
 #include <FruitMagic/ECS/System/WalletSystem.hpp>
 #include <FruitMagic/ECS/System/ZukanSystem.hpp>
 #ifdef _DEBUG
-#include <FruitMagic/ECS/System/DebugTreeLevelSystem.hpp>
+#include <FruitMagic/ECS/System/DebugResourceSystem.hpp>
 #endif
 
 #include <Tsukino/EngineIntegration/EngineAPI.hpp>
@@ -97,20 +104,30 @@ namespace FruitMagic {
         constexpr float kMagicButtonHeight = 46.0f;     // 魔法ボタンの高さ
         constexpr float kMagicButtonGap    = 16.0f;     // 魔法ボタンの間隔
         constexpr float kMagicButtonY      = 640.0f;    // 魔法ボタンの中心の高さ
-        constexpr float kZukanButtonX      = 1170.0f;   // 図鑑ボタンの中心X
+        constexpr float kMenuButtonX       = 1170.0f;   // 画面の開閉ボタン（右上）の中心X
         constexpr float kZukanButtonY      = 40.0f;     // 図鑑ボタンの中心Y
-        constexpr float kZukanButtonWidth  = 170.0f;    // 図鑑ボタンの幅
-        constexpr float kZukanButtonHeight = 42.0f;     // 図鑑ボタンの高さ
-        constexpr float kZukanCenterX      = 640.0f;    // 図鑑の画面の中心X
-        constexpr float kZukanCenterY      = 340.0f;    // 図鑑の画面の中心Y
-        constexpr float kZukanWidth        = 900.0f;    // 図鑑の画面の幅
-        constexpr float kZukanHeight       = 540.0f;    // 図鑑の画面の高さ
+        constexpr float kUpgradeButtonY    = 90.0f;     // 強化ボタンの中心Y
+        constexpr float kMenuButtonWidth   = 170.0f;    // 画面の開閉ボタンの幅
+        constexpr float kMenuButtonHeight  = 42.0f;     // 画面の開閉ボタンの高さ
+        constexpr float kMenuCenterX       = 640.0f;    // 画面（図鑑・強化）の中心X
+        constexpr float kMenuCenterY       = 340.0f;    // 画面の中心Y
+        constexpr float kMenuWidth         = 900.0f;    // 画面の幅
+        constexpr float kMenuHeight        = 540.0f;    // 画面の高さ
         constexpr float kZukanMaxRowPitch  = 44.0f;     // 図鑑の行の高さの上限（果物が少ないとき）
+        constexpr float kUpgradeMaxRowPitch = 100.0f;   // 強化画面の行の高さの上限（強化が少ないとき）
+        constexpr float kBuyButtonWidth    = 150.0f;    // 購入ボタンの幅
+        constexpr float kBuyButtonHeight   = 46.0f;     // 購入ボタンの高さ
+
+        //! @brief プッシャーの振幅を強化の値へ近づける速さ（cm/秒）。一気に変えると速度が跳ねて景品を弾き飛ばすため
+        constexpr float kPusherAmplitudeChangeSpeed = 4.0f;
 
         //! @brief プッシャーの半サイズ
         hlslpp::float3 PusherHalfExtent() {
             return hlslpp::float3(Layout::kPusherHalfWidth, Layout::kPusherHalfHeight, Layout::kPusherHalfDepth);
         }
+
+        //! @brief 押していないときのプッシャーの中心Z（起動時の位置）
+        constexpr float kPusherStartCenterZ = Layout::PusherCenterZ(Layout::kPusherAmplitude);
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -126,12 +143,15 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         enum class SystemPriority : int {
 #ifdef _DEBUG
-            DebugTreeLevel = -1,
+            DebugResource = -1,
 #endif
-            Interaction = 0,     // マウスの下の UI（魔法ボタン・図鑑）を先に決め、同じフレームの入力処理が読めるようにする
+            Interaction = 0,     // マウスの下の UI（魔法ボタン・画面）を先に決め、同じフレームの入力処理が読めるようにする
+            Menu,                // 画面の開閉と表示切替。中身は続く Zukan・Upgrade が書く
             Zukan,
+            Upgrade,
             MagicInput,
             CoinLauncher,        // 投入したコインを今フレームの Transform・物理に乗せる
+            Fairy,
             Transform,
             Physics,             // Transform 確定後に剛体を進め、結果を Transform へ書き戻す
             PrizeDrop,           // 物理の結果で落下を判定する
@@ -154,12 +174,15 @@ namespace FruitMagic {
         };
 
 #ifdef _DEBUG
-        m_scene.AddSystem(std::make_shared<ECS::DebugTreeLevelSystem>(), (int)SystemPriority::DebugTreeLevel);
+        m_scene.AddSystem(std::make_shared<ECS::DebugResourceSystem>(), (int)SystemPriority::DebugResource);
 #endif
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::InteractionSystem>(), (int)SystemPriority::Interaction);
+        m_scene.AddSystem(std::make_shared<ECS::MenuSystem>(), (int)SystemPriority::Menu);
         m_scene.AddSystem(std::make_shared<ECS::ZukanSystem>(), (int)SystemPriority::Zukan);
+        m_scene.AddSystem(std::make_shared<ECS::UpgradeSystem>(), (int)SystemPriority::Upgrade);
         m_scene.AddSystem(std::make_shared<ECS::MagicInputSystem>(eventBus), (int)SystemPriority::MagicInput);
         m_scene.AddSystem(std::make_shared<ECS::CoinLauncherSystem>(), (int)SystemPriority::CoinLauncher);
+        m_scene.AddSystem(std::make_shared<ECS::FairySystem>(), (int)SystemPriority::Fairy);
         m_scene.AddSystem(std::make_shared<ECS::CheckerSystem>(eventBus), (int)SystemPriority::Checker);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::TransformSystem>(), (int)SystemPriority::Transform);
         auto physicsSystem = std::make_shared<Tsukino::BuiltIn::ECS::PhysicsSystem>(eventBus);
@@ -205,11 +228,17 @@ namespace FruitMagic {
         registry.SetContext<MagicState>();
         CollectionConfig& collection = registry.SetContext<CollectionConfig>();
         collection.Load(dataRoot + "/Collection.json");
-        registry.SetContext<ZukanState>();
+        registry.SetContext<MenuState>();
+        registry.SetContext<UpgradeCatalog>().Load(dataRoot + "/Upgrades.json");
+        registry.SetContext<TableStats>();
 
         GameState& state = registry.SetContext<GameState>();
         state.maxMana    = manaConfig.maxMana;
         state.harvestCounts.assign(catalog.Fruits().size(), std::vector<int>(collection.Variants().size(), 0));
+
+        // 強化のレベルを台の性能と果樹の段階へ反映する（セーブを読んだらその後にも呼ぶ）
+        ECS::UpgradeSystem::ApplyUpgrades(registry);
+        m_pusherAmplitude = registry.GetContext<TableStats>().pusherAmplitude;
 
         PrizeFactory& factory = registry.SetContext<PrizeFactory>();
         factory.Initialize(*context->assetManager);
@@ -240,10 +269,18 @@ namespace FruitMagic {
         if(m_pusherEntity != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_pusherEntity)) {
             m_pusherTime = std::fmod(m_pusherTime + simulationStep, Layout::kPusherPeriod);
 
+            // 押し幅の強化は、振幅を少しずつ近づけて反映する
+            if(registry.HasContext<TableStats>()) {
+                const float target = registry.GetContext<TableStats>().pusherAmplitude;
+                const float step   = kPusherAmplitudeChangeSpeed * simulationStep;
+                m_pusherAmplitude  = std::clamp(target, m_pusherAmplitude - step, m_pusherAmplitude + step);
+            }
+
+            // 最も引っ込んだ位置は振幅によらず同じで、振幅が増えた分だけ前に出る
             const float phase = 2.0f * kPi * m_pusherTime / Layout::kPusherPeriod;
 
             auto& t    = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_pusherEntity);
-            t.position = hlslpp::float3(0.0f, Layout::kPusherCenterY, Layout::kPusherCenterZ + std::sin(phase) * Layout::kPusherAmplitude);
+            t.position = hlslpp::float3(0.0f, Layout::kPusherCenterY, Layout::PusherCenterZ(m_pusherAmplitude) + std::sin(phase) * m_pusherAmplitude);
             t.dirty    = true;
         }
 
@@ -311,7 +348,7 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // プッシャー（Kinematic。OnUpdate で位置を直接動かす）
         //--------------------------------------------------------------
-        m_pusherEntity = factory.CreateBox(registry, hlslpp::float3(0.0f, kPusherCenterY, kPusherCenterZ), PusherHalfExtent(),
+        m_pusherEntity = factory.CreateBox(registry, hlslpp::float3(0.0f, kPusherCenterY, kPusherStartCenterZ), PusherHalfExtent(),
                                            RigidbodyType::Kinematic);
     }
 
@@ -328,7 +365,7 @@ namespace FruitMagic {
 
         // プッシャー前の床にコインを手前端まで敷き詰める（実機と同じく、押せばすぐ縁から落ちる状態にしておく）。
         // 最前列はプッシャーが届く位置から
-        const float pusherFrontMax = kPusherCenterZ + kPusherHalfDepth + kPusherAmplitude;
+        const float pusherFrontMax = kPusherMinFrontZ + kPusherAmplitude * 2.0f;
         // 隙間があると押した分が隙間に吸われて縁まで伝わらないので、ほぼ接するくらいに詰める
         const float firstRowZ      = pusherFrontMax - 5.0f;
         const float pitch          = coinHalfX * 2.0f + 0.3f;
@@ -345,7 +382,7 @@ namespace FruitMagic {
         // プッシャーの上にもコインを数枚
         for(int col = -3; col <= 3; ++col) {
             const float x = static_cast<float>(col) * 7.0f;
-            factory.CreateCoin(registry, hlslpp::float3(x, kPusherTopY + coinHalfY + 0.5f, kPusherCenterZ + 8.0f));
+            factory.CreateCoin(registry, hlslpp::float3(x, kPusherTopY + coinHalfY + 0.5f, kPusherStartCenterZ + 8.0f));
         }
 
         //--------------------------------------------------------------
@@ -480,10 +517,10 @@ namespace FruitMagic {
         // CheckerSystem が左右に動かす。判定は落ちたコインの位置で行うので、これは見た目だけ（コライダー無し）
         //--------------------------------------------------------------
         {
-            const RouletteConfig& config = registry.GetContext<RouletteConfig>();
-            const hlslpp::float3  gold   = hlslpp::float3(1.0f, 0.7f, 0.1f);
-            Tsukino::ECS::Entity  e      = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, -3.0f, Layout::kFieldFrontZ + 3.0f),
-                                                                   hlslpp::float3(config.checkerHalfWidth, 0.3f, 2.5f), 1.0f, gold);
+            const float          halfWidth = registry.GetContext<TableStats>().checkerHalfWidth;
+            const hlslpp::float3 gold      = hlslpp::float3(1.0f, 0.7f, 0.1f);
+            Tsukino::ECS::Entity e         = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, -3.0f, Layout::kFieldFrontZ + 3.0f),
+                                                                     hlslpp::float3(halfWidth, 0.3f, 2.5f), 1.0f, gold);
 
             // 台の上で見失わないよう、金色に少し光らせる
             Tsukino::BuiltIn::ECS::RimGlowComponent& glow = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
@@ -492,7 +529,9 @@ namespace FruitMagic {
             glow.rimIntensity                             = 1.0f;
             glow.glow                                     = 0.4f;
 
-            registry.AddComponent<ECS::CheckerComponent>(e);
+            // 穴の幅の強化で目印も伸ばせるよう、幅あたりのスケールを覚えておく
+            ECS::CheckerComponent& checker = registry.AddComponent<ECS::CheckerComponent>(e);
+            checker.scalePerHalfWidth      = float(registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).scale.x) / halfWidth;
         }
 
         //--------------------------------------------------------------
@@ -620,17 +659,56 @@ namespace FruitMagic {
         };
 
         //--------------------------------------------------------------
-        // 図鑑の開閉ボタン（右上）
+        // 画面（図鑑・強化）の開閉ボタン（右上。文字は MenuSystem が開閉に合わせて書く）
         //--------------------------------------------------------------
-        {
-            Tsukino::ECS::Entity button = createPanel(hlslpp::float2(kZukanButtonX, kZukanButtonY), hlslpp::float2(kZukanButtonWidth, kZukanButtonHeight),
-                                                      hlslpp::float4(0.95f, 0.55f, 0.65f, 1.0f), 10);
+        struct MenuButtonSpec {
+            MenuKind                menu;
+            Tsukino::Input::KeyCode key;
+            float                   y;
+            hlslpp::float4          color;
+            const wchar_t*          closedText;
+            const wchar_t*          openText;
+        };
+        const MenuButtonSpec menuButtons[] = {
+            {MenuKind::Zukan, Tsukino::Input::KeyCode::Tab, kZukanButtonY, hlslpp::float4(0.95f, 0.55f, 0.65f, 1.0f), L"図鑑 (Tab)", L"閉じる (Tab)"},
+            {MenuKind::Upgrade, Tsukino::Input::KeyCode::U, kUpgradeButtonY, hlslpp::float4(0.45f, 0.75f, 0.4f, 1.0f), L"強化 (U)", L"閉じる (U)"},
+        };
+        for(const MenuButtonSpec& spec : menuButtons) {
+            Tsukino::ECS::Entity button = createPanel(hlslpp::float2(kMenuButtonX, spec.y), hlslpp::float2(kMenuButtonWidth, kMenuButtonHeight), spec.color, 10);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
 
-            Tsukino::ECS::Entity label = createText(hlslpp::float2(kZukanButtonX, kZukanButtonY), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                                    hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 11);
-            registry.AddComponent<ECS::ZukanButtonComponent>(button).label = label;
+            ECS::MenuButtonComponent& menuButton = registry.AddComponent<ECS::MenuButtonComponent>(button);
+            menuButton.menu                      = spec.menu;
+            menuButton.key                       = spec.key;
+            menuButton.label      = createText(hlslpp::float2(kMenuButtonX, spec.y), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                               hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 11);
+            menuButton.closedText = spec.closedText;
+            menuButton.openText   = spec.openText;
         }
+
+        //--------------------------------------------------------------
+        // 画面の要素にする（開閉に合わせて MenuSystem が表示を切り替える）。
+        // text は決まった文字（タイトル・見出し・説明）。空なら画面ごとのシステムが書く
+        //--------------------------------------------------------------
+        auto addPage = [&](Tsukino::ECS::Entity e, MenuKind menu, const std::wstring& text = L"") {
+            ECS::MenuPageComponent& page = registry.AddComponent<ECS::MenuPageComponent>(e);
+            page.menu                    = menu;
+            page.openScale               = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).scale;
+            page.text                    = text;
+            return e;
+        };
+
+        // 画面の背景のパネル。画面の上のクリックでコインが投入されないよう、クリックを受け止める
+        auto createMenuPanel = [&](MenuKind menu, const std::wstring& title) {
+            Tsukino::ECS::Entity panel = createPanel(hlslpp::float2(kMenuCenterX, kMenuCenterY), hlslpp::float2(kMenuWidth, kMenuHeight),
+                                                     hlslpp::float4(0.08f, 0.04f, 0.12f, 0.9f), 20);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
+            addPage(panel, menu);
+
+            addPage(createText(hlslpp::float2(kMenuCenterX, kMenuCenterY - kMenuHeight * 0.5f + 32.0f), 1.3f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                               hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), 22),
+                    menu, title);
+        };
 
         //--------------------------------------------------------------
         // 図鑑の画面（行＝果物、列＝バリエーション）。最初は閉じていて、ZukanSystem が開閉する。
@@ -642,33 +720,23 @@ namespace FruitMagic {
             const int               rows       = static_cast<int>(catalog.Fruits().size());
             const int               columns    = static_cast<int>(collection.Variants().size());
 
-            auto addElement = [&](Tsukino::ECS::Entity e, ECS::ZukanElementKind kind, int fruitIndex = -1, int variantIndex = -1, const std::wstring& text = L"") {
+            auto addElement = [&](Tsukino::ECS::Entity e, ECS::ZukanElementKind kind, int fruitIndex = -1, int variantIndex = -1) {
+                addPage(e, MenuKind::Zukan);
                 ECS::ZukanElementComponent& element = registry.AddComponent<ECS::ZukanElementComponent>(e);
                 element.kind                        = kind;
-                element.openScale                   = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).scale;
                 element.fruitIndex                  = fruitIndex;
                 element.variantIndex                = variantIndex;
-                element.text                        = text;
             };
 
-            // 背景のパネル。図鑑の上のクリックでコインが投入されないよう、クリックを受け止める
-            Tsukino::ECS::Entity panel = createPanel(hlslpp::float2(kZukanCenterX, kZukanCenterY), hlslpp::float2(kZukanWidth, kZukanHeight),
-                                                     hlslpp::float4(0.08f, 0.04f, 0.12f, 0.9f), 20);
-            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
-            addElement(panel, ECS::ZukanElementKind::Panel);
+            createMenuPanel(MenuKind::Zukan, L"図鑑");
 
-            const float top    = kZukanCenterY - kZukanHeight * 0.5f;
-            const float left   = kZukanCenterX - kZukanWidth * 0.5f;
-            const float bottom = kZukanCenterY + kZukanHeight * 0.5f;
-
-            // タイトル
-            addElement(createText(hlslpp::float2(kZukanCenterX, top + 32.0f), 1.3f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                  hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), 22),
-                       ECS::ZukanElementKind::StaticText, -1, -1, L"図鑑");
+            const float top    = kMenuCenterY - kMenuHeight * 0.5f;
+            const float left   = kMenuCenterX - kMenuWidth * 0.5f;
+            const float bottom = kMenuCenterY + kMenuHeight * 0.5f;
 
             // 列の配置（バリエーションが増えたら間隔を詰める）
             const float columnsLeft  = left + 330.0f;
-            const float columnsWidth = kZukanWidth - 330.0f - 40.0f;
+            const float columnsWidth = kMenuWidth - 330.0f - 40.0f;
             const float columnPitch  = columnsWidth / static_cast<float>(std::max(1, columns));
             auto        columnX      = [&](int v) { return columnsLeft + columnPitch * (static_cast<float>(v) + 0.5f); };
 
@@ -676,9 +744,9 @@ namespace FruitMagic {
             const float headerY = top + 78.0f;
             for(int v = 0; v < columns; ++v) {
                 const std::wstring& name = collection.Variants()[v].name;
-                addElement(createText(hlslpp::float2(columnX(v), headerY), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                      hlslpp::float4(0.9f, 0.8f, 1.0f, 1.0f), 22),
-                           ECS::ZukanElementKind::StaticText, -1, -1, name.empty() ? std::wstring(L"通常") : name);
+                addPage(createText(hlslpp::float2(columnX(v), headerY), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                   hlslpp::float4(0.9f, 0.8f, 1.0f, 1.0f), 22),
+                        MenuKind::Zukan, name.empty() ? std::wstring(L"通常") : name);
             }
 
             // 行（果物が増えたら行の高さを詰める）
@@ -705,9 +773,75 @@ namespace FruitMagic {
             }
 
             // 下部の集計
-            addElement(createText(hlslpp::float2(kZukanCenterX, bottom - 28.0f), 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+            addElement(createText(hlslpp::float2(kMenuCenterX, bottom - 28.0f), 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
                                   hlslpp::float4(0.85f, 1.0f, 0.85f, 1.0f), 22),
                        ECS::ZukanElementKind::Footer);
+        }
+
+        //--------------------------------------------------------------
+        // 強化の画面（行＝強化）。最初は閉じている。
+        // 強化の数は定義データから決まるので、行の高さもそれに合わせる
+        //--------------------------------------------------------------
+        {
+            const UpgradeCatalog& upgrades = registry.GetContext<UpgradeCatalog>();
+            const int             rows     = static_cast<int>(upgrades.Upgrades().size());
+
+            auto addElement = [&](Tsukino::ECS::Entity e, ECS::UpgradeElementKind kind, int upgradeIndex = -1) {
+                addPage(e, MenuKind::Upgrade);
+                ECS::UpgradeElementComponent& element = registry.AddComponent<ECS::UpgradeElementComponent>(e);
+                element.kind                          = kind;
+                element.upgradeIndex                  = upgradeIndex;
+            };
+
+            createMenuPanel(MenuKind::Upgrade, L"台の強化");
+
+            const float top    = kMenuCenterY - kMenuHeight * 0.5f;
+            const float left   = kMenuCenterX - kMenuWidth * 0.5f;
+            const float right  = kMenuCenterX + kMenuWidth * 0.5f;
+            const float bottom = kMenuCenterY + kMenuHeight * 0.5f;
+
+            // 手持ち（価格と見比べられるよう、タイトルのすぐ下）
+            addElement(createText(hlslpp::float2(kMenuCenterX, top + 74.0f), 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                  hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), 22),
+                       ECS::UpgradeElementKind::Wallet);
+
+            // 行（強化が増えたら行の高さを詰める）
+            const float rowsTop    = top + 104.0f;
+            const float rowsHeight = (bottom - 24.0f) - rowsTop;
+            const float rowPitch   = std::min(kUpgradeMaxRowPitch, rowsHeight / static_cast<float>(std::max(1, rows)));
+            const float textScale  = std::min(1.0f, rowPitch / 90.0f);
+            const float buttonX    = right - 40.0f - kBuyButtonWidth * 0.5f;
+            const float effectX    = left + 445.0f;
+            for(int u = 0; u < rows; ++u) {
+                const UpgradeDef& def = upgrades.Upgrades()[u];
+                const float       y   = rowsTop + rowPitch * (static_cast<float>(u) + 0.5f);
+                const float       dy  = rowPitch * 0.2f;    // 1行の中の上段・下段のずれ
+
+                // 名前とレベル（上段）・説明（下段）
+                addElement(createText(hlslpp::float2(left + 40.0f, y - dy), 0.9f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                      hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22),
+                           ECS::UpgradeElementKind::Name, u);
+                addPage(createText(hlslpp::float2(left + 40.0f, y + dy), 0.62f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                   hlslpp::float4(0.8f, 0.75f, 0.9f, 1.0f), 22),
+                        MenuKind::Upgrade, def.description);
+
+                // 効果（上段）・価格（下段）
+                addElement(createText(hlslpp::float2(effectX, y - dy), 0.75f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                      hlslpp::float4(0.7f, 1.0f, 0.75f, 1.0f), 22),
+                           ECS::UpgradeElementKind::Effect, u);
+                addElement(createText(hlslpp::float2(effectX, y + dy), 0.7f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                      hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 22),
+                           ECS::UpgradeElementKind::Cost, u);
+
+                // 購入ボタン（色は UpgradeSystem が買えるかどうかで変える）
+                Tsukino::ECS::Entity button = createPanel(hlslpp::float2(buttonX, y), hlslpp::float2(kBuyButtonWidth, std::min(kBuyButtonHeight, rowPitch - 8.0f)),
+                                                          hlslpp::float4(0.3f, 0.28f, 0.34f, 1.0f), 21);
+                registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+                addElement(button, ECS::UpgradeElementKind::BuyButton, u);
+                addElement(createText(hlslpp::float2(buttonX, y), 0.85f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                      hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22),
+                           ECS::UpgradeElementKind::BuyLabel, u);
+            }
         }
     }
 

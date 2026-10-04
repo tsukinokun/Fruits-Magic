@@ -37,7 +37,7 @@
 | `FruitMagic/src/WinMain.cpp` | エントリポイント |
 | `FruitMagic/*/Scene/PusherScene.*` | プッシャー台のシーン |
 | `Assets/` | ゲームのアセット。パスはリポジトリルート相対（例 `Assets/Models/Block.fbx`） |
-| `Assets/Data/` | 果物・ランク・ルーレットの定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要） |
+| `Assets/Data/` | 果物・ランク・ルーレット・魔法・図鑑・強化の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要） |
 
 単位はエンジン規約どおり 1unit ≒ 1cm。
 
