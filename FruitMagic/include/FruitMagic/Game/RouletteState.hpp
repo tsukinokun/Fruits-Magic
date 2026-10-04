@@ -22,7 +22,8 @@ namespace FruitMagic {
         int           stock        = 0;                      // ためている回転の数（回転中の分は含まない）
         int           displayFruit = -1;                     // 今表示している果物の添字（-1 はハズレ）
         int           displayVariant = 0;                    // 今表示している果物のバリエーションの添字
-        bool          resultHit    = false;                  // 結果が当たりか
+        bool          resultHit    = false;                  // 結果が当たり（果物）か
+        int           resultCoins  = 0;                      // 結果がコイン当たりなら、その枚数（0 は無し）
         bool          jackpotDisplay = false;                // ジャックポットチャンスの抽選中に「JACKPOT」を表示しているか（false は「ハズレ」）
         bool          jackpotWin     = false;                // ジャックポットチャンスの結果が当たりか
     };

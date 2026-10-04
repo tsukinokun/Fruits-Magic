@@ -7,9 +7,9 @@
       "format": "{v}cm",
       "base": 12,
       "levels": [
-        { "coins": 40, "fruit": 2, "value": 14 },
-        { "coins": 90, "fruit": 8, "value": 16 },
-        { "coins": 180, "fruit": 20, "value": 18 }
+        { "coins": 30, "fruit": 2, "value": 14 },
+        { "coins": 70, "fruit": 8, "value": 16 },
+        { "coins": 140, "fruit": 20, "value": 18 }
       ]
     },
     {
@@ -20,8 +20,8 @@
       "base": 0,
       "levels": [
         { "coins": 30, "fruit": 5, "value": 1 },
-        { "coins": 100, "fruit": 25, "value": 2 },
-        { "coins": 250, "fruit": 80, "value": 3 }
+        { "coins": 80, "fruit": 25, "value": 2 },
+        { "coins": 200, "fruit": 80, "value": 3 }
       ]
     },
     {
@@ -32,10 +32,10 @@
       "zeroText": "なし",
       "base": 0,
       "levels": [
-        { "coins": 25, "fruit": 0, "value": 6 },
-        { "coins": 70, "fruit": 5, "value": 4 },
-        { "coins": 150, "fruit": 15, "value": 2.5 },
-        { "coins": 300, "fruit": 40, "value": 1.5 }
+        { "coins": 20, "fruit": 0, "value": 6 },
+        { "coins": 60, "fruit": 5, "value": 4 },
+        { "coins": 120, "fruit": 15, "value": 2.5 },
+        { "coins": 250, "fruit": 40, "value": 1.5 }
       ]
     },
     {
@@ -45,9 +45,9 @@
       "format": "幅{v}cm",
       "base": 8,
       "levels": [
-        { "coins": 30, "fruit": 3, "value": 10 },
-        { "coins": 80, "fruit": 10, "value": 12 },
-        { "coins": 160, "fruit": 25, "value": 15 }
+        { "coins": 25, "fruit": 3, "value": 10 },
+        { "coins": 60, "fruit": 10, "value": 12 },
+        { "coins": 120, "fruit": 25, "value": 15 }
       ]
     },
     {
@@ -57,9 +57,9 @@
       "format": "{v}時間",
       "base": 2,
       "levels": [
-        { "coins": 60, "fruit": 5, "value": 4 },
-        { "coins": 150, "fruit": 20, "value": 8 },
-        { "coins": 400, "fruit": 60, "value": 24 }
+        { "coins": 50, "fruit": 5, "value": 4 },
+        { "coins": 120, "fruit": 20, "value": 8 },
+        { "coins": 300, "fruit": 60, "value": 24 }
       ]
     }
   ]

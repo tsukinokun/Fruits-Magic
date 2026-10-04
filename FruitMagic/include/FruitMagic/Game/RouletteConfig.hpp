@@ -12,7 +12,9 @@ namespace FruitMagic {
 
     //! チェッカーとルーレットの設定です。Registry のコンテキストに置いて共有します。
     struct RouletteConfig {
-        float hitChance       = 0.4f;     // 当たりの確率（0〜1）
+        float hitChance       = 0.4f;     // 当たり（果物）の確率（0〜1）
+        float coinChance      = 0.25f;    // 果物が外れたときに、コインが当たる確率（0〜1）
+        int   coinAmount      = 5;        // コイン当たりで手持ちに入るコイン
         float spinSeconds     = 1.5f;     // 1回の回転にかける時間（秒）
         float resultSeconds   = 1.2f;     // 止まった結果を表示しておく時間（秒）
         int   maxStock        = 4;        // ためておける回転の数

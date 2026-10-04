@@ -46,6 +46,10 @@ namespace FruitMagic {
 
         float stock = static_cast<float>(maxStock);
         ReadFloat(doc, "hitChance", hitChance);
+        ReadFloat(doc, "coinChance", coinChance);
+        float coins = static_cast<float>(coinAmount);
+        ReadFloat(doc, "coinAmount", coins);
+        coinAmount = std::max(0, static_cast<int>(coins));
         ReadFloat(doc, "spinSeconds", spinSeconds);
         ReadFloat(doc, "resultSeconds", resultSeconds);
         ReadFloat(doc, "maxStock", stock);
@@ -53,6 +57,7 @@ namespace FruitMagic {
         ReadFloat(doc, "checkerPeriod", checkerPeriod);
 
         hitChance = std::clamp(hitChance, 0.0f, 1.0f);
+        coinChance = std::clamp(coinChance, 0.0f, 1.0f);
         maxStock  = std::max(1, static_cast<int>(stock));
 
         Tsukino::Core::Log::Info("RouletteConfig: hitChance=" + std::to_string(hitChance) + " maxStock=" + std::to_string(maxStock));

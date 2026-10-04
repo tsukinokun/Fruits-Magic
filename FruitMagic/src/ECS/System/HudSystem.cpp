@@ -171,8 +171,12 @@ namespace FruitMagic::ECS {
                             text = L"ルーレット ▶ " + ((roulette.displayFruit >= 0) ? FruitName(registry, roulette.displayFruit) : std::wstring(L"ハズレ"));
                             break;
                         case RoulettePhase::Result:
-                            text = roulette.resultHit ? L"当たり！ " + FruitName(registry, roulette.displayFruit, roulette.displayVariant) + L" が出た！"
-                                                      : std::wstring(L"ハズレ…");
+                            if(roulette.resultHit)
+                                text = L"当たり！ " + FruitName(registry, roulette.displayFruit, roulette.displayVariant) + L" が出た！";
+                            else if(roulette.resultCoins > 0)
+                                text = L"コイン +" + std::to_wstring(roulette.resultCoins) + L"！";
+                            else
+                                text = L"ハズレ…";
                             break;
                         case RoulettePhase::JackpotSpin:
                             text = L"ジャックポットチャンス！ ▶ " + std::wstring(roulette.jackpotDisplay ? L"JACKPOT" : L"ハズレ");

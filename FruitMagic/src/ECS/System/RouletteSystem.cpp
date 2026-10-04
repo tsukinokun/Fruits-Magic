@@ -32,6 +32,10 @@ namespace FruitMagic::ECS {
         //! @brief ジャックポットチャンスの抽選中に「JACKPOT」「ハズレ」を切り替える間隔（秒）。最後は少しゆっくりに
         constexpr float kJackpotFlipInterval = 0.12f;
 
+        //! @brief 補充する果物を置く左右の範囲（中心からの距離、cm）。
+        //!        端に置くと押し出されて左右の溝へ落ちやすい（計測では収穫より溝落ちが多かった）ので、払い出し口の幅に収める
+        constexpr float kFruitSpawnHalfWidth = Layout::kPayoutHalfWidth - 6.0f;
+
         //! @brief ジャックポットのコインを降らせる時間（秒）
         constexpr float kJackpotShowerSeconds = 3.0f;
     }    // namespace
@@ -100,10 +104,14 @@ namespace FruitMagic::ECS {
 
                 m_resultFruit   = -1;
                 m_resultVariant = 0;
+                m_resultCoins   = 0;
                 if(std::uniform_real_distribution<float>(0.0f, 1.0f)(m_rng) < config.hitChance) {
                     m_resultFruit = catalog.PickSpawnable(level, m_rng);
                     if(registry.HasContext<CollectionConfig>())
                         m_resultVariant = registry.GetContext<CollectionConfig>().PickVariant(m_rng);
+                } else if(std::uniform_real_distribution<float>(0.0f, 1.0f)(m_rng) < config.coinChance) {
+                    // 果物が外れても、時々コインが当たる（手持ちが尽きにくいように）
+                    m_resultCoins = config.coinAmount;
                 }
                 break;
 
@@ -124,11 +132,14 @@ namespace FruitMagic::ECS {
                     state.displayFruit   = m_resultFruit;
                     state.displayVariant = m_resultVariant;
                     state.resultHit      = (m_resultFruit >= 0);
+                    state.resultCoins    = state.resultHit ? 0 : m_resultCoins;
                     m_timer            = config.resultSeconds;
 
                     if(state.resultHit) {
                         SpawnFruit(registry, m_resultFruit, m_resultVariant);
                     }
+                    if(state.resultCoins > 0)
+                        registry.GetContext<GameState>().coins += state.resultCoins;
                     if(registry.HasContext<PlayStats>()) {
                         PlayStats& stats = registry.GetContext<PlayStats>();
                         stats.rouletteSpins += 1;
@@ -144,6 +155,7 @@ namespace FruitMagic::ECS {
                     state.phase        = RoulettePhase::Idle;
                     state.displayFruit = -1;
                     state.resultHit    = false;
+                    state.resultCoins  = 0;
                     state.jackpotWin   = false;
                 }
                 break;
@@ -190,7 +202,7 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         const float halfWidth = (def.shape == FruitShape::Box) ? float(def.halfExtent.x) : def.radius;
         const float halfDepth = (def.shape == FruitShape::Box) ? float(def.halfExtent.z) : def.radius;
-        const float range     = std::max(0.0f, Layout::kLaunchLaneHalfWidth - halfWidth - 1.0f);
+        const float range     = std::max(0.0f, kFruitSpawnHalfWidth - halfWidth);
         const float x         = std::uniform_real_distribution<float>(-range, range)(m_rng);
         const float y         = Layout::kPusherTopY + def.HalfHeightOfBounds() + 0.5f;
 

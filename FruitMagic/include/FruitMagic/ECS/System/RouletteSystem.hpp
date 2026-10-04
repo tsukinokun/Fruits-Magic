@@ -53,6 +53,7 @@ namespace FruitMagic::ECS {
         int                            m_resultFruit    = -1;      // 抽選済みの結果（-1 はハズレ）
         int                            m_resultVariant  = 0;       // 抽選済みの結果のバリエーション
         bool                           m_jackpotWin     = false;   // 抽選済みのジャックポットチャンスの結果
+        int                            m_resultCoins    = 0;       // 抽選済みのコイン当たりの枚数（0 は無し）
         std::mt19937                   m_rng;                      // 抽選用の乱数
     };
 }    // namespace FruitMagic::ECS

@@ -4,5 +4,7 @@
   "resultSeconds": 1.2,
   "maxStock": 4,
   "checkerRange": 16.0,
-  "checkerPeriod": 4.0
+  "checkerPeriod": 4.0,
+  "coinChance": 0.3,
+  "coinAmount": 5
 }

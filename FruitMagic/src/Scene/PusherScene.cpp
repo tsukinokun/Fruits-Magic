@@ -370,6 +370,7 @@ namespace FruitMagic {
     //! シーンの終了処理を行います。
     //----------------------------------------------------------------------------
     void PusherScene::OnExit() {
+        Tsukino::Core::Log::Info("PusherScene: exiting.");
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
         if(!registry.HasContext<OfflineConfig>() || registry.GetContext<OfflineConfig>().savePath.empty())
             return;
