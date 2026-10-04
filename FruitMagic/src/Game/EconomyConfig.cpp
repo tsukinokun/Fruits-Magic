@@ -1,8 +1,8 @@
 //----------------------------------------------------------------------------
-//! @file   JackpotConfig.cpp
-//! @brief  ジャックポットチャンスの設定の読み込み
+//! @file   EconomyConfig.cpp
+//! @brief  コインのやりくりの設定の読み込み
 //----------------------------------------------------------------------------
-#include <FruitMagic/Game/JackpotConfig.hpp>
+#include <FruitMagic/Game/EconomyConfig.hpp>
 
 #include <FruitMagic/Game/FruitCatalog.hpp>
 
@@ -34,30 +34,24 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! 設定ファイルを読み込みます。
     //----------------------------------------------------------------------------
-    bool JackpotConfig::Load(const std::string& path) {
+    bool EconomyConfig::Load(const std::string& path) {
         const std::string text = ReadDataText(path);
         rj::Document      doc;
         doc.Parse(text.c_str());
         if(text.empty() || doc.HasParseError() || !doc.IsObject()) {
-            Tsukino::Core::Log::Warn("JackpotConfig: cannot read " + path + ". Using defaults.");
+            Tsukino::Core::Log::Warn("EconomyConfig: cannot read " + path + ". Using defaults.");
             return false;
         }
 
-        ReadNumber(doc, "chanceRate", chanceRate);
-        ReadNumber(doc, "winRate", winRate);
-        ReadNumber(doc, "spinSeconds", spinSeconds);
-        ReadNumber(doc, "resultSeconds", resultSeconds);
-        ReadNumber(doc, "bonusCoins", bonusCoins);
-        ReadNumber(doc, "consolationCoins", consolationCoins);
-        ReadNumber(doc, "spins", spins);
+        ReadNumber(doc, "startCoins", startCoins);
+        ReadNumber(doc, "reliefBelow", reliefBelow);
+        ReadNumber(doc, "reliefSeconds", reliefSeconds);
+        ReadNumber(doc, "maxCoinsOnTable", maxCoinsOnTable);
 
-        chanceRate       = std::clamp(chanceRate, 0.0f, 1.0f);
-        winRate          = std::clamp(winRate, 0.0f, 1.0f);
-        spinSeconds      = std::max(0.1f, spinSeconds);
-        resultSeconds    = std::max(0.1f, resultSeconds);
-        bonusCoins       = std::max(0, bonusCoins);
-        consolationCoins = std::max(0, consolationCoins);
-        spins            = std::max(0, spins);
+        startCoins      = std::max(0, startCoins);
+        reliefBelow     = std::max(0, reliefBelow);
+        reliefSeconds   = std::max(0.5f, reliefSeconds);
+        maxCoinsOnTable = std::max(0, maxCoinsOnTable);
         return true;
     }
 }    // namespace FruitMagic

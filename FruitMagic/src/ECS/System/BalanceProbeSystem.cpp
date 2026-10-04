@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/BalanceProbeSystem.hpp>
 
+#include <FruitMagic/ECS/Component/PrizeComponent.hpp>
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
@@ -85,6 +86,14 @@ namespace FruitMagic::ECS {
             return;
         m_reportTimer += kReportInterval;
 
+        // 台の上の物の数（物理の重さの目安）と、実時間あたりに進んだゲーム内時間（1 未満ならフレームが重くて遅れている）
+        int prizes = 0;
+        registry.View<PrizeComponent>().each([&](Tsukino::ECS::Entity, PrizeComponent&) { ++prizes; });
+        const auto  now   = std::chrono::steady_clock::now();
+        const float real  = std::chrono::duration<float>(now - m_lastReportClock).count();
+        const int   speed = (real > 0.0f) ? static_cast<int>(kReportInterval / real * 100.0f) : 0;
+        m_lastReportClock = now;
+
         const int coinsIn = stats.coinsLaunched + stats.fairyCoins + stats.showerCoins;
         const int ratio   = (stats.coinsLaunched > 0) ? m_coinPayout * 100 / stats.coinsLaunched : 0;
         Tsukino::Core::Log::Info("BALANCE " + Clock(m_elapsed) + " coins=" + std::to_string(state.coins) + " fruit=" + std::to_string(state.fruitPoints) +
@@ -93,7 +102,8 @@ namespace FruitMagic::ECS {
                                  std::to_string(coinsIn) + ") | out payout=" + std::to_string(m_coinPayout) + " gutter=" + std::to_string(m_coinGutter) +
                                  " payout/launched=" + std::to_string(ratio) + "% | fruits harvest=" + std::to_string(m_fruitPayout) +
                                  " lost=" + std::to_string(m_fruitGutter) + " zukan=" + std::to_string(registered) + " | roulette " +
-                                 std::to_string(stats.rouletteHits) + "/" + std::to_string(stats.rouletteSpins) + " jackpot=" + std::to_string(stats.jackpots) +
-                                 " magic=" + std::to_string(stats.magicsCast) + " tree=" + std::to_string(state.treeLevel));
+                                 std::to_string(stats.rouletteHits) + "/" + std::to_string(stats.rouletteSpins) + " jackpot " + std::to_string(stats.jackpots) + "/" + std::to_string(stats.jackpotChances) +
+                                 " magic=" + std::to_string(stats.magicsCast) + " tree=" + std::to_string(state.treeLevel) + " | prizes=" +
+                                 std::to_string(prizes) + " speed=" + std::to_string(speed) + "%");
     }
 }    // namespace FruitMagic::ECS

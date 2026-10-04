@@ -7,6 +7,7 @@
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 #include <Tsukino/Core/ECS/Event/ScopedConnection.hpp>
 
+#include <chrono>
 #include <map>
 #include <string>
 
@@ -42,5 +43,6 @@ namespace FruitMagic::ECS {
         int                            m_fruitGutter  = 0;        // 溝に落ちた果物
         std::map<std::string, int>     m_lastUpgrades;            // 前に見た強化のレベル
         int                            m_lastRegistered = 0;      // 前に見た図鑑の登録数
+        std::chrono::steady_clock::time_point m_lastReportClock = std::chrono::steady_clock::now();    // 前のログの実時間
     };
 }    // namespace FruitMagic::ECS

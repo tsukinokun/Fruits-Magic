@@ -1,11 +1,9 @@
 {
-  "holeHalfWidth": 2.5,
-  "holeHalfDepth": 2.5,
-  "frontOffset": 5.0,
-  "range": 18.0,
-  "period": 7.0,
-  "openSeconds": 4.0,
-  "closedSeconds": 20.0,
-  "spins": 3,
-  "bonusCoins": 10
+  "chanceRate": 0.04,
+  "winRate": 0.34,
+  "spinSeconds": 2.5,
+  "resultSeconds": 2.5,
+  "bonusCoins": 40,
+  "consolationCoins": 5,
+  "spins": 3
 }

@@ -17,7 +17,7 @@ namespace Tsukino::ECS {
 namespace FruitMagic::ECS {
 
     //! 自動で遊ぶシステムです。普通のプレイヤーの遊び方をまねて、
-    //! 一定間隔でランダムな位置へコインを入れ、撃てる魔法があれば撃ち、買える強化は安い順に買います。
+    //! 0.6 秒ごとにランダムな位置へコインを入れ、撃てる魔法があれば撃ち、買える強化は安い順に買います。
     //! 強化を買っても投入用のコインが残るよう、手持ちを少し残します。
     class AutoPlaySystem : public Tsukino::ECS::ISystem {
     public:

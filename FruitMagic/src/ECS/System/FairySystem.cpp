@@ -4,6 +4,8 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/FairySystem.hpp>
 
+#include <FruitMagic/Game/EconomyConfig.hpp>
+#include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
@@ -27,6 +29,23 @@ namespace FruitMagic::ECS {
     void FairySystem::Update(Tsukino::ECS::Registry& registry, float deltaTime) {
         if(!registry.HasContext<TableStats>() || !registry.HasContext<PrizeFactory>())
             return;
+
+        //--------------------------------------------------------------
+        // おすそわけ: 手持ちが尽きかけている間だけ、時間で1枚ずつ手持ちに足す
+        //--------------------------------------------------------------
+        if(registry.HasContext<EconomyConfig>() && registry.HasContext<GameState>()) {
+            const EconomyConfig& economy = registry.GetContext<EconomyConfig>();
+            GameState&           state   = registry.GetContext<GameState>();
+            if(state.coins < economy.reliefBelow) {
+                m_reliefTimer += deltaTime;
+                if(m_reliefTimer >= economy.reliefSeconds) {
+                    m_reliefTimer = 0.0f;
+                    state.coins += 1;
+                }
+            } else {
+                m_reliefTimer = 0.0f;
+            }
+        }
 
         const float interval = registry.GetContext<TableStats>().autoLaunchInterval;
         if(interval <= 0.0f) {

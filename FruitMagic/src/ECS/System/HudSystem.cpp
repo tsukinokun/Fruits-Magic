@@ -174,6 +174,12 @@ namespace FruitMagic::ECS {
                             text = roulette.resultHit ? L"当たり！ " + FruitName(registry, roulette.displayFruit, roulette.displayVariant) + L" が出た！"
                                                       : std::wstring(L"ハズレ…");
                             break;
+                        case RoulettePhase::JackpotSpin:
+                            text = L"ジャックポットチャンス！ ▶ " + std::wstring(roulette.jackpotDisplay ? L"JACKPOT" : L"ハズレ");
+                            break;
+                        case RoulettePhase::JackpotResult:
+                            text = roulette.jackpotWin ? L"JACKPOT!!" : L"おしい…";
+                            break;
                         case RoulettePhase::Idle:
                         default:
                             break;
@@ -181,6 +187,10 @@ namespace FruitMagic::ECS {
                     if(roulette.stock > 0)
                         text += L"   (のこり " + std::to_wstring(roulette.stock) + L")";
                     font.text = text;
+
+                    // ジャックポットチャンスの間は金色に
+                    const bool jackpot = roulette.phase == RoulettePhase::JackpotSpin || roulette.phase == RoulettePhase::JackpotResult;
+                    font.color         = jackpot ? hlslpp::float4(1.0f, 0.65f, 0.1f, 1.0f) : hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f);
                     break;
                 }
 

@@ -15,7 +15,8 @@ namespace FruitMagic {
         int showerCoins    = 0;    // シャワー（メテオコイン・ジャックポット）で降ったコイン
         int rouletteSpins  = 0;    // ルーレットを回した回数
         int rouletteHits   = 0;    // ルーレットの当たり
-        int jackpots       = 0;    // ジャックポット
+        int jackpotChances = 0;    // ジャックポットチャンス
+        int jackpots       = 0;    // ジャックポット（チャンスで当たった回数）
         int magicsCast     = 0;    // 魔法を撃った回数
     };
 }    // namespace FruitMagic

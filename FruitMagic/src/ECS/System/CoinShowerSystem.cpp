@@ -4,7 +4,9 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/CoinShowerSystem.hpp>
 
+#include <FruitMagic/ECS/Component/PrizeComponent.hpp>
 #include <FruitMagic/Game/CoinShowerState.hpp>
+#include <FruitMagic/Game/EconomyConfig.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
@@ -48,6 +50,19 @@ namespace FruitMagic::ECS {
         CoinShowerState& shower = registry.GetContext<CoinShowerState>();
         if(shower.requests.empty())
             return;
+
+        //--------------------------------------------------------------
+        // 台の上のコインが多すぎる間は降らせるのを待つ（物理が重くなりすぎてゲームが進まなくなるため）
+        //--------------------------------------------------------------
+        if(registry.HasContext<EconomyConfig>()) {
+            int coins = 0;
+            registry.View<PrizeComponent>().each([&](Tsukino::ECS::Entity, PrizeComponent& prize) {
+                if(prize.kind == PrizeKind::Coin)
+                    ++coins;
+            });
+            if(coins >= registry.GetContext<EconomyConfig>().maxCoinsOnTable)
+                return;
+        }
 
         //--------------------------------------------------------------
         // 今フレームに落とす枚数を数える（生成は後でまとめて）

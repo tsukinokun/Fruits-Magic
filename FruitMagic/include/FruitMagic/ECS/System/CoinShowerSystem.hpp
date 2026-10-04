@@ -12,6 +12,7 @@ namespace FruitMagic::ECS {
 
     //! コインのシャワーのシステムです。CoinShowerState の依頼を、プッシャーが届かない台の手前側の
     //! ランダムな位置へ、敷き詰めたコインのすぐ上から1枚ずつ落とします（手持ちからは引かない）。
+    //! 台の上のコインが EconomyConfig::maxCoinsOnTable 枚以上の間は、減るまで待ちます。
     class CoinShowerSystem : public Tsukino::ECS::ISystem {
     public:
 

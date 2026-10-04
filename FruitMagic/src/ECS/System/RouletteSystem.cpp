@@ -5,9 +5,12 @@
 #include <FruitMagic/ECS/System/RouletteSystem.hpp>
 
 #include <FruitMagic/ECS/Event/CheckerEnteredEvent.hpp>
+#include <FruitMagic/ECS/Event/NoticeEvent.hpp>
+#include <FruitMagic/Game/CoinShowerState.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/JackpotConfig.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
@@ -18,19 +21,27 @@
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 
 #include <algorithm>
+#include <string>
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
     namespace {
         //! @brief 回転中に表示を切り替える間隔（秒）
         constexpr float kFlipInterval = 0.08f;
+
+        //! @brief ジャックポットチャンスの抽選中に「JACKPOT」「ハズレ」を切り替える間隔（秒）。最後は少しゆっくりに
+        constexpr float kJackpotFlipInterval = 0.12f;
+
+        //! @brief ジャックポットのコインを降らせる時間（秒）
+        constexpr float kJackpotShowerSeconds = 3.0f;
     }    // namespace
 
     //----------------------------------------------------------------------------
     //! コンストラクタです。
     //----------------------------------------------------------------------------
     RouletteSystem::RouletteSystem(Tsukino::ECS::EventBus& eventBus)
-        : m_rng(std::random_device{}()) {
+        : m_eventBus(eventBus)
+        , m_rng(std::random_device{}()) {
         // ハンドラでは数えるだけにして、レジストリへの反映は Update で行う
         m_enteredConnection = eventBus.Subscribe<CheckerEnteredEvent>([this](const CheckerEnteredEvent&) { ++m_pendingEntered; });
     }
@@ -59,10 +70,30 @@ namespace FruitMagic::ECS {
                 if(state.stock <= 0)
                     break;
 
+                state.stock -= 1;
+
+                //--------------------------------------------------------------
+                // まれにジャックポットチャンス。結果は最初に抽選しておき、抽選の様子は見せるだけにする
+                //--------------------------------------------------------------
+                if(registry.HasContext<JackpotConfig>()) {
+                    const JackpotConfig&                  jackpot = registry.GetContext<JackpotConfig>();
+                    std::uniform_real_distribution<float> roll(0.0f, 1.0f);
+                    if(roll(m_rng) < jackpot.chanceRate) {
+                        state.phase          = RoulettePhase::JackpotSpin;
+                        state.jackpotDisplay = false;
+                        m_jackpotWin         = roll(m_rng) < jackpot.winRate;
+                        m_timer              = jackpot.spinSeconds;
+                        m_flipTimer          = 0.0f;
+                        if(registry.HasContext<PlayStats>())
+                            registry.GetContext<PlayStats>().jackpotChances += 1;
+                        m_eventBus.Publish(NoticeEvent{L"ジャックポットチャンス！", jackpot.spinSeconds});
+                        break;
+                    }
+                }
+
                 //--------------------------------------------------------------
                 // 回転開始。結果は最初に抽選しておき、回転は見せるだけにする
                 //--------------------------------------------------------------
-                state.stock -= 1;
                 state.phase = RoulettePhase::Spinning;
                 m_timer     = config.spinSeconds;
                 m_flipTimer = 0.0f;
@@ -107,11 +138,34 @@ namespace FruitMagic::ECS {
                 break;
 
             case RoulettePhase::Result:
+            case RoulettePhase::JackpotResult:
                 m_timer -= deltaTime;
                 if(m_timer <= 0.0f) {
                     state.phase        = RoulettePhase::Idle;
                     state.displayFruit = -1;
                     state.resultHit    = false;
+                    state.jackpotWin   = false;
+                }
+                break;
+
+            case RoulettePhase::JackpotSpin:
+                //--------------------------------------------------------------
+                // 「JACKPOT」と「ハズレ」を交互に見せ、時間が来たら抽選済みの結果で止める
+                //--------------------------------------------------------------
+                m_flipTimer -= deltaTime;
+                if(m_flipTimer <= 0.0f) {
+                    m_flipTimer          = kJackpotFlipInterval;
+                    state.jackpotDisplay = !state.jackpotDisplay;
+                }
+
+                m_timer -= deltaTime;
+                if(m_timer <= 0.0f) {
+                    const JackpotConfig jackpot = registry.HasContext<JackpotConfig>() ? registry.GetContext<JackpotConfig>() : JackpotConfig{};
+                    state.phase                 = RoulettePhase::JackpotResult;
+                    state.jackpotWin            = m_jackpotWin;
+                    state.jackpotDisplay        = m_jackpotWin;
+                    m_timer                     = jackpot.resultSeconds;
+                    GrantJackpot(registry, m_jackpotWin);
                 }
                 break;
         }
@@ -155,5 +209,29 @@ namespace FruitMagic::ECS {
         }
 
         registry.GetContext<PrizeFactory>().CreateFruit(registry, def, fruitIndex, variantIndex, color, glow, hlslpp::float3(x, y, z));
+    }
+
+    //----------------------------------------------------------------------------
+    //! ジャックポットチャンスの結果の景品を出します。
+    //----------------------------------------------------------------------------
+    void RouletteSystem::GrantJackpot(Tsukino::ECS::Registry& registry, bool win) {
+        const JackpotConfig jackpot = registry.HasContext<JackpotConfig>() ? registry.GetContext<JackpotConfig>() : JackpotConfig{};
+        const int           coins   = win ? jackpot.bonusCoins : jackpot.consolationCoins;
+
+        // コインは台の手前側に降らせる（タダ。手持ちからは引かない）
+        if(registry.HasContext<CoinShowerState>())
+            registry.GetContext<CoinShowerState>().Add(coins, win ? kJackpotShowerSeconds : 1.0f);
+
+        if(!win) {
+            m_eventBus.Publish(NoticeEvent{L"おしい…  コイン +" + std::to_wstring(coins), jackpot.resultSeconds});
+            return;
+        }
+
+        // 当たり: ルーレットの回転も増やす（ためておける上限を超えてよい）
+        if(registry.HasContext<RouletteState>())
+            registry.GetContext<RouletteState>().stock += jackpot.spins;
+        if(registry.HasContext<PlayStats>())
+            registry.GetContext<PlayStats>().jackpots += 1;
+        m_eventBus.Publish(NoticeEvent{L"ジャックポット！！  コイン +" + std::to_wstring(coins) + L"  ルーレット +" + std::to_wstring(jackpot.spins), 4.0f});
     }
 }    // namespace FruitMagic::ECS

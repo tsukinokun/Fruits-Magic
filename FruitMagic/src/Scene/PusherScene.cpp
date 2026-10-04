@@ -6,6 +6,7 @@
 
 #include <FruitMagic/Game/CoinShowerState.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
+#include <FruitMagic/Game/EconomyConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/JackpotConfig.hpp>
@@ -26,7 +27,6 @@
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
-#include <FruitMagic/ECS/Component/JackpotHoleComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
@@ -41,7 +41,6 @@
 #include <FruitMagic/ECS/System/HarvestSystem.hpp>
 #include <FruitMagic/ECS/System/GrowMagicSystem.hpp>
 #include <FruitMagic/ECS/System/HudSystem.hpp>
-#include <FruitMagic/ECS/System/JackpotSystem.hpp>
 #include <FruitMagic/ECS/System/MagicInputSystem.hpp>
 #include <FruitMagic/ECS/System/ManaSystem.hpp>
 #include <FruitMagic/ECS/System/MenuSystem.hpp>
@@ -189,7 +188,6 @@ namespace FruitMagic {
             Transform,
             Physics,             // Transform 確定後に剛体を進め、結果を Transform へ書き戻す
             PrizeDrop,           // 物理の結果で落下を判定する
-            Jackpot,             // 物理の結果の位置で、穴の上のコインを吸い込む
             Checker,             // 払い出し口に落ちたコインがチェッカーに入ったかを、同じフレームの落下イベントで判定する
             Wallet,
             Harvest,
@@ -236,7 +234,6 @@ namespace FruitMagic {
 #endif
         m_scene.AddSystem(physicsSystem, (int)SystemPriority::Physics);
         m_scene.AddSystem(std::make_shared<ECS::PrizeDropSystem>(eventBus), (int)SystemPriority::PrizeDrop);
-        m_scene.AddSystem(std::make_shared<ECS::JackpotSystem>(eventBus), (int)SystemPriority::Jackpot);
         m_scene.AddSystem(std::make_shared<ECS::WalletSystem>(eventBus), (int)SystemPriority::Wallet);
         m_scene.AddSystem(std::make_shared<ECS::HarvestSystem>(eventBus), (int)SystemPriority::Harvest);
         m_scene.AddSystem(std::make_shared<ECS::ManaSystem>(eventBus), (int)SystemPriority::Mana);
@@ -296,7 +293,11 @@ namespace FruitMagic {
         offline.Load(dataRoot + "/Offline.json");
         offline.savePath = autoPlay ? std::string() : SaveData::DefaultPath();
 
+        EconomyConfig& economy = registry.SetContext<EconomyConfig>();
+        economy.Load(dataRoot + "/Economy.json");
+
         GameState& state = registry.SetContext<GameState>();
+        state.coins      = economy.startCoins;    // セーブがあれば下で上書きされる
         state.maxMana    = manaConfig.maxMana;
         state.harvestCounts.assign(catalog.Fruits().size(), std::vector<int>(collection.Variants().size(), 0));
 
@@ -433,7 +434,6 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         m_pusherEntity = factory.CreateBox(registry, hlslpp::float3(0.0f, kPusherCenterY, kPusherStartCenterZ), PusherHalfExtent(),
                                            RigidbodyType::Kinematic);
-        registry.SetContext<PusherRef>().entity = m_pusherEntity;
     }
 
     //----------------------------------------------------------------------------
@@ -594,25 +594,6 @@ namespace FruitMagic {
             Tsukino::ECS::Entity e        = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, Layout::kLaunchMarkerY, Layout::kLaunchZ),
                                                                     hlslpp::float3(coinHalf.x, 0.2f, coinHalf.z), 0.5f);
             registry.AddComponent<ECS::CoinLauncherComponent>(e);
-        }
-
-        //--------------------------------------------------------------
-        // ジャックポット穴の目印（プッシャー上面の暗い板。開いている間は金色に光る）。
-        // JackpotSystem がプッシャーに合わせて動かし、開いている間に上に来たコインを吸い込む。見た目だけ（コライダー無し）
-        //--------------------------------------------------------------
-        {
-            const JackpotConfig& config = registry.GetContext<JackpotConfig>();
-            Tsukino::ECS::Entity e      = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, Layout::kPusherTopY + 0.05f, Layout::kLaunchZ),
-                                                                  hlslpp::float3(config.holeHalfWidth, 0.1f, config.holeHalfDepth), 1.0f,
-                                                                  hlslpp::float3(0.12f, 0.06f, 0.15f));
-
-            Tsukino::BuiltIn::ECS::RimGlowComponent& glow = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
-            glow.active                                   = false;
-            glow.rimColor                                 = hlslpp::float3(1.0f, 0.8f, 0.2f);
-            glow.rimIntensity                             = 2.0f;
-            glow.glow                                     = 1.0f;
-
-            registry.AddComponent<ECS::JackpotHoleComponent>(e);
         }
 
         //--------------------------------------------------------------

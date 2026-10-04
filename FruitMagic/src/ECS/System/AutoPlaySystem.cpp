@@ -20,8 +20,8 @@
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
     namespace {
-        //! @brief 投入の間隔（秒）。クリックし続ける人くらいの速さ
-        constexpr float kLaunchInterval = 0.4f;
+        //! @brief 投入の間隔（秒）。台を見ながらクリックし続ける人くらいの速さ
+        constexpr float kLaunchInterval = 0.6f;
 
         //! @brief 魔法・強化を考える間隔（秒）
         constexpr float kDecideInterval = 1.0f;
