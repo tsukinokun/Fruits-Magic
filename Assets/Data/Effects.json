@@ -1,0 +1,65 @@
+{
+  "maxParticles": 400,
+  "presets": {
+    "variant_shiny": {
+      "texture": "sparkle", "count": 14, "speed": 14, "up": 12, "gravity": 10, "life": 0.9, "size": 6.0, "spread": 2,
+      "colors": [{ "r": 1.0, "g": 0.6, "b": 0.95 }, { "r": 0.6, "g": 0.9, "b": 1.0 }]
+    },
+    "variant_gold": {
+      "texture": "sparkle", "count": 30, "speed": 18, "up": 16, "gravity": 10, "life": 1.2, "size": 7.0, "spread": 3,
+      "colors": [{ "r": 1.0, "g": 0.85, "b": 0.3 }, { "r": 1.0, "g": 1.0, "b": 0.7 }],
+      "flash": { "r": 1.0, "g": 0.85, "b": 0.4, "a": 0.25 }
+    },
+    "zukan": {
+      "texture": "sparkle", "count": 18, "speed": 12, "up": 14, "gravity": 8, "life": 1.0, "size": 5.6, "spread": 2,
+      "colors": [{ "r": 1.0, "g": 0.5, "b": 0.5 }, { "r": 1.0, "g": 0.9, "b": 0.4 }, { "r": 0.5, "g": 1.0, "b": 0.6 }, { "r": 0.5, "g": 0.8, "b": 1.0 }, { "r": 0.85, "g": 0.6, "b": 1.0 }]
+    },
+    "shinyIdle": {
+      "texture": "sparkle", "count": 1, "speed": 2, "up": 4, "gravity": 0, "life": 0.7, "size": 4.0, "spread": 2,
+      "colors": [{ "r": 1.0, "g": 0.9, "b": 1.0 }]
+    },
+    "jackpotChance": {
+      "texture": "sparkle", "count": 16, "speed": 10, "up": 10, "gravity": 4, "life": 1.0, "size": 6.0, "spread": 20,
+      "colors": [{ "r": 1.0, "g": 0.7, "b": 0.2 }],
+      "flash": { "r": 1.0, "g": 0.7, "b": 0.2, "a": 0.2 }
+    },
+    "jackpot": {
+      "texture": "sparkle", "count": 70, "speed": 20, "up": 25, "gravity": 12, "life": 1.6, "size": 8.0, "spread": 25,
+      "colors": [{ "r": 1.0, "g": 0.85, "b": 0.3 }, { "r": 1.0, "g": 1.0, "b": 0.75 }, { "r": 1.0, "g": 0.6, "b": 0.2 }],
+      "flash": { "r": 1.0, "g": 0.9, "b": 0.5, "a": 0.55 }
+    },
+    "showerCoin": {
+      "texture": "glow", "count": 2, "speed": 3, "up": 4, "gravity": 0, "life": 0.5, "size": 6.0, "spread": 1,
+      "colors": [{ "r": 1.0, "g": 0.85, "b": 0.35 }]
+    },
+    "cast_shake": {
+      "texture": "glow", "count": 40, "speed": 6, "up": 18, "gravity": 4, "life": 1.0, "size": 6.0, "spread": 26,
+      "colors": [{ "r": 0.85, "g": 0.65, "b": 1.0 }, { "r": 1.0, "g": 0.8, "b": 1.0 }],
+      "flash": { "r": 0.8, "g": 0.55, "b": 1.0, "a": 0.3 }
+    },
+    "cast_swell": {
+      "texture": "sparkle", "count": 24, "speed": 10, "up": 8, "gravity": 4, "life": 0.9, "size": 6.0, "spread": 22,
+      "colors": [{ "r": 1.0, "g": 0.55, "b": 0.75 }],
+      "flash": { "r": 1.0, "g": 0.5, "b": 0.7, "a": 0.3 }
+    },
+    "cast_wall": {
+      "texture": "glow", "count": 20, "speed": 4, "up": 14, "gravity": 0, "life": 0.9, "size": 6.0, "spread": 26,
+      "colors": [{ "r": 0.45, "g": 0.9, "b": 1.0 }],
+      "flash": { "r": 0.4, "g": 0.85, "b": 1.0, "a": 0.3 }
+    },
+    "wallTrail": {
+      "texture": "glow", "count": 1, "speed": 1, "up": 10, "gravity": 0, "life": 0.8, "size": 5.0, "spread": 0.5,
+      "colors": [{ "r": 0.45, "g": 0.9, "b": 1.0 }]
+    },
+    "grow": {
+      "texture": "sparkle", "count": 26, "speed": 16, "up": 10, "gravity": 6, "life": 0.9, "size": 7.0, "spread": 3,
+      "colors": [{ "r": 0.55, "g": 1.0, "b": 0.5 }, { "r": 1.0, "g": 1.0, "b": 0.6 }],
+      "flash": { "r": 0.5, "g": 1.0, "b": 0.5, "a": 0.3 }
+    },
+    "cast_meteor": {
+      "texture": "sparkle", "count": 20, "speed": 8, "up": 20, "gravity": 8, "life": 1.0, "size": 7.0, "spread": 20,
+      "colors": [{ "r": 1.0, "g": 0.85, "b": 0.3 }],
+      "flash": { "r": 1.0, "g": 0.8, "b": 0.3, "a": 0.35 }
+    }
+  }
+}

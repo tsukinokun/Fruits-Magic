@@ -4,7 +4,9 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/GrowMagicSystem.hpp>
 
+#include <FruitMagic/ECS/Component/EffectComponents.hpp>
 #include <FruitMagic/ECS/Component/PrizeComponent.hpp>
+#include <FruitMagic/ECS/Event/EffectEvent.hpp>
 #include <FruitMagic/ECS/Event/MagicCastEvent.hpp>
 #include <FruitMagic/ECS/Event/NoticeEvent.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
@@ -106,7 +108,11 @@ namespace FruitMagic::ECS {
 
         Tsukino::ECS::Entity grown = registry.GetContext<PrizeFactory>().CreateFruit(registry, giant, prize.fruitIndex, prize.variantIndex, color, glow, newPosition);
         registry.GetComponent<PrizeComponent>(grown).valueMultiplier = std::max(1, static_cast<int>(def.Param("valueMultiplier", 2.0f)));
-        registry.QueueDestroy(target);
+        PrizeFactory::DestroyPrize(registry, target);
+
+        // 演出: 周りで光が弾け、ぽよんと膨らんでから落ち着く
+        registry.AddComponent<PopScaleComponent>(grown).baseScale = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(grown).scale;
+        m_eventBus.Publish(EffectEvent{"grow", newPosition});
 
         m_eventBus.Publish(NoticeEvent{registry.GetContext<CollectionConfig>().DisplayName(giant, prize.variantIndex) + L" が おおきくなった！", 2.5f});
     }

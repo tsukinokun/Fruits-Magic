@@ -6,6 +6,7 @@
 
 #include <FruitMagic/ECS/Component/PrizeComponent.hpp>
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
+#include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
@@ -59,7 +60,7 @@ namespace FruitMagic::ECS {
         // 発行して破棄予約（実際の破棄は全システム更新後の FlushDestroyQueue）
         //--------------------------------------------------------------
         for(const PrizeDroppedEvent& e : dropped) {
-            registry.QueueDestroy(e.prize);
+            PrizeFactory::DestroyPrize(registry, e.prize);
             m_eventBus.Publish(e);
         }
     }

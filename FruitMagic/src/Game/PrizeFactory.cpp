@@ -5,6 +5,7 @@
 #include <FruitMagic/Game/PrizeFactory.hpp>
 
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/ECS/Component/FruitPartsComponent.hpp>
 #include <FruitMagic/ECS/Component/PrizeComponent.hpp>
 
 #include <Tsukino/Engine/Asset/AssetManager.hpp>
@@ -23,6 +24,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <cstdint>
 #include <memory>
 
@@ -31,6 +33,11 @@ namespace FruitMagic {
     namespace {
         //! @brief 台の部品とコインの見た目に使う箱モデル
         constexpr const char* kBlockModelPath = "Assets/Models/Block.fbx";
+        constexpr const char* kBallModelPath  = "Assets/Models/Ball.fbx";
+
+        //! @brief コインの色（金色）と、少しだけ光らせる強さ
+        const hlslpp::float3 kCoinColor = hlslpp::float3(1.0f, 0.78f, 0.25f);
+        constexpr float      kCoinGlow  = 0.25f;
 
         //--------------------------------------------------------------
         //! メッシュの AABB 上の点を、ノードの回転と移動で描画時の空間へ移します。
@@ -214,8 +221,8 @@ namespace FruitMagic {
     //! 箱型の物体（見た目＋Boxコライダー＋剛体）を生成します。
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateBox(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
-                                                 Tsukino::BuiltIn::ECS::RigidbodyType type) {
-        Tsukino::ECS::Entity e = CreateVisualBox(registry, position, halfExtent);
+                                                 Tsukino::BuiltIn::ECS::RigidbodyType type, const hlslpp::float3& color) {
+        Tsukino::ECS::Entity e = CreateVisualBox(registry, position, halfExtent, 1.0f, color);
 
         // コライダーはスケールの影響を受けないので、大きさを直接指定する
         Tsukino::BuiltIn::ECS::CollisionComponent& collision = registry.AddComponent<Tsukino::BuiltIn::ECS::CollisionComponent>(e);
@@ -260,6 +267,14 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateCoin(Tsukino::ECS::Registry& registry, const hlslpp::float3& position) {
         Tsukino::ECS::Entity e = CreateBox(registry, position, CoinHalfExtent(), Tsukino::BuiltIn::ECS::RigidbodyType::Dynamic);
+
+        // 金色にして少し光らせる（台の上で果物と見分けやすく、ポップに）
+        registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e).modelHandle = GetTintedModel(kBlockModelPath, kCoinColor).handle;
+        Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
+        rim.active                                   = true;
+        rim.rimColor                                 = kCoinColor;
+        rim.rimIntensity                             = kCoinGlow;
+        rim.rimPower                                 = 3.0f;
 
         ECS::PrizeComponent& prize = registry.AddComponent<ECS::PrizeComponent>(e);
         prize.kind                 = ECS::PrizeKind::Coin;
@@ -330,6 +345,100 @@ namespace FruitMagic {
         prize.fruitIndex           = fruitIndex;
         prize.variantIndex         = variantIndex;
 
+        AttachParts(registry, e, def, modelInfo.halfExtent);
         return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 見た目だけの球（コライダー無し）を生成します。
+    //----------------------------------------------------------------------------
+    Tsukino::ECS::Entity PrizeFactory::CreateVisualBall(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
+                                                        const hlslpp::float3& color) {
+        const ModelInfo&     ball = GetTintedModel(kBallModelPath, color);
+        Tsukino::ECS::Entity e    = registry.CreateEntity();
+
+        Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+        transform.position                                   = position;
+        transform.scale                                      = halfExtent / ball.halfExtent;
+        transform.dirty                                      = true;
+
+        Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
+        model.modelHandle                            = ball.handle;
+        model.visible                                = true;
+        return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 果物に飾りのパーツを付けます。
+    //----------------------------------------------------------------------------
+    void PrizeFactory::AttachParts(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity fruit, const FruitDef& def, const hlslpp::float3& fruitModelHalf) {
+        if(def.parts.empty())
+            return;
+
+        ECS::FruitPartsComponent& owned = registry.AddComponent<ECS::FruitPartsComponent>(fruit);
+        for(const FruitPart& part : def.parts) {
+            const ModelInfo& model = GetTintedModel(part.shape == FruitPartShape::Sphere ? kBallModelPath : kBlockModelPath, part.color);
+            Tsukino::ECS::Entity e = registry.CreateEntity();
+
+            //--------------------------------------------------------------
+            // 果物を親にする。親のスケールは「果物の見た目の半サイズ ÷ 果物のモデルの半サイズ」なので、
+            // ローカルの位置・スケールを果物のモデルの半サイズで書けば、果物の大きさに対する比率どおりになる
+            //--------------------------------------------------------------
+            Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+            transform.parent                                     = fruit;
+            transform.position                                   = part.offset * fruitModelHalf;
+            transform.rotation                                   = EulerDegrees(part.rotation);
+            transform.scale                                      = part.size * fruitModelHalf / model.halfExtent;
+            transform.dirty                                      = true;
+
+            Tsukino::BuiltIn::ECS::ModelComponent& component = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
+            component.modelHandle                            = model.handle;
+            component.visible                                = true;
+
+            if(part.glow > 0.0f) {
+                Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
+                rim.active                                   = true;
+                rim.rimColor                                 = part.color;
+                rim.rimIntensity                             = part.glow;
+                rim.rimPower                                 = 3.0f;
+            }
+
+            owned.parts.push_back(e);
+        }
+    }
+
+    //----------------------------------------------------------------------------
+    //! 景品を破棄予約します。果物の飾りのパーツも一緒に破棄します。
+    //----------------------------------------------------------------------------
+    void PrizeFactory::DestroyPrize(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity) {
+        if(auto* parts = registry.try_get<ECS::FruitPartsComponent>(entity)) {
+            for(Tsukino::ECS::Entity part : parts->parts)
+                registry.QueueDestroy(part);
+        }
+        registry.QueueDestroy(entity);
+    }
+
+    //----------------------------------------------------------------------------
+    //! 度で表した回転（X → Y → Z の順に回す）をクォータニオンにします。
+    //----------------------------------------------------------------------------
+    hlslpp::quaternion PrizeFactory::EulerDegrees(const hlslpp::float3& degrees) {
+        constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+
+        // 各軸の回転を作り、X → Y → Z の順に掛ける（q = qz * qy * qx）
+        auto axis = [](float x, float y, float z, float radians) {
+            const float s = std::sin(radians * 0.5f);
+            return hlslpp::float4(x * s, y * s, z * s, std::cos(radians * 0.5f));
+        };
+        auto multiply = [](const hlslpp::float4& a, const hlslpp::float4& b) {
+            // (a * b) を (x, y, z, w) の成分で計算する
+            return hlslpp::float4(float(a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y), float(a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x),
+                                  float(a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w), float(a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z));
+        };
+
+        const hlslpp::float4 qx = axis(1.0f, 0.0f, 0.0f, float(degrees.x) * kDegToRad);
+        const hlslpp::float4 qy = axis(0.0f, 1.0f, 0.0f, float(degrees.y) * kDegToRad);
+        const hlslpp::float4 qz = axis(0.0f, 0.0f, 1.0f, float(degrees.z) * kDegToRad);
+        const hlslpp::float4 q  = multiply(qz, multiply(qy, qx));
+        return hlslpp::quaternion(float(q.x), float(q.y), float(q.z), float(q.w));
     }
 }    // namespace FruitMagic

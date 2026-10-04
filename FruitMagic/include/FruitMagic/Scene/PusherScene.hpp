@@ -41,6 +41,10 @@ namespace FruitMagic {
         //! @param  [in] factory 生成に使うファクトリ
         void CreateCabinet(PrizeFactory& factory);
 
+        //! 屋台の飾り（しましまの屋根・柱・ちょうちん）を生成します。
+        //! @param  [in] factory 生成に使うファクトリ
+        void CreateStall(PrizeFactory& factory);
+
         //! 起動時に台に置いておく景品を生成します。
         //! @param  [in] factory 生成に使うファクトリ
         void CreateInitialPrizes(PrizeFactory& factory);

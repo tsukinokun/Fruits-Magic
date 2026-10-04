@@ -1,0 +1,18 @@
+{
+  "masterVolume": 0.8,
+  "sounds": {
+    "coinLaunch":    { "file": "Assets/Sounds/coin_launch.wav",    "volume": 0.45, "minInterval": 0.05 },
+    "coinPayout":    { "file": "Assets/Sounds/coin_payout.wav",    "volume": 0.55, "minInterval": 0.09 },
+    "gutter":        { "file": "Assets/Sounds/gutter.wav",         "volume": 0.4,  "minInterval": 0.15 },
+    "fruitGet":      { "file": "Assets/Sounds/fruit_get.wav",      "volume": 0.8,  "minInterval": 0.1 },
+    "zukanNew":      { "file": "Assets/Sounds/zukan_new.wav",      "volume": 0.8,  "minInterval": 0.3 },
+    "rouletteTick":  { "file": "Assets/Sounds/roulette_tick.wav",  "volume": 0.35, "minInterval": 0.06 },
+    "rouletteHit":   { "file": "Assets/Sounds/roulette_hit.wav",   "volume": 0.7,  "minInterval": 0.2 },
+    "rouletteMiss":  { "file": "Assets/Sounds/roulette_miss.wav",  "volume": 0.5,  "minInterval": 0.2 },
+    "jackpotChance": { "file": "Assets/Sounds/jackpot_chance.wav", "volume": 0.7,  "minInterval": 0.5 },
+    "jackpotWin":    { "file": "Assets/Sounds/jackpot_win.wav",    "volume": 0.85, "minInterval": 0.5 },
+    "magicCast":     { "file": "Assets/Sounds/magic_cast.wav",     "volume": 0.7,  "minInterval": 0.2 },
+    "upgrade":       { "file": "Assets/Sounds/upgrade.wav",        "volume": 0.75, "minInterval": 0.2 },
+    "button":        { "file": "Assets/Sounds/button.wav",         "volume": 0.5,  "minInterval": 0.05 }
+  }
+}

@@ -204,9 +204,9 @@ namespace FruitMagic::ECS {
 
                 case HudTextKind::ControlsHint:
 #ifdef _DEBUG
-                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   F5: コリジョン表示   F2: コイン・果実 +100・マナ満タン";
+                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音   F5: コリジョン表示   F2: コイン・果実 +100・マナ満タン";
 #else
-                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化";
+                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音";
 #endif
                     break;
             }

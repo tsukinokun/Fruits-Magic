@@ -5,6 +5,7 @@
 #include <FruitMagic/ECS/System/CoinShowerSystem.hpp>
 
 #include <FruitMagic/ECS/Component/PrizeComponent.hpp>
+#include <FruitMagic/ECS/Event/EffectEvent.hpp>
 #include <FruitMagic/Game/CoinShowerState.hpp>
 #include <FruitMagic/Game/EconomyConfig.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
@@ -12,6 +13,7 @@
 #include <FruitMagic/Game/PusherLayout.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
+#include <Tsukino/Core/ECS/Event/EventBus.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -36,8 +38,9 @@ namespace FruitMagic::ECS {
     //----------------------------------------------------------------------------
     //! コンストラクタです。
     //----------------------------------------------------------------------------
-    CoinShowerSystem::CoinShowerSystem()
-        : m_rng(std::random_device{}()) {
+    CoinShowerSystem::CoinShowerSystem(Tsukino::ECS::EventBus& eventBus)
+        : m_eventBus(eventBus)
+        , m_rng(std::random_device{}()) {
     }
 
     //----------------------------------------------------------------------------
@@ -85,7 +88,9 @@ namespace FruitMagic::ECS {
         std::uniform_real_distribution<float> randomZ(kMinZ, kMaxZ);
         PrizeFactory&                         factory = registry.GetContext<PrizeFactory>();
         for(int i = 0; i < count; ++i) {
-            factory.CreateCoin(registry, hlslpp::float3(randomX(m_rng), kDropY, randomZ(m_rng)));
+            const hlslpp::float3 position(randomX(m_rng), kDropY, randomZ(m_rng));
+            factory.CreateCoin(registry, position);
+            m_eventBus.Publish(EffectEvent{"showerCoin", position});
         }
         if(registry.HasContext<PlayStats>())
             registry.GetContext<PlayStats>().showerCoins += count;

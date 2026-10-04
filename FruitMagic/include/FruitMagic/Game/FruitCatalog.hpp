@@ -22,6 +22,23 @@ namespace FruitMagic {
         Capsule,    // 縦長のカプセル（radius ＋ halfHeight）
     };
 
+    //! 果物の飾りのパーツ（ヘタ・葉・軸など）の形です。
+    enum class FruitPartShape {
+        Sphere,    // 球（Ball.fbx）
+        Box,       // 箱（Block.fbx）
+    };
+
+    //! 果物の飾りのパーツです。当たり判定は持たず、果物と一緒に動く見た目だけの物です。
+    //! 位置と大きさは果物の見た目の半サイズに対する比率で書くので、果物が大きくなっても形が崩れません。
+    struct FruitPart {
+        FruitPartShape shape    = FruitPartShape::Box;                 // 形
+        hlslpp::float3 offset   = hlslpp::float3(0.0f, 1.0f, 0.0f);    // 果物の中心からの位置（果物の半サイズに対する比率。y=1 で上端）
+        hlslpp::float3 size     = hlslpp::float3(0.3f, 0.1f, 0.3f);    // 半サイズ（果物の半サイズに対する比率）
+        hlslpp::float3 rotation = hlslpp::float3(0.0f, 0.0f, 0.0f);    // 回転（度。X → Y → Z の順に回す）
+        hlslpp::float3 color    = hlslpp::float3(0.3f, 0.75f, 0.25f);  // 色
+        float          glow     = 0.0f;                                // 輪郭の光の強さ（0 で光らない）
+    };
+
     //! 果物のランク（小・中・大・伝説 など）の定義です。
     struct FruitRank {
         std::string  id;           // 識別子（果物の "rank" から参照される）
@@ -49,6 +66,7 @@ namespace FruitMagic {
         hlslpp::float3 color      = hlslpp::float3(1.0f, 1.0f, 1.0f);    // 見た目の色（通常）
         hlslpp::float3 shinyColor = hlslpp::float3(1.0f, 1.0f, 1.0f);    // 色違いのときの色
         std::string    modelPath;                                     // 見た目のモデル（リポジトリルート相対）
+        std::vector<FruitPart> parts;                                 // 飾りのパーツ（無くてもよい）
 
         //! 当たり判定の外接する高さの半分を返します。
         //! @return 中心から上端（下端）までの距離（cm）

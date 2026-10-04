@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/WallMagicSystem.hpp>
 
+#include <FruitMagic/ECS/Event/EffectEvent.hpp>
 #include <FruitMagic/ECS/Event/MagicCastEvent.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
@@ -54,7 +55,9 @@ namespace FruitMagic::ECS {
     //----------------------------------------------------------------------------
     //! コンストラクタです。
     //----------------------------------------------------------------------------
-    WallMagicSystem::WallMagicSystem(Tsukino::ECS::EventBus& eventBus) {
+    WallMagicSystem::WallMagicSystem(Tsukino::ECS::EventBus& eventBus)
+        : m_eventBus(eventBus)
+        , m_rng(std::random_device{}()) {
         // ハンドラでは覚えるだけにして、効果は Update で始める
         m_castConnection = eventBus.Subscribe<MagicCastEvent>([this](const MagicCastEvent& e) { m_pendingCast = e.magicIndex; });
     }
@@ -96,7 +99,21 @@ namespace FruitMagic::ECS {
             }
         }
 
+        //--------------------------------------------------------------
+        // 壁が立っている間は、壁のどこかから水色の粒を立ちのぼらせる
+        //--------------------------------------------------------------
+        m_trailTimer -= deltaTime;
+        if(m_trailTimer <= 0.0f && !m_wallLines.empty() && y > -m_height * 0.25f) {
+            m_trailTimer = 0.08f;
+            std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+            const hlslpp::float4&                 line = m_wallLines[static_cast<size_t>(unit(m_rng) * static_cast<float>(m_wallLines.size())) % m_wallLines.size()];
+            const float                           t    = unit(m_rng);
+            m_eventBus.Publish(EffectEvent{"wallTrail", hlslpp::float3(float(line.x + (line.z - line.x) * t), y + m_height * 0.5f * unit(m_rng),
+                                                                        float(line.y + (line.w - line.y) * t))});
+        }
+
         if(m_timer <= 0.0f) {
+            m_wallLines.clear();
             for(Tsukino::ECS::Entity wall : m_walls) {
                 if(registry.IsValid(wall))
                     registry.QueueDestroy(wall);
@@ -145,6 +162,7 @@ namespace FruitMagic::ECS {
             glow.glow                                     = 0.6f;
 
             m_walls.push_back(wall);
+            m_wallLines.push_back(hlslpp::float4(backX, backZ, frontX, frontZ));
         }
     }
 }    // namespace FruitMagic::ECS

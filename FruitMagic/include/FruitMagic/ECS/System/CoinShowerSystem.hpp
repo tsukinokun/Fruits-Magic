@@ -7,6 +7,11 @@
 
 #include <random>
 
+// 名前空間 : Tsukino::ECS
+namespace Tsukino::ECS {
+    class EventBus;    // 前方宣言
+}
+
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
@@ -17,7 +22,8 @@ namespace FruitMagic::ECS {
     public:
 
         //! コンストラクタです。
-        CoinShowerSystem();
+        //! @param  [in] eventBus 演出（EffectEvent）を頼むイベントバス
+        explicit CoinShowerSystem(Tsukino::ECS::EventBus& eventBus);
 
         //! 依頼を進めます。
         //! @param  [in] registry  レジストリ
@@ -25,6 +31,7 @@ namespace FruitMagic::ECS {
         void Update(Tsukino::ECS::Registry& registry, float deltaTime) override;
 
     private:
-        std::mt19937 m_rng;    // 落とす位置の乱数
+        Tsukino::ECS::EventBus& m_eventBus;    // 演出を頼むイベントバス
+        std::mt19937            m_rng;         // 落とす位置の乱数
     };
 }    // namespace FruitMagic::ECS

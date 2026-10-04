@@ -5,6 +5,7 @@
 #include <FruitMagic/ECS/System/RouletteSystem.hpp>
 
 #include <FruitMagic/ECS/Event/CheckerEnteredEvent.hpp>
+#include <FruitMagic/ECS/Event/EffectEvent.hpp>
 #include <FruitMagic/ECS/Event/NoticeEvent.hpp>
 #include <FruitMagic/Game/CoinShowerState.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
@@ -91,6 +92,7 @@ namespace FruitMagic::ECS {
                         if(registry.HasContext<PlayStats>())
                             registry.GetContext<PlayStats>().jackpotChances += 1;
                         m_eventBus.Publish(NoticeEvent{L"ジャックポットチャンス！", jackpot.spinSeconds});
+                        m_eventBus.Publish(EffectEvent{"jackpotChance", hlslpp::float3(0.0f, 12.0f, 5.0f)});
                         break;
                     }
                 }
@@ -242,6 +244,7 @@ namespace FruitMagic::ECS {
         // 当たり: ルーレットの回転も増やす（ためておける上限を超えてよい）
         if(registry.HasContext<RouletteState>())
             registry.GetContext<RouletteState>().stock += jackpot.spins;
+        m_eventBus.Publish(EffectEvent{"jackpot", hlslpp::float3(0.0f, 8.0f, 10.0f)});
         if(registry.HasContext<PlayStats>())
             registry.GetContext<PlayStats>().jackpots += 1;
         m_eventBus.Publish(NoticeEvent{L"ジャックポット！！  コイン +" + std::to_wstring(coins) + L"  ルーレット +" + std::to_wstring(jackpot.spins), 4.0f});

@@ -237,6 +237,31 @@ namespace FruitMagic {
             def.shinyColor      = GetFloat3(doc, "shinyColor", "rgb", hlslpp::float3(def.color.z, def.color.x, def.color.y));
             def.modelPath       = GetString(doc, "model", def.shape == FruitShape::Box ? "Assets/Models/Block.fbx" : "Assets/Models/Ball.fbx");
 
+            // 飾りのパーツ（任意）。形が分からないものは読み飛ばす
+            auto parts = doc.FindMember("parts");
+            if(parts != doc.MemberEnd() && parts->value.IsArray()) {
+                for(const rj::Value& p : parts->value.GetArray()) {
+                    if(!p.IsObject())
+                        continue;
+                    FruitPart part;
+                    const std::string partShape = GetString(p, "shape", "box");
+                    if(partShape == "sphere") {
+                        part.shape = FruitPartShape::Sphere;
+                    } else if(partShape == "box") {
+                        part.shape = FruitPartShape::Box;
+                    } else {
+                        Tsukino::Core::Log::Warn("FruitCatalog: unknown part shape \"" + partShape + "\" in " + where + " was skipped.");
+                        continue;
+                    }
+                    part.offset   = GetFloat3(p, "offset", "xyz", part.offset);
+                    part.size     = GetFloat3(p, "size", "xyz", part.size);
+                    part.rotation = GetFloat3(p, "rotation", "xyz", part.rotation);
+                    part.color    = GetFloat3(p, "color", "rgb", part.color);
+                    part.glow     = GetFloat(p, "glow", part.glow);
+                    def.parts.push_back(part);
+                }
+            }
+
             if(def.radius <= 0.0f || def.mass <= 0.0f || def.halfExtent.x <= 0.0f || def.halfExtent.y <= 0.0f || def.halfExtent.z <= 0.0f) {
                 Tsukino::Core::Log::Warn("FruitCatalog: non-positive size or mass in " + where + " was skipped.");
                 continue;

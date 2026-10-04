@@ -37,8 +37,9 @@
 | `FruitMagic/src/WinMain.cpp` | エントリポイント |
 | `FruitMagic/*/Scene/PusherScene.*` | プッシャー台のシーン |
 | `Assets/` | ゲームのアセット。パスはリポジトリルート相対（例 `Assets/Models/Block.fbx`） |
-| `Assets/Data/` | 果物・ランク・ルーレット・魔法・図鑑・強化・放置・ジャックポット・コインのやりくり（Economy）の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要） |
+| `Assets/Data/` | 果物・ランク・ルーレット・魔法・図鑑・強化・放置・ジャックポット・コインのやりくり（Economy）・演出（Effects）・効果音（Sounds）の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要） |
 
+| `Assets/Sounds/`・`Assets/Textures/` | 効果音（WAV）と光の画像。どちらも `Tools/GenerateSounds.py`・`Tools/GenerateTextures.py` で合成したもの（作り直すときはスクリプトを直して実行） |
 | `Saves/save.json` | セーブデータ（実行時に作られる。git 管理外）。消すと最初から |
 
 単位はエンジン規約どおり 1unit ≒ 1cm。

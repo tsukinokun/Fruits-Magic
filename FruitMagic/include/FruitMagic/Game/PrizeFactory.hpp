@@ -43,9 +43,10 @@ namespace FruitMagic {
         //! @param  [in] position   中心のワールド座標
         //! @param  [in] halfExtent 各軸の半分サイズ
         //! @param  [in] type       剛体の種類
+        //! @param  [in] color      見た目の色（省略時は白）
         //! @return 生成したエンティティ
         Tsukino::ECS::Entity CreateBox(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
-                                       Tsukino::BuiltIn::ECS::RigidbodyType type);
+                                       Tsukino::BuiltIn::ECS::RigidbodyType type, const hlslpp::float3& color = hlslpp::float3(1.0f, 1.0f, 1.0f));
 
         //! 見た目だけの箱（コライダー無し）を生成します。
         //! @param  [in] registry   生成先のレジストリ
@@ -75,11 +76,37 @@ namespace FruitMagic {
         Tsukino::ECS::Entity CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, int variantIndex, const hlslpp::float3& color,
                                          float glow, const hlslpp::float3& position);
 
+        //! 見た目だけの球（コライダー無し）を生成します。ちょうちんなどの飾りに使います。
+        //! @param  [in] registry   生成先のレジストリ
+        //! @param  [in] position   中心のワールド座標
+        //! @param  [in] halfExtent 半サイズ
+        //! @param  [in] color      色
+        //! @return 生成したエンティティ
+        Tsukino::ECS::Entity CreateVisualBall(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
+                                              const hlslpp::float3& color);
+
+        //! 景品（コイン・果物）を破棄予約します。果物の飾りのパーツも一緒に破棄します。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] entity   破棄する景品
+        static void DestroyPrize(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity);
+
+        //! 度で表した回転（X → Y → Z の順に回す）をクォータニオンにします。
+        //! @param  [in] degrees 各軸の回転（度）
+        //! @return クォータニオン
+        static hlslpp::quaternion EulerDegrees(const hlslpp::float3& degrees);
+
         //! コインの半サイズを返します。
         //! @return コインの各軸の半分サイズ
         static hlslpp::float3 CoinHalfExtent() { return hlslpp::float3(2.5f, 0.4f, 2.5f); }
 
     private:
+
+        //! 果物に飾りのパーツを付けます。
+        //! @param  [in] registry         レジストリ
+        //! @param  [in] fruit            果物のエンティティ
+        //! @param  [in] def              果物の定義（parts を使う）
+        //! @param  [in] fruitModelHalf   果物のモデルのスケール1での半サイズ
+        void AttachParts(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity fruit, const FruitDef& def, const hlslpp::float3& fruitModelHalf);
 
         //! 読み込んだモデルと、スケール1での大きさです。
         struct ModelInfo {
