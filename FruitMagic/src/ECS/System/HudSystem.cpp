@@ -5,14 +5,22 @@
 #include <FruitMagic/ECS/System/HudSystem.hpp>
 
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
+#include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
+#include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/MagicCatalog.hpp>
+#include <FruitMagic/Game/MagicState.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 
+#include <algorithm>
 #include <numeric>
 #include <string>
 
@@ -96,6 +104,10 @@ namespace FruitMagic::ECS {
                     font.text = L"コイン: " + std::to_wstring(state.coins);
                     break;
 
+                case HudTextKind::Mana:
+                    font.text = L"マナ " + std::to_wstring(state.mana) + L" / " + std::to_wstring(state.maxMana);
+                    break;
+
                 case HudTextKind::DropPopup: {
                     std::wstring text;
                     if(m_recentPayout > 0)
@@ -142,5 +154,64 @@ namespace FruitMagic::ECS {
                     break;
             }
         });
+
+        UpdateManaGauge(registry, state);
+        UpdateMagicButtons(registry, state);
+    }
+
+    //----------------------------------------------------------------------------
+    //! マナゲージの中身のバーの幅を、今のマナに合わせます。
+    //----------------------------------------------------------------------------
+    void HudSystem::UpdateManaGauge(Tsukino::ECS::Registry& registry, const GameState& state) {
+        const float ratio = (state.maxMana > 0) ? std::clamp(static_cast<float>(state.mana) / static_cast<float>(state.maxMana), 0.0f, 1.0f) : 0.0f;
+
+        registry.View<ManaGaugeComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
+            [&](Tsukino::ECS::Entity, ManaGaugeComponent& gauge, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+                // 画面スプライトの位置は中心なので、左端を固定するには幅の半分だけずらす
+                const float width  = gauge.fullWidth * ratio;
+                transform.position = hlslpp::float3(gauge.left + width * 0.5f, float(transform.position.y), 0.0f);
+                transform.scale    = hlslpp::float3(width / gauge.textureSize, gauge.height / gauge.textureSize, 1.0f);
+                transform.dirty    = true;
+            });
+    }
+
+    //----------------------------------------------------------------------------
+    //! 魔法ボタンの色と文字を、解放状態・マナ・効果中かに合わせます。
+    //----------------------------------------------------------------------------
+    void HudSystem::UpdateMagicButtons(Tsukino::ECS::Registry& registry, const GameState& state) {
+        if(!registry.HasContext<MagicCatalog>())
+            return;
+
+        const MagicCatalog& catalog = registry.GetContext<MagicCatalog>();
+        const bool          busy    = registry.HasContext<MagicState>() && registry.GetContext<MagicState>().activeMagic >= 0;
+
+        registry.View<MagicButtonComponent, Tsukino::BuiltIn::ECS::SpriteComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
+            [&](Tsukino::ECS::Entity, MagicButtonComponent& button, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
+                Tsukino::BuiltIn::ECS::PointerTargetComponent& pointer) {
+                const int       index = catalog.FindBySlot(button.slot);
+                const MagicDef* def   = (index >= 0) ? &catalog.Magics()[index] : nullptr;
+
+                std::wstring   text;
+                hlslpp::float4 color;
+                if(!def || !def->unlocked) {
+                    // 割り当てが無い・未解放の枠
+                    text  = std::to_wstring(button.slot) + L"  ？";
+                    color = hlslpp::float4(0.35f, 0.35f, 0.4f, 0.8f);
+                } else {
+                    text = std::to_wstring(button.slot) + L" " + def->name + L"  " + std::to_wstring(def->cost);
+                    if(busy || state.mana < def->cost) {
+                        // マナ不足・ほかの魔法の効果中は暗く
+                        color = hlslpp::float4(0.3f, 0.2f, 0.45f, 0.85f);
+                    } else {
+                        // 撃てる。カーソルが重なっていたら少し明るく
+                        color = pointer.hovered ? hlslpp::float4(1.0f, 0.7f, 1.0f, 1.0f) : hlslpp::float4(0.85f, 0.45f, 0.95f, 1.0f);
+                    }
+                }
+                sprite.tintColor = color;
+
+                if(button.label != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label)) {
+                    registry.GetComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label).text = text;
+                }
+            });
     }
 }    // namespace FruitMagic::ECS

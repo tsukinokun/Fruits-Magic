@@ -6,6 +6,9 @@
 
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/MagicCatalog.hpp>
+#include <FruitMagic/Game/MagicState.hpp>
+#include <FruitMagic/Game/ManaConfig.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
@@ -13,10 +16,15 @@
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
+#include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
+#include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/ECS/System/CheckerSystem.hpp>
 #include <FruitMagic/ECS/System/CoinLauncherSystem.hpp>
 #include <FruitMagic/ECS/System/HarvestSystem.hpp>
 #include <FruitMagic/ECS/System/HudSystem.hpp>
+#include <FruitMagic/ECS/System/MagicInputSystem.hpp>
+#include <FruitMagic/ECS/System/ManaSystem.hpp>
+#include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
 #include <FruitMagic/ECS/System/PrizeDropSystem.hpp>
 #include <FruitMagic/ECS/System/RouletteSystem.hpp>
 #include <FruitMagic/ECS/System/WalletSystem.hpp>
@@ -34,6 +42,8 @@
 #include <Tsukino/EngineIntegration/ECS/System/SkyAtmosphereSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/ModelSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/FontRendererSystem.hpp>
+#include <Tsukino/EngineIntegration/ECS/System/InteractionSystem.hpp>
+#include <Tsukino/EngineIntegration/ECS/System/SpriteRendererSystem.hpp>
 #ifdef _DEBUG
 #include <Tsukino/EngineIntegration/ECS/System/DebugCameraSystem.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/DebugCameraComponent.hpp>
@@ -43,12 +53,16 @@
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/CameraComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/DirectionalLightComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointLightComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SkyAtmosphereComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/RimGlowComponent.hpp>
 
 #include <Tsukino/Core/IO/FileSystem.hpp>
+#include <Tsukino/Core/Path.hpp>
+#include <Tsukino/Engine/Asset/AssetManager.hpp>
 #include <Tsukino/Core/Log.hpp>
 
 #include <entt/entt.hpp>
@@ -66,6 +80,19 @@ namespace FruitMagic {
 
         //! @brief 物理に渡す1フレームの経過時間の上限（秒）。重いフレームで一気に進めてすり抜けるのを防ぐ
         constexpr float kMaxSimulationStep = 1.0f / 30.0f;
+
+        //--------------------------------------------------------------
+        // 画面の UI の配置（画面ピクセル。画面は 1280 x 720）
+        //--------------------------------------------------------------
+        constexpr float kWhiteTextureSize  = 8.0f;      // Assets/Textures/White.png の1辺のピクセル数
+        constexpr float kManaGaugeLeft     = 28.0f;     // マナゲージの左端
+        constexpr float kManaGaugeCenterY  = 100.0f;    // マナゲージの中心の高さ
+        constexpr float kManaGaugeWidth    = 220.0f;    // マナゲージの全幅
+        constexpr float kManaGaugeHeight   = 14.0f;     // マナゲージの高さ
+        constexpr float kMagicButtonWidth  = 200.0f;    // 魔法ボタンの幅
+        constexpr float kMagicButtonHeight = 46.0f;     // 魔法ボタンの高さ
+        constexpr float kMagicButtonGap    = 16.0f;     // 魔法ボタンの間隔
+        constexpr float kMagicButtonY      = 640.0f;    // 魔法ボタンの中心の高さ
 
         //! @brief プッシャーの半サイズ
         hlslpp::float3 PusherHalfExtent() {
@@ -88,14 +115,18 @@ namespace FruitMagic {
 #ifdef _DEBUG
             DebugTreeLevel = -1,
 #endif
-            CoinLauncher = 0,    // 投入したコインを今フレームの Transform・物理に乗せるため最初
+            Interaction = 0,     // マウスの下の UI（魔法ボタン）を先に決め、同じフレームの入力処理が読めるようにする
+            MagicInput,
+            CoinLauncher,        // 投入したコインを今フレームの Transform・物理に乗せる
             Transform,
             Physics,             // Transform 確定後に剛体を進め、結果を Transform へ書き戻す
             PrizeDrop,           // 物理の結果で落下を判定する
             Checker,             // 払い出し口に落ちたコインがチェッカーに入ったかを、同じフレームの落下イベントで判定する
             Wallet,
             Harvest,
+            Mana,
             Roulette,            // 当たりで果物を生成する（次のフレームの Transform・物理に乗る）
+            ShakeMagic,          // 衝撃の要求を付ける（次のフレームの Physics で反映）。カメラも揺らす
             Hud,
             Light,
             SkyAtmosphere,
@@ -104,12 +135,15 @@ namespace FruitMagic {
 #endif
             Camera,
             Font,
+            Sprite,
             Render,
         };
 
 #ifdef _DEBUG
         m_scene.AddSystem(std::make_shared<ECS::DebugTreeLevelSystem>(), (int)SystemPriority::DebugTreeLevel);
 #endif
+        m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::InteractionSystem>(), (int)SystemPriority::Interaction);
+        m_scene.AddSystem(std::make_shared<ECS::MagicInputSystem>(eventBus), (int)SystemPriority::MagicInput);
         m_scene.AddSystem(std::make_shared<ECS::CoinLauncherSystem>(), (int)SystemPriority::CoinLauncher);
         m_scene.AddSystem(std::make_shared<ECS::CheckerSystem>(eventBus), (int)SystemPriority::Checker);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::TransformSystem>(), (int)SystemPriority::Transform);
@@ -124,7 +158,9 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::PrizeDropSystem>(eventBus), (int)SystemPriority::PrizeDrop);
         m_scene.AddSystem(std::make_shared<ECS::WalletSystem>(eventBus), (int)SystemPriority::Wallet);
         m_scene.AddSystem(std::make_shared<ECS::HarvestSystem>(eventBus), (int)SystemPriority::Harvest);
+        m_scene.AddSystem(std::make_shared<ECS::ManaSystem>(eventBus), (int)SystemPriority::Mana);
         m_scene.AddSystem(std::make_shared<ECS::RouletteSystem>(eventBus), (int)SystemPriority::Roulette);
+        m_scene.AddSystem(std::make_shared<ECS::ShakeMagicSystem>(eventBus), (int)SystemPriority::ShakeMagic);
         m_scene.AddSystem(std::make_shared<ECS::HudSystem>(eventBus), (int)SystemPriority::Hud);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::LightSystem>(), (int)SystemPriority::Light);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::SkyAtmosphereSystem>(), (int)SystemPriority::SkyAtmosphere);
@@ -133,6 +169,7 @@ namespace FruitMagic {
 #endif
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::CameraSystem>(), (int)SystemPriority::Camera);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::FontRendererSystem>(), (int)SystemPriority::Font);
+        m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::SpriteRenderSystem>(), (int)SystemPriority::Sprite);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::ModelSystem>(), (int)SystemPriority::Render);
 
         //--------------------------------------------------------------
@@ -147,8 +184,13 @@ namespace FruitMagic {
         }
         registry.SetContext<RouletteConfig>().Load(dataRoot + "/Roulette.json");
         registry.SetContext<RouletteState>();
+        ManaConfig& manaConfig = registry.SetContext<ManaConfig>();
+        manaConfig.Load(dataRoot + "/Mana.json");
+        registry.SetContext<MagicCatalog>().Load(dataRoot + "/Magic.json");
+        registry.SetContext<MagicState>();
 
         GameState& state = registry.SetContext<GameState>();
+        state.maxMana    = manaConfig.maxMana;
         state.harvestCounts.assign(catalog.Fruits().size(), 0);
 
         PrizeFactory& factory = registry.SetContext<PrizeFactory>();
@@ -356,6 +398,25 @@ namespace FruitMagic {
             cam.isPrimary                               = true;
         }
 
+        //--------------------------------------------------------------
+        // 画面スプライト用の2Dカメラ。
+        // エンジンはメインでない（isPrimary=false）カメラを画面スプライトの描画に使うため、
+        // 正射影のカメラを1つ置く（無いと画面スプライトが出ない）。
+        // Debug ビルドのデバッグカメラもメインでないカメラで、後から作った方が上書きされるため、
+        // デバッグカメラより先に作る
+        //--------------------------------------------------------------
+        {
+            Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+            t.position                                   = hlslpp::float3(0.0f, 0.0f, -10.0f);
+            t.dirty                                      = true;
+
+            Tsukino::BuiltIn::ECS::CameraComponent& camera = registry.AddComponent<Tsukino::BuiltIn::ECS::CameraComponent>(e);
+            camera.projectionType                          = Tsukino::BuiltIn::ECS::CameraComponent::ProjectionType::Orthographic;
+            camera.orthoSize                               = 720.0f;
+            camera.isPrimary                               = false;
+        }
+
 #ifdef _DEBUG
         {
             // デバッグカメラ（Debug ビルドのみ。切り替えは DebugCameraSystem の操作に従う）
@@ -427,12 +488,14 @@ namespace FruitMagic {
         };
         const HudSpec specs[] = {
             {ECS::HudTextKind::Coins, hlslpp::float2(24.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f)},
-            {ECS::HudTextKind::DropPopup, hlslpp::float2(28.0f, 84.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f)},
-            {ECS::HudTextKind::HarvestTotal, hlslpp::float2(24.0f, 130.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f)},
-            {ECS::HudTextKind::HarvestPopup, hlslpp::float2(28.0f, 176.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f)},
+            {ECS::HudTextKind::Mana, hlslpp::float2(kManaGaugeLeft + kManaGaugeWidth + 12.0f, kManaGaugeCenterY - 14.0f), 0.9f,
+             hlslpp::float4(0.85f, 0.7f, 1.0f, 1.0f)},
+            {ECS::HudTextKind::DropPopup, hlslpp::float2(28.0f, 122.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f)},
+            {ECS::HudTextKind::HarvestTotal, hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f)},
+            {ECS::HudTextKind::HarvestPopup, hlslpp::float2(28.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f)},
             {ECS::HudTextKind::Roulette, hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f),
              Tsukino::BuiltIn::ECS::HorizontalAlign::Center},
-            {ECS::HudTextKind::ControlsHint, hlslpp::float2(24.0f, 670.0f), 0.8f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f)},
+            {ECS::HudTextKind::ControlsHint, hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f)},
         };
 
         for(const HudSpec& spec : specs) {
@@ -450,6 +513,71 @@ namespace FruitMagic {
 
             ECS::HudTextComponent& hud = registry.AddComponent<ECS::HudTextComponent>(e);
             hud.kind                   = spec.kind;
+        }
+
+        //--------------------------------------------------------------
+        // 画面スプライト（白い小さなテクスチャを色付けして使い回す。位置は中心）
+        //--------------------------------------------------------------
+        Tsukino::EngineIntegration::EngineContext* context = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
+        const Tsukino::Asset::AssetHandle          white   = context->assetManager->Load(Tsukino::Core::Path("Assets/Textures/White.png"));
+
+        auto createPanel = [&](const hlslpp::float2& center, const hlslpp::float2& size, const hlslpp::float4& color, int sortOrder) {
+            Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+            t.position                                   = hlslpp::float3(center.x, center.y, 0.0f);
+            t.scale                                      = hlslpp::float3(size.x / kWhiteTextureSize, size.y / kWhiteTextureSize, 1.0f);
+            t.dirty                                      = true;
+
+            Tsukino::BuiltIn::ECS::SpriteComponent& sprite = registry.AddComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e);
+            sprite.textureHandle                           = white;
+            sprite.tintColor                               = color;
+            sprite.sortOrder                               = sortOrder;
+            return e;
+        };
+
+        //--------------------------------------------------------------
+        // マナゲージ（背景＋中身。中身の幅は HudSystem がマナに合わせて変える）
+        //--------------------------------------------------------------
+        createPanel(hlslpp::float2(kManaGaugeLeft + kManaGaugeWidth * 0.5f, kManaGaugeCenterY), hlslpp::float2(kManaGaugeWidth + 4.0f, kManaGaugeHeight + 4.0f),
+                    hlslpp::float4(0.1f, 0.05f, 0.15f, 0.8f), 0);
+        {
+            Tsukino::ECS::Entity     e     = createPanel(hlslpp::float2(kManaGaugeLeft, kManaGaugeCenterY), hlslpp::float2(0.0f, kManaGaugeHeight),
+                                                         hlslpp::float4(0.75f, 0.45f, 1.0f, 1.0f), 1);
+            ECS::ManaGaugeComponent& gauge = registry.AddComponent<ECS::ManaGaugeComponent>(e);
+            gauge.left                     = kManaGaugeLeft;
+            gauge.fullWidth                = kManaGaugeWidth;
+            gauge.height                   = kManaGaugeHeight;
+            gauge.textureSize              = kWhiteTextureSize;
+        }
+
+        //--------------------------------------------------------------
+        // 魔法ボタン（画面下に5つ。色と文字は HudSystem、クリックは MagicInputSystem が扱う）
+        //--------------------------------------------------------------
+        const float totalWidth = kMagicButtonWidth * kMagicSlotCount + kMagicButtonGap * (kMagicSlotCount - 1);
+        const float firstX     = 640.0f - totalWidth * 0.5f + kMagicButtonWidth * 0.5f;
+        for(int slot = 1; slot <= kMagicSlotCount; ++slot) {
+            const hlslpp::float2 center(firstX + (kMagicButtonWidth + kMagicButtonGap) * static_cast<float>(slot - 1), kMagicButtonY);
+
+            Tsukino::ECS::Entity button = createPanel(center, hlslpp::float2(kMagicButtonWidth, kMagicButtonHeight), hlslpp::float4(0.4f, 0.4f, 0.4f, 1.0f), 10);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+
+            // ボタンの上の文字（ボタンの中心に揃える）
+            Tsukino::ECS::Entity                       label = m_scene.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& t     = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(label);
+            t.position                                       = hlslpp::float3(center.x, center.y, 0.0f);
+            t.scale                                          = hlslpp::float3(0.85f, 0.85f, 1.0f);
+            t.dirty                                          = true;
+
+            Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(label);
+            font.horizontalAlign                       = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;
+            font.verticalAlign                         = Tsukino::BuiltIn::ECS::VerticalAlign::Middle;
+            font.outlineColor                          = hlslpp::float4(0.15f, 0.05f, 0.2f, 1.0f);
+            font.outlineWidth                          = 2.0f;
+            font.sortOrder                             = 11;
+
+            ECS::MagicButtonComponent& magicButton = registry.AddComponent<ECS::MagicButtonComponent>(button);
+            magicButton.slot                       = slot;
+            magicButton.label                      = label;
         }
     }
 

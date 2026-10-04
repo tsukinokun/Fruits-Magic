@@ -1,0 +1,6 @@
+{
+  "maxMana": 100,
+  "coinPayout": 1,
+  "coinGutter": 3,
+  "fruitGutterRatio": 0.5
+}

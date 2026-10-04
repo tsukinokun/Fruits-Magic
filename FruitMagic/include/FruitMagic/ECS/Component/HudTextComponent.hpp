@@ -10,6 +10,7 @@ namespace FruitMagic::ECS {
     //! HUD に表示する内容の種類です。
     enum class HudTextKind {
         Coins,           // 手持ちのコイン枚数
+        Mana,            // マナ（今の量 / 上限）
         DropPopup,       // 直近のコインの払い出し（+1 / 溝）
         HarvestTotal,    // 収穫した果物の合計
         HarvestPopup,    // 直近に収穫した果物（「いちご ゲット！」）

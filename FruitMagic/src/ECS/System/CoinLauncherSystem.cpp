@@ -10,6 +10,7 @@
 #include <FruitMagic/Game/PusherLayout.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/Input/InputSystem.hpp>
@@ -45,8 +46,16 @@ namespace FruitMagic::ECS {
 
         const int windowWidth = (ctx->window != nullptr) ? ctx->window->GetWidth() : 0;
 
-        // 投入は「押した瞬間」で判定（押しっぱなしで連射しない）
-        const bool launchPressed = input.IsKeyPressed(Tsukino::Input::KeyCode::Space) || input.IsKeyPressed(Tsukino::Input::KeyCode::LButton);
+        //--------------------------------------------------------------
+        // 投入は「押した瞬間」で判定（押しっぱなしで連射しない）。
+        // 魔法ボタンなどクリックできる UI の上でのクリックは、その UI の操作なので投入しない
+        //--------------------------------------------------------------
+        bool pointerOnUi = false;
+        registry.View<Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
+            [&](Tsukino::ECS::Entity, Tsukino::BuiltIn::ECS::PointerTargetComponent& pointer) { pointerOnUi = pointerOnUi || pointer.hovered; });
+
+        const bool launchPressed = input.IsKeyPressed(Tsukino::Input::KeyCode::Space) ||
+                                   (input.IsKeyPressed(Tsukino::Input::KeyCode::LButton) && !pointerOnUi);
 
         std::vector<hlslpp::float3> launchPositions;    // このフレームに投入するコインの位置
 

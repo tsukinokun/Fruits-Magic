@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------
 //! @file   HudSystem.hpp
-//! @brief  HUD（手持ち枚数・払い出し・収穫・ルーレット）を更新するシステム
+//! @brief  HUD（手持ち枚数・マナ・払い出し・収穫・ルーレット・魔法ボタン）を更新するシステム
 //----------------------------------------------------------------------------
 #pragma once
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
@@ -11,6 +11,11 @@
 // 名前空間 : Tsukino::ECS
 namespace Tsukino::ECS {
     class EventBus;    // 前方宣言
+}
+
+// 名前空間 : FruitMagic
+namespace FruitMagic {
+    struct GameState;    // 前方宣言
 }
 
 // 名前空間 : FruitMagic::ECS
@@ -30,6 +35,17 @@ namespace FruitMagic::ECS {
         void Update(Tsukino::ECS::Registry& registry, float deltaTime) override;
 
     private:
+
+        //! マナゲージの中身のバーの幅を、今のマナに合わせます。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] state    プレイヤーの資源
+        void UpdateManaGauge(Tsukino::ECS::Registry& registry, const GameState& state);
+
+        //! 魔法ボタンの色と文字を、解放状態・マナ・効果中かに合わせます。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] state    プレイヤーの資源
+        void UpdateMagicButtons(Tsukino::ECS::Registry& registry, const GameState& state);
+
         Tsukino::ECS::ScopedConnection m_dropConnection;          // 購読解除を自動で行う接続
         int                            m_recentPayout = 0;        // 表示中の「払い出し」の合計
         int                            m_recentGutter = 0;        // 表示中の「溝に落ちた」数

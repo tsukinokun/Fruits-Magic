@@ -1,0 +1,19 @@
+{
+  "magics": [
+    {
+      "id": "shake",
+      "name": "ゆらゆら",
+      "cost": 30,
+      "key": 1,
+      "unlocked": true,
+      "params": {
+        "duration": 1.2,
+        "interval": 0.2,
+        "forward": 18.0,
+        "side": 6.0,
+        "up": 8.0,
+        "cameraShake": 0.6
+      }
+    }
+  ]
+}
