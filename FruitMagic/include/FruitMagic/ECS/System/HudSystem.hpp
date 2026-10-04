@@ -8,6 +8,8 @@
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 #include <Tsukino/Core/ECS/Event/ScopedConnection.hpp>
 
+#include <string>
+
 // 名前空間 : Tsukino::ECS
 namespace Tsukino::ECS {
     class EventBus;    // 前方宣言
@@ -46,6 +48,11 @@ namespace FruitMagic::ECS {
         //! @param  [in] state    プレイヤーの資源
         void UpdateMagicButtons(Tsukino::ECS::Registry& registry, const GameState& state);
 
+        //! 図鑑の登録数で新しく解放された魔法があれば、お知らせを出します。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] state    プレイヤーの資源
+        void CheckMagicUnlocks(Tsukino::ECS::Registry& registry, const GameState& state);
+
         Tsukino::ECS::ScopedConnection m_dropConnection;          // 購読解除を自動で行う接続
         int                            m_recentPayout = 0;        // 表示中の「払い出し」の合計
         int                            m_recentGutter = 0;        // 表示中の「溝に落ちた」数
@@ -55,5 +62,9 @@ namespace FruitMagic::ECS {
         int                            m_harvestVariant = 0;      // 表示中の収穫した果物のバリエーションの添字
         bool                           m_harvestIsNew = false;    // 表示中の収穫が図鑑への初登録か
         float                          m_harvestTimer = 0.0f;     // 収穫表示を消すまでの残り時間（秒）
+        Tsukino::ECS::ScopedConnection m_noticeConnection;        // お知らせの購読解除を自動で行う接続
+        std::wstring                   m_noticeText;              // 表示中のお知らせ
+        float                          m_noticeTimer  = 0.0f;     // お知らせを消すまでの残り時間（秒）
+        int                            m_lastUnlocked = -1;       // 前のフレームの解放済みの魔法の数（-1 はまだ数えていない）
     };
 }    // namespace FruitMagic::ECS

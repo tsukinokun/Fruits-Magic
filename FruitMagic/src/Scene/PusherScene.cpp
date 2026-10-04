@@ -4,14 +4,18 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Scene/PusherScene.hpp>
 
+#include <FruitMagic/Game/CoinShowerState.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/JackpotConfig.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
+#include <FruitMagic/Game/MagicEffects.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
 #include <FruitMagic/Game/ManaConfig.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
 #include <FruitMagic/Game/OfflineReward.hpp>
+#include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
@@ -22,20 +26,29 @@
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
+#include <FruitMagic/ECS/Component/JackpotHoleComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
+#include <FruitMagic/ECS/System/AutoPlaySystem.hpp>
+#include <FruitMagic/ECS/System/BalanceProbeSystem.hpp>
 #include <FruitMagic/ECS/System/CheckerSystem.hpp>
+#include <FruitMagic/ECS/System/CoinShowerSystem.hpp>
 #include <FruitMagic/ECS/System/CoinLauncherSystem.hpp>
 #include <FruitMagic/ECS/System/FairySystem.hpp>
 #include <FruitMagic/ECS/System/HarvestSystem.hpp>
+#include <FruitMagic/ECS/System/GrowMagicSystem.hpp>
 #include <FruitMagic/ECS/System/HudSystem.hpp>
+#include <FruitMagic/ECS/System/JackpotSystem.hpp>
 #include <FruitMagic/ECS/System/MagicInputSystem.hpp>
 #include <FruitMagic/ECS/System/ManaSystem.hpp>
 #include <FruitMagic/ECS/System/MenuSystem.hpp>
+#include <FruitMagic/ECS/System/MeteorMagicSystem.hpp>
 #include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
+#include <FruitMagic/ECS/System/SwellMagicSystem.hpp>
+#include <FruitMagic/ECS/System/WallMagicSystem.hpp>
 #include <FruitMagic/ECS/System/PrizeDropSystem.hpp>
 #include <FruitMagic/ECS/System/RouletteSystem.hpp>
 #include <FruitMagic/ECS/System/SaveSystem.hpp>
@@ -83,6 +96,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <memory>
 #include <random>
 #include <string>
@@ -126,6 +140,19 @@ namespace FruitMagic {
         //! @brief プッシャーの振幅を強化の値へ近づける速さ（cm/秒）。一気に変えると速度が跳ねて景品を弾き飛ばすため
         constexpr float kPusherAmplitudeChangeSpeed = 4.0f;
 
+        //--------------------------------------------------------------
+        //! バランス計測用の自動プレイで起動したかを返します（環境変数 FRUITMAGIC_AUTOPLAY=1）。
+        //! @return 自動プレイなら true
+        //--------------------------------------------------------------
+        bool IsAutoPlay() {
+            char*       value  = nullptr;
+            size_t      length = 0;
+            const bool  found  = _dupenv_s(&value, &length, "FRUITMAGIC_AUTOPLAY") == 0 && value != nullptr;
+            const bool  on     = found && std::string(value) == "1";
+            std::free(value);
+            return on;
+        }
+
         //! @brief プッシャーの半サイズ
         hlslpp::float3 PusherHalfExtent() {
             return hlslpp::float3(Layout::kPusherHalfWidth, Layout::kPusherHalfHeight, Layout::kPusherHalfDepth);
@@ -155,18 +182,26 @@ namespace FruitMagic {
             Zukan,
             Upgrade,
             MagicInput,
+            AutoPlay,            // （計測用）投入・魔法・強化
             CoinLauncher,        // 投入したコインを今フレームの Transform・物理に乗せる
             Fairy,
+            CoinShower,
             Transform,
             Physics,             // Transform 確定後に剛体を進め、結果を Transform へ書き戻す
             PrizeDrop,           // 物理の結果で落下を判定する
+            Jackpot,             // 物理の結果の位置で、穴の上のコインを吸い込む
             Checker,             // 払い出し口に落ちたコインがチェッカーに入ったかを、同じフレームの落下イベントで判定する
             Wallet,
             Harvest,
             Mana,
             Roulette,            // 当たりで果物を生成する（次のフレームの Transform・物理に乗る）
             ShakeMagic,          // 衝撃の要求を付ける（次のフレームの Physics で反映）。カメラも揺らす
+            SwellMagic,          // 振幅のボーナスを書く（次のフレームの OnUpdate で反映）
+            WallMagic,           // 壁を作って動かす（次のフレームの Physics で反映）
+            GrowMagic,           // 果物を作り直す（次のフレームの Physics に乗る）
+            MeteorMagic,         // シャワーを依頼する（次のフレームの CoinShower で降る）
             Hud,
+            BalanceProbe,
             Save,
             Light,
             SkyAtmosphere,
@@ -189,6 +224,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::MagicInputSystem>(eventBus), (int)SystemPriority::MagicInput);
         m_scene.AddSystem(std::make_shared<ECS::CoinLauncherSystem>(), (int)SystemPriority::CoinLauncher);
         m_scene.AddSystem(std::make_shared<ECS::FairySystem>(), (int)SystemPriority::Fairy);
+        m_scene.AddSystem(std::make_shared<ECS::CoinShowerSystem>(), (int)SystemPriority::CoinShower);
         m_scene.AddSystem(std::make_shared<ECS::CheckerSystem>(eventBus), (int)SystemPriority::Checker);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::TransformSystem>(), (int)SystemPriority::Transform);
         auto physicsSystem = std::make_shared<Tsukino::BuiltIn::ECS::PhysicsSystem>(eventBus);
@@ -200,13 +236,26 @@ namespace FruitMagic {
 #endif
         m_scene.AddSystem(physicsSystem, (int)SystemPriority::Physics);
         m_scene.AddSystem(std::make_shared<ECS::PrizeDropSystem>(eventBus), (int)SystemPriority::PrizeDrop);
+        m_scene.AddSystem(std::make_shared<ECS::JackpotSystem>(eventBus), (int)SystemPriority::Jackpot);
         m_scene.AddSystem(std::make_shared<ECS::WalletSystem>(eventBus), (int)SystemPriority::Wallet);
         m_scene.AddSystem(std::make_shared<ECS::HarvestSystem>(eventBus), (int)SystemPriority::Harvest);
         m_scene.AddSystem(std::make_shared<ECS::ManaSystem>(eventBus), (int)SystemPriority::Mana);
         m_scene.AddSystem(std::make_shared<ECS::RouletteSystem>(eventBus), (int)SystemPriority::Roulette);
         m_scene.AddSystem(std::make_shared<ECS::ShakeMagicSystem>(eventBus), (int)SystemPriority::ShakeMagic);
+        m_scene.AddSystem(std::make_shared<ECS::SwellMagicSystem>(eventBus), (int)SystemPriority::SwellMagic);
+        m_scene.AddSystem(std::make_shared<ECS::WallMagicSystem>(eventBus), (int)SystemPriority::WallMagic);
+        m_scene.AddSystem(std::make_shared<ECS::GrowMagicSystem>(eventBus), (int)SystemPriority::GrowMagic);
+        m_scene.AddSystem(std::make_shared<ECS::MeteorMagicSystem>(eventBus), (int)SystemPriority::MeteorMagic);
         m_scene.AddSystem(std::make_shared<ECS::HudSystem>(eventBus), (int)SystemPriority::Hud);
         m_scene.AddSystem(std::make_shared<ECS::SaveSystem>(), (int)SystemPriority::Save);
+
+        // バランス計測用の自動プレイ（セーブは読み書きしない）
+        const bool autoPlay = IsAutoPlay();
+        if(autoPlay) {
+            m_scene.AddSystem(std::make_shared<ECS::AutoPlaySystem>(eventBus), (int)SystemPriority::AutoPlay);
+            m_scene.AddSystem(std::make_shared<ECS::BalanceProbeSystem>(eventBus), (int)SystemPriority::BalanceProbe);
+            Tsukino::Core::Log::Info("PusherScene: auto play for balance measurement. The save file is not used.");
+        }
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::LightSystem>(), (int)SystemPriority::Light);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::SkyAtmosphereSystem>(), (int)SystemPriority::SkyAtmosphere);
 #ifdef _DEBUG
@@ -231,8 +280,13 @@ namespace FruitMagic {
         registry.SetContext<RouletteState>();
         ManaConfig& manaConfig = registry.SetContext<ManaConfig>();
         manaConfig.Load(dataRoot + "/Mana.json");
-        registry.SetContext<MagicCatalog>().Load(dataRoot + "/Magic.json");
-        registry.SetContext<MagicState>();
+        MagicCatalog& magics = registry.SetContext<MagicCatalog>();
+        magics.Load(dataRoot + "/Magic.json");
+        registry.SetContext<MagicState>().remaining.assign(magics.Magics().size(), 0.0f);
+        registry.SetContext<MagicEffects>();
+        registry.SetContext<CoinShowerState>();
+        registry.SetContext<JackpotConfig>().Load(dataRoot + "/Jackpot.json");
+        registry.SetContext<PlayStats>();
         CollectionConfig& collection = registry.SetContext<CollectionConfig>();
         collection.Load(dataRoot + "/Collection.json");
         MenuState& menu = registry.SetContext<MenuState>();
@@ -240,7 +294,7 @@ namespace FruitMagic {
         registry.SetContext<TableStats>();
         OfflineConfig& offline = registry.SetContext<OfflineConfig>();
         offline.Load(dataRoot + "/Offline.json");
-        offline.savePath = SaveData::DefaultPath();
+        offline.savePath = autoPlay ? std::string() : SaveData::DefaultPath();
 
         GameState& state = registry.SetContext<GameState>();
         state.maxMana    = manaConfig.maxMana;
@@ -251,7 +305,7 @@ namespace FruitMagic {
         // （報酬の計算に強化の値を使うため、この順番）
         //--------------------------------------------------------------
         long long  savedAt = 0;
-        const bool loaded  = SaveData::Load(registry, offline.savePath, savedAt);
+        const bool loaded  = !offline.savePath.empty() && SaveData::Load(registry, offline.savePath, savedAt);
         ECS::UpgradeSystem::ApplyUpgrades(registry);
         m_pusherAmplitude = registry.GetContext<TableStats>().pusherAmplitude;
 
@@ -292,9 +346,10 @@ namespace FruitMagic {
         if(m_pusherEntity != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_pusherEntity)) {
             m_pusherTime = std::fmod(m_pusherTime + simulationStep, Layout::kPusherPeriod);
 
-            // 押し幅の強化は、振幅を少しずつ近づけて反映する
+            // 押し幅の強化と魔法「ふくらむ」は、振幅を少しずつ近づけて反映する
             if(registry.HasContext<TableStats>()) {
-                const float target = registry.GetContext<TableStats>().pusherAmplitude;
+                const float bonus  = registry.HasContext<MagicEffects>() ? registry.GetContext<MagicEffects>().pusherAmplitudeBonus : 0.0f;
+                const float target = std::min(registry.GetContext<TableStats>().pusherAmplitude + bonus, Layout::kPusherMaxAmplitude);
                 const float step   = kPusherAmplitudeChangeSpeed * simulationStep;
                 m_pusherAmplitude  = std::clamp(target, m_pusherAmplitude - step, m_pusherAmplitude + step);
             }
@@ -315,7 +370,9 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     void PusherScene::OnExit() {
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
-        if(registry.HasContext<OfflineConfig>() && SaveData::Save(registry, registry.GetContext<OfflineConfig>().savePath))
+        if(!registry.HasContext<OfflineConfig>() || registry.GetContext<OfflineConfig>().savePath.empty())
+            return;
+        if(SaveData::Save(registry, registry.GetContext<OfflineConfig>().savePath))
             Tsukino::Core::Log::Info("PusherScene: saved.");
     }
 
@@ -376,6 +433,7 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         m_pusherEntity = factory.CreateBox(registry, hlslpp::float3(0.0f, kPusherCenterY, kPusherStartCenterZ), PusherHalfExtent(),
                                            RigidbodyType::Kinematic);
+        registry.SetContext<PusherRef>().entity = m_pusherEntity;
     }
 
     //----------------------------------------------------------------------------
@@ -539,6 +597,25 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
+        // ジャックポット穴の目印（プッシャー上面の暗い板。開いている間は金色に光る）。
+        // JackpotSystem がプッシャーに合わせて動かし、開いている間に上に来たコインを吸い込む。見た目だけ（コライダー無し）
+        //--------------------------------------------------------------
+        {
+            const JackpotConfig& config = registry.GetContext<JackpotConfig>();
+            Tsukino::ECS::Entity e      = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, Layout::kPusherTopY + 0.05f, Layout::kLaunchZ),
+                                                                  hlslpp::float3(config.holeHalfWidth, 0.1f, config.holeHalfDepth), 1.0f,
+                                                                  hlslpp::float3(0.12f, 0.06f, 0.15f));
+
+            Tsukino::BuiltIn::ECS::RimGlowComponent& glow = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
+            glow.active                                   = false;
+            glow.rimColor                                 = hlslpp::float3(1.0f, 0.8f, 0.2f);
+            glow.rimIntensity                             = 2.0f;
+            glow.glow                                     = 1.0f;
+
+            registry.AddComponent<ECS::JackpotHoleComponent>(e);
+        }
+
+        //--------------------------------------------------------------
         // チェッカー（左右に動く穴）の目印。台の手前端のすぐ下、コインが最終的に落ちる払い出し口にあり、
         // CheckerSystem が左右に動かす。判定は落ちたコインの位置で行うので、これは見た目だけ（コライダー無し）
         //--------------------------------------------------------------
@@ -580,6 +657,8 @@ namespace FruitMagic {
             {ECS::HudTextKind::Roulette, hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f),
              Tsukino::BuiltIn::ECS::HorizontalAlign::Center},
             {ECS::HudTextKind::ControlsHint, hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f)},
+            {ECS::HudTextKind::Notice, hlslpp::float2(640.0f, 250.0f), 1.15f, hlslpp::float4(1.0f, 0.75f, 0.95f, 1.0f),
+             Tsukino::BuiltIn::ECS::HorizontalAlign::Center},
         };
 
         for(const HudSpec& spec : specs) {
@@ -649,7 +728,7 @@ namespace FruitMagic {
             Tsukino::ECS::Entity                       label = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t     = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(label);
             t.position                                       = hlslpp::float3(center.x, center.y, 0.0f);
-            t.scale                                          = hlslpp::float3(0.85f, 0.85f, 1.0f);
+            t.scale                                          = hlslpp::float3(0.72f, 0.72f, 1.0f);    // 「4 おおきくなーれ 60」がボタンに収まる大きさ
             t.dirty                                          = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(label);

@@ -6,7 +6,6 @@
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 #include <Tsukino/Core/ECS/Event/ScopedConnection.hpp>
 
-#include <utility>
 #include <vector>
 
 // 名前空間 : Tsukino::ECS
@@ -23,6 +22,13 @@ namespace FruitMagic::ECS {
     class HarvestSystem : public Tsukino::ECS::ISystem {
     public:
 
+        //! 記録待ちの収穫です。
+        struct PendingFruit {
+            int fruitIndex      = -1;    // 果物の添字
+            int variantIndex    = 0;     // バリエーションの添字
+            int valueMultiplier = 1;     // 価値の倍率（おおきくなーれ）
+        };
+
         //! コンストラクタです。
         //! @param  [in] eventBus PrizeDroppedEvent の購読と ZukanRegisteredEvent の発行に使うイベントバス
         explicit HarvestSystem(Tsukino::ECS::EventBus& eventBus);
@@ -35,6 +41,6 @@ namespace FruitMagic::ECS {
     private:
         Tsukino::ECS::EventBus&          m_eventBus;          // 図鑑登録を発行するイベントバス
         Tsukino::ECS::ScopedConnection   m_dropConnection;    // 購読解除を自動で行う接続
-        std::vector<std::pair<int, int>> m_pendingFruits;     // 次の Update で記録する（果物の添字, バリエーションの添字）
+        std::vector<PendingFruit>        m_pendingFruits;     // 次の Update で記録する果物
     };
 }    // namespace FruitMagic::ECS

@@ -14,7 +14,7 @@ namespace Tsukino::ECS {
 namespace FruitMagic::ECS {
 
     //! 数字キー 1〜5 と画面下の魔法ボタンで魔法を撃つシステムです。
-    //! 解放済みで、マナが足り、ほかの魔法の効果中でなければ、マナを引いて MagicCastEvent を発行します。
+    //! 解放済み（図鑑の登録数が足りる）で、マナが足り、その魔法が効果中でなければ、マナを引いて MagicCastEvent を発行します。
     class MagicInputSystem : public Tsukino::ECS::ISystem {
     public:
 

@@ -7,6 +7,7 @@
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
+#include <FruitMagic/ECS/Event/NoticeEvent.hpp>
 #include <FruitMagic/ECS/Event/ZukanRegisteredEvent.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
@@ -23,6 +24,7 @@
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 // 名前空間 : FruitMagic::ECS
@@ -87,6 +89,11 @@ namespace FruitMagic::ECS {
             m_harvestIsNew   = true;
             m_harvestTimer   = kRegisteredPopupDuration;
         });
+
+        m_noticeConnection = eventBus.Subscribe<NoticeEvent>([this](const NoticeEvent& e) {
+            m_noticeText  = e.text;
+            m_noticeTimer = e.seconds;
+        });
     }
 
     //----------------------------------------------------------------------------
@@ -108,10 +115,17 @@ namespace FruitMagic::ECS {
             if(m_harvestTimer <= 0.0f)
                 m_harvestFruit = -1;
         }
+        if(m_noticeTimer > 0.0f) {
+            m_noticeTimer -= deltaTime;
+            if(m_noticeTimer <= 0.0f)
+                m_noticeText.clear();
+        }
 
         const GameState     state    = registry.HasContext<GameState>() ? registry.GetContext<GameState>() : GameState{};
         const RouletteState roulette = registry.HasContext<RouletteState>() ? registry.GetContext<RouletteState>() : RouletteState{};
         const int           harvestTotal = state.HarvestTotal();
+
+        CheckMagicUnlocks(registry, state);
 
         //--------------------------------------------------------------
         // 各テキストの更新
@@ -170,9 +184,13 @@ namespace FruitMagic::ECS {
                     break;
                 }
 
+                case HudTextKind::Notice:
+                    font.text = m_noticeText;
+                    break;
+
                 case HudTextKind::ControlsHint:
 #ifdef _DEBUG
-                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   F5: コリジョン表示   F2: コイン・果実 +100";
+                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   F5: コリジョン表示   F2: コイン・果実 +100・マナ満タン";
 #else
                     font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化";
 #endif
@@ -207,8 +225,9 @@ namespace FruitMagic::ECS {
         if(!registry.HasContext<MagicCatalog>())
             return;
 
-        const MagicCatalog& catalog = registry.GetContext<MagicCatalog>();
-        const bool          busy    = registry.HasContext<MagicState>() && registry.GetContext<MagicState>().activeMagic >= 0;
+        const MagicCatalog& catalog    = registry.GetContext<MagicCatalog>();
+        const MagicState    magic      = registry.HasContext<MagicState>() ? registry.GetContext<MagicState>() : MagicState{};
+        const int           registered = state.RegisteredCount();
 
         registry.View<MagicButtonComponent, Tsukino::BuiltIn::ECS::SpriteComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
             [&](Tsukino::ECS::Entity, MagicButtonComponent& button, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
@@ -218,14 +237,23 @@ namespace FruitMagic::ECS {
 
                 std::wstring   text;
                 hlslpp::float4 color;
-                if(!def || !def->unlocked) {
-                    // 割り当てが無い・未解放の枠
+                if(!def) {
+                    // 割り当てが無い枠
                     text  = std::to_wstring(button.slot) + L"  ？";
                     color = hlslpp::float4(0.35f, 0.35f, 0.4f, 0.8f);
+                } else if(!catalog.IsUnlocked(index, registered)) {
+                    // 未解放。あと何枠で覚えるかの目安に、必要な図鑑の登録数を出す
+                    text  = std::to_wstring(button.slot) + L"  ？  図鑑" + std::to_wstring(def->unlockZukan);
+                    color = hlslpp::float4(0.35f, 0.35f, 0.4f, 0.8f);
+                } else if(magic.IsActive(index)) {
+                    // 効果中は残り秒数（切り上げ）
+                    const int seconds = static_cast<int>(std::ceil(magic.remaining[index]));
+                    text              = std::to_wstring(button.slot) + L" " + def->name + L"  " + std::to_wstring(seconds) + L"秒";
+                    color             = hlslpp::float4(0.55f, 0.35f, 0.75f, 0.9f);
                 } else {
                     text = std::to_wstring(button.slot) + L" " + def->name + L"  " + std::to_wstring(def->cost);
-                    if(busy || state.mana < def->cost) {
-                        // マナ不足・ほかの魔法の効果中は暗く
+                    if(state.mana < def->cost) {
+                        // マナ不足は暗く
                         color = hlslpp::float4(0.3f, 0.2f, 0.45f, 0.85f);
                     } else {
                         // 撃てる。カーソルが重なっていたら少し明るく
@@ -238,5 +266,36 @@ namespace FruitMagic::ECS {
                     registry.GetComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label).text = text;
                 }
             });
+    }
+
+    //----------------------------------------------------------------------------
+    //! 図鑑の登録数で新しく解放された魔法があれば、お知らせを出します。
+    //----------------------------------------------------------------------------
+    void HudSystem::CheckMagicUnlocks(Tsukino::ECS::Registry& registry, const GameState& state) {
+        if(!registry.HasContext<MagicCatalog>())
+            return;
+
+        const MagicCatalog& catalog    = registry.GetContext<MagicCatalog>();
+        const int           registered = state.RegisteredCount();
+
+        int          unlocked = 0;
+        std::wstring newest;    // 解放に必要な登録数がいちばん多い（＝今回増えた）魔法の名前
+        int          newestRequirement = -1;
+        for(int i = 0; i < static_cast<int>(catalog.Magics().size()); ++i) {
+            if(!catalog.IsUnlocked(i, registered))
+                continue;
+            ++unlocked;
+            if(catalog.Magics()[i].unlockZukan > newestRequirement) {
+                newestRequirement = catalog.Magics()[i].unlockZukan;
+                newest            = catalog.Magics()[i].name;
+            }
+        }
+
+        // 起動直後（セーブを読んだ分）は出さず、プレイ中に増えたときだけ
+        if(m_lastUnlocked >= 0 && unlocked > m_lastUnlocked) {
+            m_noticeText  = L"新しい魔法「" + newest + L"」を覚えた！";
+            m_noticeTimer = 4.0f;
+        }
+        m_lastUnlocked = unlocked;
     }
 }    // namespace FruitMagic::ECS

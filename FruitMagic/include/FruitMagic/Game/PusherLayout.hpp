@@ -13,7 +13,7 @@ namespace FruitMagic::Layout {
     //--------------------------------------------------------------
     inline constexpr float kFieldHalfWidth = 30.0f;     // プレイフィールドの半幅（X）
     inline constexpr float kFieldFrontZ    = 40.0f;     // 手前端のZ（ここから先へ押し出された物が落ちる）
-    inline constexpr float kFieldBackZ     = -95.0f;    // 奥端のZ（プッシャーが引っ込んでも床が切れない位置）
+    inline constexpr float kFieldBackZ     = -105.0f;    // 奥端のZ（プッシャーが引っ込んでも床が切れない位置）
 
     inline constexpr float kStaticThickness = 10.0f;    // 床・トレイのコライダーの半分の厚み（すり抜け対策で厚めにする）
 
@@ -25,10 +25,10 @@ namespace FruitMagic::Layout {
     inline constexpr float kPusherSinkDepth  = 2.0f;                      // 床へ埋める深さ。床面に下端の角があるとコインがプッシャーの下へ潜り込むため
     inline constexpr float kPusherCenterY    = kPusherHalfHeight - kPusherSinkDepth;    // 中心の高さ
     inline constexpr float kPusherTopY       = kPusherCenterY + kPusherHalfHeight;      // 上面の高さ
-    inline constexpr float kPusherHalfDepth  = 26.0f;                     // 半分の奥行（Z）。押し幅を最大まで強化して前に出ても、後端が背面パネルより奥に残る奥行が要る
+    inline constexpr float kPusherHalfDepth  = 32.0f;                     // 半分の奥行（Z）。押し幅を最大まで強化して前に出ても、後端が背面パネルより奥に残る奥行が要る
     inline constexpr float kPusherMinFrontZ  = -37.0f;                    // 最も引っ込んだときの前面のZ。押し幅を強化しても変えない（投入位置がここで決まるため）
     inline constexpr float kPusherAmplitude  = 12.0f;                     // 往復の振幅（強化前）。押し幅の強化で TableStats::pusherAmplitude が増える
-    inline constexpr float kPusherMaxAmplitude = 18.0f;                   // 振幅の上限。強化のデータがこれを超えても丸める
+    inline constexpr float kPusherMaxAmplitude = 24.0f;                   // 振幅の上限（強化＋魔法「ふくらむ」）。データがこれを超えても丸める
     inline constexpr float kPusherPeriod     = 3.0f;                      // 往復の周期（秒）
 
     //! 振幅に対する往復の中心Zを返します。最も引っ込んだ位置は変えず、振幅が増えた分だけ前へ出す。

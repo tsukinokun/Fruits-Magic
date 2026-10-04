@@ -24,9 +24,7 @@ namespace FruitMagic::ECS {
         //! @note   起動時（セーブの読み込み後）と購入のたびに呼びます
         static void ApplyUpgrades(Tsukino::ECS::Registry& registry);
 
-    private:
-
-        //! 強化を1段階買います。
+        //! 強化を1段階買います（強化画面の購入ボタンと、バランス計測の自動プレイが使う）。
         //! @param  [in] registry     レジストリ
         //! @param  [in] upgradeIndex 強化の添字
         //! @return 買えたら true（最大レベル・手持ち不足なら false）

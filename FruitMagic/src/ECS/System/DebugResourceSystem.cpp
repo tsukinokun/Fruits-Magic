@@ -21,7 +21,7 @@ namespace FruitMagic::ECS {
     }    // namespace
 
     //----------------------------------------------------------------------------
-    //! F2 が押されたらコインと果実を増やします。
+    //! F2 が押されたらコインと果実を増やし、マナを満タンにします。
     //----------------------------------------------------------------------------
     void DebugResourceSystem::Update(Tsukino::ECS::Registry& registry, float /*deltaTime*/) {
         Tsukino::EngineIntegration::EngineContext* ctx = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
@@ -33,6 +33,7 @@ namespace FruitMagic::ECS {
         GameState& state = registry.GetContext<GameState>();
         state.coins += kAmount;
         state.fruitPoints += kAmount;
+        state.mana = state.maxMana;    // 魔法をすぐ試せるように
         Tsukino::Core::Log::Info("DebugResource: coins = " + std::to_string(state.coins) + ", fruit = " + std::to_string(state.fruitPoints));
     }
 }    // namespace FruitMagic::ECS

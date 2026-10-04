@@ -24,6 +24,7 @@ namespace FruitMagic::ECS {
         int                  value = 0;                   // 景品の価値
         int                  fruitIndex = -1;             // 果物のとき、FruitCatalog::Fruits() の添字
         int                  variantIndex = 0;            // 果物のとき、CollectionConfig::Variants() の添字
+        int                  valueMultiplier = 1;         // 果物のとき、収穫したときの価値の倍率
         DropZone             zone  = DropZone::Payout;    // 落ちた場所
         float                x     = 0.0f;                // 落ちた時点の左右位置（チェッカーの判定に使う）
     };

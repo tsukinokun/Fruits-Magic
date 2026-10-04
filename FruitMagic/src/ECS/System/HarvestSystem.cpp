@@ -13,6 +13,8 @@
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 
+#include <algorithm>
+
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
@@ -24,7 +26,7 @@ namespace FruitMagic::ECS {
         // 払い出し口に落ちた果物だけを積む（左右の溝に落ちた果物は失う）
         m_dropConnection = eventBus.Subscribe<PrizeDroppedEvent>([this](const PrizeDroppedEvent& e) {
             if(e.kind == PrizeKind::Fruit && e.zone == DropZone::Payout && e.fruitIndex >= 0)
-                m_pendingFruits.emplace_back(e.fruitIndex, e.variantIndex);
+                m_pendingFruits.push_back(PendingFruit{e.fruitIndex, e.variantIndex, e.valueMultiplier});
         });
     }
 
@@ -38,7 +40,9 @@ namespace FruitMagic::ECS {
         }
 
         GameState& state = registry.GetContext<GameState>();
-        for(const auto& [fruitIndex, variantIndex] : m_pendingFruits) {
+        for(const PendingFruit& pending : m_pendingFruits) {
+            const int fruitIndex   = pending.fruitIndex;
+            const int variantIndex = pending.variantIndex;
             if(variantIndex < 0)
                 continue;
 
@@ -52,12 +56,12 @@ namespace FruitMagic::ECS {
             const bool isFirst = (counts[variantIndex] == 0);
             counts[variantIndex] += 1;
 
-            // 価値（価値 × バリエーションの倍率）を、転生用の合計と強化に使う果実の両方に足す
+            // 価値（価値 × バリエーションの倍率 × 大きくした倍率）を、転生用の合計と強化に使う果実の両方に足す
             if(registry.HasContext<FruitCatalog>() && registry.HasContext<CollectionConfig>()) {
                 const auto& fruits   = registry.GetContext<FruitCatalog>().Fruits();
                 const auto& variants = registry.GetContext<CollectionConfig>().Variants();
                 if(fruitIndex < static_cast<int>(fruits.size()) && variantIndex < static_cast<int>(variants.size())) {
-                    const long long value = static_cast<long long>(fruits[fruitIndex].value) * variants[variantIndex].valueMultiplier;
+                    const long long value = static_cast<long long>(fruits[fruitIndex].value) * variants[variantIndex].valueMultiplier * std::max(1, pending.valueMultiplier);
                     state.harvestValue += value;
                     state.fruitPoints += value;
                 }

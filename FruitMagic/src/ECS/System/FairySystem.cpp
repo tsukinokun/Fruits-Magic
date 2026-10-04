@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/FairySystem.hpp>
 
+#include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
@@ -43,5 +44,7 @@ namespace FruitMagic::ECS {
         // プレイヤーと同じ投入位置の列（プッシャー上面の上）に入れる
         const float x = std::uniform_real_distribution<float>(-Layout::kLaunchLaneHalfWidth, Layout::kLaunchLaneHalfWidth)(m_rng);
         registry.GetContext<PrizeFactory>().CreateCoin(registry, hlslpp::float3(x, Layout::kLaunchY, Layout::kLaunchZ));
+        if(registry.HasContext<PlayStats>())
+            registry.GetContext<PlayStats>().fairyCoins += 1;
     }
 }    // namespace FruitMagic::ECS

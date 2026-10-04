@@ -9,6 +9,7 @@
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
+#include <FruitMagic/Game/PlayStats.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
@@ -67,10 +68,12 @@ namespace FruitMagic::ECS {
 
         const MagicDef& def   = catalog.Magics()[magicIndex];
         GameState&      state = registry.GetContext<GameState>();
-        if(!def.unlocked || registry.GetContext<MagicState>().activeMagic >= 0 || state.mana < def.cost)
+        if(!catalog.IsUnlocked(magicIndex, state.RegisteredCount()) || registry.GetContext<MagicState>().IsActive(magicIndex) || state.mana < def.cost)
             return;
 
         state.mana -= def.cost;
+        if(registry.HasContext<PlayStats>())
+            registry.GetContext<PlayStats>().magicsCast += 1;
         m_eventBus.Publish(MagicCastEvent{magicIndex});
     }
 }    // namespace FruitMagic::ECS

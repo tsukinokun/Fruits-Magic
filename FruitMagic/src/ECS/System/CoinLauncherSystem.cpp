@@ -6,6 +6,7 @@
 
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 
@@ -100,5 +101,7 @@ namespace FruitMagic::ECS {
         for(const hlslpp::float3& position : launchPositions) {
             factory.CreateCoin(registry, position);
         }
+        if(registry.HasContext<PlayStats>())
+            registry.GetContext<PlayStats>().coinsLaunched += static_cast<int>(launchPositions.size());
     }
 }    // namespace FruitMagic::ECS

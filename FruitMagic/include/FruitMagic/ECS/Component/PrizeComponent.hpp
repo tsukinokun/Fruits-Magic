@@ -19,5 +19,6 @@ namespace FruitMagic::ECS {
         int       value = 1;                  // 価値（コインは手持ちに戻る枚数、果物は FruitDef::value）
         int       fruitIndex = -1;            // 果物のとき、FruitCatalog::Fruits() の添字
         int       variantIndex = 0;           // 果物のとき、CollectionConfig::Variants() の添字（0 は通常）
+        int       valueMultiplier = 1;        // 果物のとき、収穫したときの価値の倍率（魔法「おおきくなーれ」で増える）
     };
 }    // namespace FruitMagic::ECS

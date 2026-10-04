@@ -16,6 +16,7 @@ namespace FruitMagic::ECS {
         HarvestPopup,    // 直近に収穫した果物（「いちご ゲット！」）
         Roulette,        // ルーレット（回転中の表示・結果・ストック）
         ControlsHint,    // 操作説明
+        Notice,          // お知らせ（「新しい魔法を覚えた！」「ジャックポット！」など。NoticeEvent で出す）
     };
 
     //! HUD のテキストです。FontComponent と一緒に付け、HudSystem が文字列を更新します。

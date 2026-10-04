@@ -5,7 +5,7 @@
       "name": "ゆらゆら",
       "cost": 30,
       "key": 1,
-      "unlocked": true,
+      "unlockZukan": 0,
       "params": {
         "duration": 1.2,
         "interval": 0.2,
@@ -13,6 +13,50 @@
         "side": 6.0,
         "up": 8.0,
         "cameraShake": 0.6
+      }
+    },
+    {
+      "id": "swell",
+      "name": "ふくらむ",
+      "cost": 40,
+      "key": 2,
+      "unlockZukan": 3,
+      "params": {
+        "duration": 8.0,
+        "amplitude": 6.0
+      }
+    },
+    {
+      "id": "wall",
+      "name": "かべ",
+      "cost": 50,
+      "key": 3,
+      "unlockZukan": 6,
+      "params": {
+        "duration": 10.0,
+        "height": 10.0
+      }
+    },
+    {
+      "id": "grow",
+      "name": "おおきくなーれ",
+      "cost": 60,
+      "key": 4,
+      "unlockZukan": 10,
+      "params": {
+        "scale": 1.6,
+        "valueMultiplier": 2
+      }
+    },
+    {
+      "id": "meteor",
+      "name": "メテオコイン",
+      "cost": 80,
+      "key": 5,
+      "unlockZukan": 15,
+      "params": {
+        "duration": 2.0,
+        "count": 30
       }
     }
   ]

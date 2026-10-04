@@ -8,6 +8,7 @@
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
@@ -47,9 +48,10 @@ namespace FruitMagic::ECS {
         const RouletteConfig config  = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
 
         //--------------------------------------------------------------
-        // チェッカーに入った分をためる（上限を超えた分は捨てる）
+        // チェッカーに入った分をためる（上限を超えた分は捨てる）。
+        // ジャックポットで上限を超えてたまっている分は減らさない
         //--------------------------------------------------------------
-        state.stock      = std::min(state.stock + m_pendingEntered, config.maxStock);
+        state.stock      = std::max(state.stock, std::min(state.stock + m_pendingEntered, config.maxStock));
         m_pendingEntered = 0;
 
         switch(state.phase) {
@@ -95,6 +97,11 @@ namespace FruitMagic::ECS {
 
                     if(state.resultHit) {
                         SpawnFruit(registry, m_resultFruit, m_resultVariant);
+                    }
+                    if(registry.HasContext<PlayStats>()) {
+                        PlayStats& stats = registry.GetContext<PlayStats>();
+                        stats.rouletteSpins += 1;
+                        stats.rouletteHits += state.resultHit ? 1 : 0;
                     }
                 }
                 break;

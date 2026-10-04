@@ -12,6 +12,8 @@
 
 #include <cereal/external/rapidjson/document.h>
 
+#include <algorithm>
+
 // 名前空間 : FruitMagic
 namespace FruitMagic {
     namespace {
@@ -69,9 +71,9 @@ namespace FruitMagic {
             if(slot != m.MemberEnd() && slot->value.IsNumber())
                 def.slot = static_cast<int>(slot->value.GetDouble());
 
-            auto unlocked = m.FindMember("unlocked");
-            if(unlocked != m.MemberEnd() && unlocked->value.IsBool())
-                def.unlocked = unlocked->value.GetBool();
+            auto unlockZukan = m.FindMember("unlockZukan");
+            if(unlockZukan != m.MemberEnd() && unlockZukan->value.IsNumber())
+                def.unlockZukan = std::max(0, static_cast<int>(unlockZukan->value.GetDouble()));
 
             auto params = m.FindMember("params");
             if(params != m.MemberEnd() && params->value.IsObject()) {
@@ -91,6 +93,22 @@ namespace FruitMagic {
 
         Tsukino::Core::Log::Info("MagicCatalog: loaded " + std::to_string(m_magics.size()) + " magics.");
         return !m_magics.empty();
+    }
+
+    //----------------------------------------------------------------------------
+    //! 魔法が解放済みかを返します。
+    //----------------------------------------------------------------------------
+    bool MagicCatalog::IsUnlocked(int magicIndex, int registeredCount) const {
+        if(magicIndex < 0 || magicIndex >= static_cast<int>(m_magics.size()))
+            return false;
+        return registeredCount >= m_magics[magicIndex].unlockZukan;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 添字の魔法が指定の id かを返します。
+    //----------------------------------------------------------------------------
+    bool MagicCatalog::IsMagic(int magicIndex, const char* id) const {
+        return magicIndex >= 0 && magicIndex < static_cast<int>(m_magics.size()) && m_magics[magicIndex].id == id;
     }
 
     //----------------------------------------------------------------------------

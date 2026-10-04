@@ -1,0 +1,11 @@
+{
+  "holeHalfWidth": 2.5,
+  "holeHalfDepth": 2.5,
+  "frontOffset": 5.0,
+  "range": 18.0,
+  "period": 7.0,
+  "openSeconds": 4.0,
+  "closedSeconds": 20.0,
+  "spins": 3,
+  "bonusCoins": 10
+}

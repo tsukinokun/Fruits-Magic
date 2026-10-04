@@ -56,13 +56,11 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         // 自分（"shake"）の魔法が撃たれたら効果を始める
         //--------------------------------------------------------------
-        if(m_pendingCast >= 0 && m_activeMagic < 0 && m_pendingCast < static_cast<int>(catalog.Magics().size()) &&
-           catalog.Magics()[m_pendingCast].id == kMagicId) {
-            m_activeMagic     = m_pendingCast;
-            m_timer           = catalog.Magics()[m_activeMagic].Param("duration", 1.2f);
-            m_pulseTimer      = 0.0f;
-            m_elapsed         = 0.0f;
-            state.activeMagic = m_activeMagic;
+        if(m_activeMagic < 0 && catalog.IsMagic(m_pendingCast, kMagicId)) {
+            m_activeMagic = m_pendingCast;
+            m_timer       = catalog.Magics()[m_activeMagic].Param("duration", 1.2f);
+            m_pulseTimer  = 0.0f;
+            m_elapsed     = 0.0f;
 
             // 揺らすカメラ（メインカメラ）と、その元の位置を覚えておく
             m_camera = entt::null;
@@ -104,6 +102,7 @@ namespace FruitMagic::ECS {
         }
 
         m_timer -= deltaTime;
+        state.SetRemaining(m_activeMagic, m_timer);
         if(m_timer <= 0.0f) {
             Finish(registry);
         }
@@ -150,8 +149,8 @@ namespace FruitMagic::ECS {
             t.dirty    = true;
         }
 
+        registry.GetContext<MagicState>().SetRemaining(m_activeMagic, 0.0f);
         m_activeMagic = -1;
         m_camera      = entt::null;
-        registry.GetContext<MagicState>().activeMagic = -1;
     }
 }    // namespace FruitMagic::ECS
