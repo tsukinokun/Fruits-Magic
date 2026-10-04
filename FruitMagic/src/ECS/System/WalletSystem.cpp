@@ -31,11 +31,11 @@ namespace FruitMagic::ECS {
 
         GameState& state = registry.GetContext<GameState>();
         for(const PrizeDroppedEvent& e : m_pendingDrops) {
-            // 左右の溝に落ちた物は失う（M3 でマナに変換する）
-            if(e.zone != DropZone::Payout)
+            // 手持ちに戻るのは払い出し口に落ちたコインだけ。
+            // 果物は HarvestSystem が収穫として記録し、左右の溝に落ちた物は失う（M3 でマナにする）
+            if(e.zone != DropZone::Payout || e.kind != PrizeKind::Coin)
                 continue;
 
-            // M1 では果物もコイン換算で手持ちに入れる（M2 で収穫処理に置き換える）
             state.coins += e.value;
         }
         m_pendingDrops.clear();

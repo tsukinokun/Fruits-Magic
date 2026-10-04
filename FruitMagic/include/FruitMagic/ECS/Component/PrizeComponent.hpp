@@ -16,6 +16,7 @@ namespace FruitMagic::ECS {
     //! 台から落ちると取れる物です。PrizeDropSystem が落下を判定します。
     struct PrizeComponent {
         PrizeKind kind  = PrizeKind::Coin;    // 景品の種類
-        int       value = 1;                  // 払い出し口に落ちたときの価値（コイン換算）
+        int       value = 1;                  // 価値（コインは手持ちに戻る枚数、果物は FruitDef::value）
+        int       fruitIndex = -1;            // 果物のとき、FruitCatalog::Fruits() の添字
     };
 }    // namespace FruitMagic::ECS

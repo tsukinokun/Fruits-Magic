@@ -1,0 +1,18 @@
+{
+  "id": "pineapple",
+  "name": "パイナップル",
+  "rank": "large",
+  "shape": "capsule",
+  "radius": 3.5,
+  "halfHeight": 4.0,
+  "mass": 10.0,
+  "value": 8,
+  "mana": 4,
+  "spawnWeight": 3,
+  "unlockTreeLevel": 2,
+  "color": {
+    "r": 1.0,
+    "g": 0.8,
+    "b": 0.15
+  }
+}

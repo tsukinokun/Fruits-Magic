@@ -1,0 +1,17 @@
+{
+  "id": "cherry",
+  "name": "さくらんぼ",
+  "rank": "small",
+  "shape": "sphere",
+  "radius": 2.0,
+  "mass": 1.0,
+  "value": 1,
+  "mana": 1,
+  "spawnWeight": 10,
+  "unlockTreeLevel": 0,
+  "color": {
+    "r": 0.85,
+    "g": 0.0,
+    "b": 0.15
+  }
+}

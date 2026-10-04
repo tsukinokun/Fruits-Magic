@@ -39,18 +39,18 @@ namespace FruitMagic {
 
         //! 筐体（床・壁・背面パネル・景品受け）とプッシャーを生成します。
         //! @param  [in] factory 生成に使うファクトリ
-        void CreateCabinet(const PrizeFactory& factory);
+        void CreateCabinet(PrizeFactory& factory);
 
         //! 起動時に台に置いておく景品を生成します。
         //! @param  [in] factory 生成に使うファクトリ
-        void CreateInitialPrizes(const PrizeFactory& factory);
+        void CreateInitialPrizes(PrizeFactory& factory);
 
         //! ライト・空・カメラを生成します。
         void CreateEnvironment();
 
         //! コインの投入口と HUD を生成します。
         //! @param  [in] factory 生成に使うファクトリ
-        void CreatePlayerInterface(const PrizeFactory& factory);
+        void CreatePlayerInterface(PrizeFactory& factory);
 
         Tsukino::ECS::Entity m_pusherEntity{entt::null};    // 往復するプッシャー
         float                m_pusherTime = 0.0f;          // プッシャーの往復に使う経過時間（秒）

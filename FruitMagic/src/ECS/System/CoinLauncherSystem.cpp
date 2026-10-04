@@ -31,7 +31,7 @@ namespace FruitMagic::ECS {
 
         Tsukino::Input::InputSystem& input   = *ctx->inputSystem;
         GameState&                   state   = registry.GetContext<GameState>();
-        const PrizeFactory&          factory = registry.GetContext<PrizeFactory>();
+        PrizeFactory&                factory = registry.GetContext<PrizeFactory>();
 
         //--------------------------------------------------------------
         // マウスの位置（ウィンドウ内のX座標）。動いたときだけ追従させ、

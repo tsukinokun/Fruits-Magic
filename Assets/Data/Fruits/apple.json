@@ -1,0 +1,17 @@
+{
+  "id": "apple",
+  "name": "りんご",
+  "rank": "medium",
+  "shape": "sphere",
+  "radius": 4.0,
+  "mass": 4.0,
+  "value": 3,
+  "mana": 2,
+  "spawnWeight": 6,
+  "unlockTreeLevel": 1,
+  "color": {
+    "r": 0.95,
+    "g": 0.1,
+    "b": 0.05
+  }
+}

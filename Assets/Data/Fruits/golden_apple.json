@@ -1,0 +1,17 @@
+{
+  "id": "golden_apple",
+  "name": "金のりんご",
+  "rank": "legend",
+  "shape": "sphere",
+  "radius": 4.0,
+  "mass": 6.0,
+  "value": 30,
+  "mana": 10,
+  "spawnWeight": 0.5,
+  "unlockTreeLevel": 3,
+  "color": {
+    "r": 1.0,
+    "g": 0.85,
+    "b": 0.3
+  }
+}

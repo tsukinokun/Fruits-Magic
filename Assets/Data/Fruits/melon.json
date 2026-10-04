@@ -1,0 +1,17 @@
+{
+  "id": "melon",
+  "name": "メロン",
+  "rank": "large",
+  "shape": "sphere",
+  "radius": 6.5,
+  "mass": 12.0,
+  "value": 8,
+  "mana": 4,
+  "spawnWeight": 3,
+  "unlockTreeLevel": 2,
+  "color": {
+    "r": 0.5,
+    "g": 0.95,
+    "b": 0.4
+  }
+}

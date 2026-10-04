@@ -22,6 +22,8 @@ namespace FruitMagic::ECS {
         Tsukino::ECS::Entity prize = entt::null;          // 落ちた景品
         PrizeKind            kind  = PrizeKind::Coin;     // 景品の種類
         int                  value = 0;                   // 景品の価値
+        int                  fruitIndex = -1;             // 果物のとき、FruitCatalog::Fruits() の添字
         DropZone             zone  = DropZone::Payout;    // 落ちた場所
+        float                x     = 0.0f;                // 落ちた時点の左右位置（チェッカーの判定に使う）
     };
 }    // namespace FruitMagic::ECS

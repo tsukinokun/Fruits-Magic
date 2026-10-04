@@ -1,16 +1,19 @@
 //----------------------------------------------------------------------------
 //! @file   HudSystem.cpp
-//! @brief  HUD（手持ち枚数・払い出し表示）を更新するシステムの実装
+//! @brief  HUD（手持ち枚数・払い出し・収穫・ルーレット）を更新するシステムの実装
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/HudSystem.hpp>
 
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
+#include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/RouletteState.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 
+#include <numeric>
 #include <string>
 
 // 名前空間 : FruitMagic::ECS
@@ -18,6 +21,22 @@ namespace FruitMagic::ECS {
     namespace {
         //! @brief 払い出し表示を出しておく時間（秒）。続けて落ちたら延長して合算する
         constexpr float kPopupDuration = 1.2f;
+
+        //! @brief 収穫表示を出しておく時間（秒）
+        constexpr float kHarvestPopupDuration = 2.0f;
+
+        //--------------------------------------------------------------
+        //! 果物の表示名を返します。
+        //! @param  [in] registry   レジストリ（FruitCatalog を参照する）
+        //! @param  [in] fruitIndex 果物の添字
+        //! @return 表示名。範囲外なら空文字列
+        //--------------------------------------------------------------
+        std::wstring FruitName(Tsukino::ECS::Registry& registry, int fruitIndex) {
+            if(!registry.HasContext<FruitCatalog>())
+                return std::wstring();
+            const auto& fruits = registry.GetContext<FruitCatalog>().Fruits();
+            return (fruitIndex >= 0 && fruitIndex < static_cast<int>(fruits.size())) ? fruits[fruitIndex].name : std::wstring();
+        }
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -25,6 +44,15 @@ namespace FruitMagic::ECS {
     //----------------------------------------------------------------------------
     HudSystem::HudSystem(Tsukino::ECS::EventBus& eventBus) {
         m_dropConnection = eventBus.Subscribe<PrizeDroppedEvent>([this](const PrizeDroppedEvent& e) {
+            if(e.kind == PrizeKind::Fruit) {
+                // 果物は払い出し口に落ちたときだけ「ゲット」を出す
+                if(e.zone == DropZone::Payout) {
+                    m_harvestFruit = e.fruitIndex;
+                    m_harvestTimer = kHarvestPopupDuration;
+                }
+                return;
+            }
+
             if(e.zone == DropZone::Payout) {
                 m_recentPayout += e.value;
             } else {
@@ -39,7 +67,7 @@ namespace FruitMagic::ECS {
     //----------------------------------------------------------------------------
     void HudSystem::Update(Tsukino::ECS::Registry& registry, float deltaTime) {
         //--------------------------------------------------------------
-        // 払い出し表示の残り時間。切れたら合計をリセット
+        // 一時表示の残り時間。切れたら内容をリセット
         //--------------------------------------------------------------
         if(m_popupTimer > 0.0f) {
             m_popupTimer -= deltaTime;
@@ -48,8 +76,15 @@ namespace FruitMagic::ECS {
                 m_recentGutter = 0;
             }
         }
+        if(m_harvestTimer > 0.0f) {
+            m_harvestTimer -= deltaTime;
+            if(m_harvestTimer <= 0.0f)
+                m_harvestFruit = -1;
+        }
 
-        const int coins = registry.HasContext<GameState>() ? registry.GetContext<GameState>().coins : 0;
+        const GameState     state    = registry.HasContext<GameState>() ? registry.GetContext<GameState>() : GameState{};
+        const RouletteState roulette = registry.HasContext<RouletteState>() ? registry.GetContext<RouletteState>() : RouletteState{};
+        const int           harvestTotal = std::accumulate(state.harvestCounts.begin(), state.harvestCounts.end(), 0);
 
         //--------------------------------------------------------------
         // 各テキストの更新
@@ -58,7 +93,7 @@ namespace FruitMagic::ECS {
         view.each([&](Tsukino::ECS::Entity, HudTextComponent& hud, Tsukino::BuiltIn::ECS::FontComponent& font) {
             switch(hud.kind) {
                 case HudTextKind::Coins:
-                    font.text = L"コイン: " + std::to_wstring(coins);
+                    font.text = L"コイン: " + std::to_wstring(state.coins);
                     break;
 
                 case HudTextKind::DropPopup: {
@@ -71,9 +106,36 @@ namespace FruitMagic::ECS {
                     break;
                 }
 
+                case HudTextKind::HarvestTotal:
+                    font.text = L"収穫: " + std::to_wstring(harvestTotal);
+                    break;
+
+                case HudTextKind::HarvestPopup:
+                    font.text = (m_harvestFruit >= 0) ? FruitName(registry, m_harvestFruit) + L" ゲット！" : std::wstring();
+                    break;
+
+                case HudTextKind::Roulette: {
+                    std::wstring text;
+                    switch(roulette.phase) {
+                        case RoulettePhase::Spinning:
+                            text = L"ルーレット ▶ " + ((roulette.displayFruit >= 0) ? FruitName(registry, roulette.displayFruit) : std::wstring(L"ハズレ"));
+                            break;
+                        case RoulettePhase::Result:
+                            text = roulette.resultHit ? L"当たり！ " + FruitName(registry, roulette.displayFruit) + L" が出た！" : std::wstring(L"ハズレ…");
+                            break;
+                        case RoulettePhase::Idle:
+                        default:
+                            break;
+                    }
+                    if(roulette.stock > 0)
+                        text += L"   (のこり " + std::to_wstring(roulette.stock) + L")";
+                    font.text = text;
+                    break;
+                }
+
                 case HudTextKind::ControlsHint:
 #ifdef _DEBUG
-                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   F5: コリジョン表示";
+                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   F5: コリジョン表示   F2: 果樹Lv " + std::to_wstring(state.treeLevel);
 #else
                     font.text = L"←→ / マウス: 位置   Space / クリック: 投入";
 #endif

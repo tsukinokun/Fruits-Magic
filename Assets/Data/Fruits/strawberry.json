@@ -1,0 +1,17 @@
+{
+  "id": "strawberry",
+  "name": "いちご",
+  "rank": "small",
+  "shape": "sphere",
+  "radius": 2.5,
+  "mass": 1.5,
+  "value": 1,
+  "mana": 1,
+  "spawnWeight": 10,
+  "unlockTreeLevel": 0,
+  "color": {
+    "r": 1.0,
+    "g": 0.15,
+    "b": 0.2
+  }
+}

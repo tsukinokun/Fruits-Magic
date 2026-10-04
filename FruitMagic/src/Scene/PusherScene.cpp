@@ -4,15 +4,25 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Scene/PusherScene.hpp>
 
+#include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/RouletteConfig.hpp>
+#include <FruitMagic/Game/RouletteState.hpp>
+#include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
+#include <FruitMagic/ECS/System/CheckerSystem.hpp>
 #include <FruitMagic/ECS/System/CoinLauncherSystem.hpp>
-#include <FruitMagic/ECS/System/PrizeDropSystem.hpp>
-#include <FruitMagic/ECS/System/WalletSystem.hpp>
+#include <FruitMagic/ECS/System/HarvestSystem.hpp>
 #include <FruitMagic/ECS/System/HudSystem.hpp>
+#include <FruitMagic/ECS/System/PrizeDropSystem.hpp>
+#include <FruitMagic/ECS/System/RouletteSystem.hpp>
+#include <FruitMagic/ECS/System/WalletSystem.hpp>
+#ifdef _DEBUG
+#include <FruitMagic/ECS/System/DebugTreeLevelSystem.hpp>
+#endif
 
 #include <Tsukino/EngineIntegration/EngineAPI.hpp>
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
@@ -36,7 +46,9 @@
 #include <Tsukino/BuiltIn/ECS/Component/DirectionalLightComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointLightComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SkyAtmosphereComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/RimGlowComponent.hpp>
 
+#include <Tsukino/Core/IO/FileSystem.hpp>
 #include <Tsukino/Core/Log.hpp>
 
 #include <entt/entt.hpp>
@@ -44,6 +56,8 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <random>
+#include <string>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
@@ -52,9 +66,6 @@ namespace FruitMagic {
 
         //! @brief 物理に渡す1フレームの経過時間の上限（秒）。重いフレームで一気に進めてすり抜けるのを防ぐ
         constexpr float kMaxSimulationStep = 1.0f / 30.0f;
-
-        //! @brief 果物（仮景品）の半径
-        constexpr float kFruitRadius = 4.0f;
 
         //! @brief プッシャーの半サイズ
         hlslpp::float3 PusherHalfExtent() {
@@ -74,11 +85,17 @@ namespace FruitMagic {
         // システムの生成と追加
         //--------------------------------------------------------------
         enum class SystemPriority : int {
+#ifdef _DEBUG
+            DebugTreeLevel = -1,
+#endif
             CoinLauncher = 0,    // 投入したコインを今フレームの Transform・物理に乗せるため最初
             Transform,
             Physics,             // Transform 確定後に剛体を進め、結果を Transform へ書き戻す
             PrizeDrop,           // 物理の結果で落下を判定する
+            Checker,             // 払い出し口に落ちたコインがチェッカーに入ったかを、同じフレームの落下イベントで判定する
             Wallet,
+            Harvest,
+            Roulette,            // 当たりで果物を生成する（次のフレームの Transform・物理に乗る）
             Hud,
             Light,
             SkyAtmosphere,
@@ -90,7 +107,11 @@ namespace FruitMagic {
             Render,
         };
 
+#ifdef _DEBUG
+        m_scene.AddSystem(std::make_shared<ECS::DebugTreeLevelSystem>(), (int)SystemPriority::DebugTreeLevel);
+#endif
         m_scene.AddSystem(std::make_shared<ECS::CoinLauncherSystem>(), (int)SystemPriority::CoinLauncher);
+        m_scene.AddSystem(std::make_shared<ECS::CheckerSystem>(eventBus), (int)SystemPriority::Checker);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::TransformSystem>(), (int)SystemPriority::Transform);
         auto physicsSystem = std::make_shared<Tsukino::BuiltIn::ECS::PhysicsSystem>(eventBus);
         // このゲームは 1unit=1cm。物理エンジンの重力・接触の許容値をcmに合わせる
@@ -102,6 +123,8 @@ namespace FruitMagic {
         m_scene.AddSystem(physicsSystem, (int)SystemPriority::Physics);
         m_scene.AddSystem(std::make_shared<ECS::PrizeDropSystem>(eventBus), (int)SystemPriority::PrizeDrop);
         m_scene.AddSystem(std::make_shared<ECS::WalletSystem>(eventBus), (int)SystemPriority::Wallet);
+        m_scene.AddSystem(std::make_shared<ECS::HarvestSystem>(eventBus), (int)SystemPriority::Harvest);
+        m_scene.AddSystem(std::make_shared<ECS::RouletteSystem>(eventBus), (int)SystemPriority::Roulette);
         m_scene.AddSystem(std::make_shared<ECS::HudSystem>(eventBus), (int)SystemPriority::Hud);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::LightSystem>(), (int)SystemPriority::Light);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::SkyAtmosphereSystem>(), (int)SystemPriority::SkyAtmosphere);
@@ -115,7 +138,19 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // ゲーム全体で共有するデータをレジストリのコンテキストへ置く
         //--------------------------------------------------------------
-        registry.SetContext<GameState>();
+        // 果物とルーレットの定義データ（Debug は作業ディレクトリ、Release は exe の隣が基準）
+        const std::string dataRoot = (Tsukino::IO::FileSystem::GetAssetRootPath() / "Assets/Data").string();
+
+        FruitCatalog& catalog = registry.SetContext<FruitCatalog>();
+        if(!catalog.Load(dataRoot)) {
+            Tsukino::Core::Log::Error("PusherScene: no fruit data could be loaded from " + dataRoot + ". Fruits will not appear.");
+        }
+        registry.SetContext<RouletteConfig>().Load(dataRoot + "/Roulette.json");
+        registry.SetContext<RouletteState>();
+
+        GameState& state = registry.SetContext<GameState>();
+        state.harvestCounts.assign(catalog.Fruits().size(), 0);
+
         PrizeFactory& factory = registry.SetContext<PrizeFactory>();
         factory.Initialize(*context->assetManager);
 
@@ -164,7 +199,7 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! 筐体（床・壁・背面パネル・景品受け）とプッシャーを生成します。
     //----------------------------------------------------------------------------
-    void PusherScene::CreateCabinet(const PrizeFactory& factory) {
+    void PusherScene::CreateCabinet(PrizeFactory& factory) {
         using Tsukino::BuiltIn::ECS::RigidbodyType;
         using namespace Layout;
 
@@ -223,7 +258,7 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! 起動時に台に置いておく景品を生成します。
     //----------------------------------------------------------------------------
-    void PusherScene::CreateInitialPrizes(const PrizeFactory& factory) {
+    void PusherScene::CreateInitialPrizes(PrizeFactory& factory) {
         using namespace Layout;
 
         Tsukino::ECS::Registry& registry   = m_scene.GetRegistry();
@@ -253,12 +288,23 @@ namespace FruitMagic {
             factory.CreateCoin(registry, hlslpp::float3(x, kPusherTopY + coinHalfY + 0.5f, kPusherCenterZ + 8.0f));
         }
 
-        // 果物の代わりの球を、敷き詰めたコインのすぐ上に置く
+        //--------------------------------------------------------------
+        // 最初から台にある果物。今の果樹の段階で出る果物から選び、敷き詰めたコインのすぐ上に置く
         // （高い所から落とすと下のコインを床へめり込ませてしまう）
+        //--------------------------------------------------------------
+        const FruitCatalog& catalog = registry.GetContext<FruitCatalog>();
+        const int           level   = registry.GetContext<GameState>().treeLevel;
+        std::mt19937        rng(std::random_device{}());
+
         const float fruitXs[] = {-16.0f, -6.0f, 6.0f, 16.0f};
-        const float fruitY    = coinHalfY * 2.0f + 0.5f + kFruitRadius + 0.5f;
         for(int i = 0; i < 4; ++i) {
-            factory.CreateFruit(registry, hlslpp::float3(fruitXs[i], fruitY, static_cast<float>(i % 2) * 10.0f), kFruitRadius);
+            const int fruitIndex = catalog.PickSpawnable(level, rng);
+            if(fruitIndex < 0)
+                break;
+
+            const FruitDef& def = catalog.Fruits()[fruitIndex];
+            const float     y   = coinHalfY * 2.0f + 0.5f + def.HalfHeightOfBounds() + 0.5f;
+            factory.CreateFruit(registry, def, fruitIndex, hlslpp::float3(fruitXs[i], y, static_cast<float>(i % 2) * 10.0f));
         }
     }
 
@@ -336,7 +382,7 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! コインの投入口と HUD を生成します。
     //----------------------------------------------------------------------------
-    void PusherScene::CreatePlayerInterface(const PrizeFactory& factory) {
+    void PusherScene::CreatePlayerInterface(PrizeFactory& factory) {
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
 
         //--------------------------------------------------------------
@@ -350,17 +396,42 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
+        // チェッカー（左右に動く穴）の目印。台の手前端のすぐ下、コインが最終的に落ちる払い出し口にあり、
+        // CheckerSystem が左右に動かす。判定は落ちたコインの位置で行うので、これは見た目だけ（コライダー無し）
+        //--------------------------------------------------------------
+        {
+            const RouletteConfig& config = registry.GetContext<RouletteConfig>();
+            const hlslpp::float3  gold   = hlslpp::float3(1.0f, 0.7f, 0.1f);
+            Tsukino::ECS::Entity  e      = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, -3.0f, Layout::kFieldFrontZ + 3.0f),
+                                                                   hlslpp::float3(config.checkerHalfWidth, 0.3f, 2.5f), 1.0f, gold);
+
+            // 台の上で見失わないよう、金色に少し光らせる
+            Tsukino::BuiltIn::ECS::RimGlowComponent& glow = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
+            glow.active                                   = true;
+            glow.rimColor                                 = gold;
+            glow.rimIntensity                             = 1.0f;
+            glow.glow                                     = 0.4f;
+
+            registry.AddComponent<ECS::CheckerComponent>(e);
+        }
+
+        //--------------------------------------------------------------
         // HUD（座標は画面左上からのピクセル。文字の大きさは scale.x）
         //--------------------------------------------------------------
         struct HudSpec {
-            ECS::HudTextKind kind;
-            hlslpp::float2   position;
-            float            scale;
-            hlslpp::float4   color;
+            ECS::HudTextKind                       kind;
+            hlslpp::float2                         position;
+            float                                  scale;
+            hlslpp::float4                         color;
+            Tsukino::BuiltIn::ECS::HorizontalAlign align = Tsukino::BuiltIn::ECS::HorizontalAlign::Left;
         };
         const HudSpec specs[] = {
             {ECS::HudTextKind::Coins, hlslpp::float2(24.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f)},
             {ECS::HudTextKind::DropPopup, hlslpp::float2(28.0f, 84.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f)},
+            {ECS::HudTextKind::HarvestTotal, hlslpp::float2(24.0f, 130.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f)},
+            {ECS::HudTextKind::HarvestPopup, hlslpp::float2(28.0f, 176.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f)},
+            {ECS::HudTextKind::Roulette, hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f),
+             Tsukino::BuiltIn::ECS::HorizontalAlign::Center},
             {ECS::HudTextKind::ControlsHint, hlslpp::float2(24.0f, 670.0f), 0.8f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f)},
         };
 
@@ -373,6 +444,7 @@ namespace FruitMagic {
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
             font.color                                 = spec.color;
+            font.horizontalAlign                       = spec.align;
             font.outlineColor                          = hlslpp::float4(0.15f, 0.08f, 0.05f, 1.0f);
             font.outlineWidth                          = 2.0f;
 

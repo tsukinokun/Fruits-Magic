@@ -9,9 +9,12 @@ namespace FruitMagic::ECS {
 
     //! HUD に表示する内容の種類です。
     enum class HudTextKind {
-        Coins,          // 手持ちのコイン枚数
-        DropPopup,      // 直近の払い出し（+1 / 溝）
-        ControlsHint,   // 操作説明
+        Coins,           // 手持ちのコイン枚数
+        DropPopup,       // 直近のコインの払い出し（+1 / 溝）
+        HarvestTotal,    // 収穫した果物の合計
+        HarvestPopup,    // 直近に収穫した果物（「いちご ゲット！」）
+        Roulette,        // ルーレット（回転中の表示・結果・ストック）
+        ControlsHint,    // 操作説明
     };
 
     //! HUD のテキストです。FontComponent と一緒に付け、HudSystem が文字列を更新します。

@@ -1,0 +1,9 @@
+{
+  "hitChance": 0.4,
+  "spinSeconds": 1.5,
+  "resultSeconds": 1.2,
+  "maxStock": 4,
+  "checkerHalfWidth": 4.0,
+  "checkerRange": 16.0,
+  "checkerPeriod": 4.0
+}
