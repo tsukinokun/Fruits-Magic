@@ -6,13 +6,9 @@
 #include <FruitMagic/Game/FruitCatalog.hpp>
 
 #include <FruitMagic/Game/AssetPaths.hpp>
+#include <FruitMagic/Game/JsonReader.hpp>
 
-#include <Tsukino/Core/IO/FileSystem.hpp>
-#include <Tsukino/Core/Path.hpp>
 #include <Tsukino/Core/Log.hpp>
-
-#include <cereal/external/rapidjson/document.h>
-#include <cereal/external/rapidjson/error/en.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -21,7 +17,7 @@
 // 名前空間 : FruitMagic
 namespace FruitMagic {
     namespace {
-        namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
+        namespace rj = Json::rj;
 
         //--------------------------------------------------------------
         //! JSON ファイルを読み込んで解析します。
@@ -30,19 +26,7 @@ namespace FruitMagic {
         //! @return 成功したら true（失敗はログに出す）
         //--------------------------------------------------------------
         bool ParseJsonFile(const std::filesystem::path& path, rj::Document& doc) {
-            const std::string text = ReadDataText(path.generic_string());
-            if(text.empty()) {
-                Tsukino::Core::Log::Warn("FruitCatalog: cannot read " + path.generic_string());
-                return false;
-            }
-
-            doc.Parse(text.c_str());
-            if(doc.HasParseError() || !doc.IsObject()) {
-                Tsukino::Core::Log::Warn("FruitCatalog: invalid JSON in " + path.generic_string() + " (" +
-                                         (doc.HasParseError() ? rj::GetParseError_En(doc.GetParseError()) : "root is not an object") + ")");
-                return false;
-            }
-            return true;
+            return Json::ParseFile(path.generic_string(), doc, "FruitCatalog");
         }
 
         //--------------------------------------------------------------
@@ -53,8 +37,9 @@ namespace FruitMagic {
         //! @return 読み込んだ値
         //--------------------------------------------------------------
         std::string GetString(const rj::Value& obj, const char* key, const std::string& fallback) {
-            auto it = obj.FindMember(key);
-            return (it != obj.MemberEnd() && it->value.IsString()) ? std::string(it->value.GetString()) : fallback;
+            std::string value = fallback;
+            Json::Read(obj, key, value);
+            return value;
         }
 
         //--------------------------------------------------------------
@@ -65,8 +50,9 @@ namespace FruitMagic {
         //! @return 読み込んだ値
         //--------------------------------------------------------------
         float GetFloat(const rj::Value& obj, const char* key, float fallback) {
-            auto it = obj.FindMember(key);
-            return (it != obj.MemberEnd() && it->value.IsNumber()) ? static_cast<float>(it->value.GetDouble()) : fallback;
+            float value = fallback;
+            Json::Read(obj, key, value);
+            return value;
         }
 
         //--------------------------------------------------------------
@@ -77,8 +63,9 @@ namespace FruitMagic {
         //! @return 読み込んだ値
         //--------------------------------------------------------------
         int GetInt(const rj::Value& obj, const char* key, int fallback) {
-            auto it = obj.FindMember(key);
-            return (it != obj.MemberEnd() && it->value.IsNumber()) ? static_cast<int>(it->value.GetDouble()) : fallback;
+            int value = fallback;
+            Json::Read(obj, key, value);
+            return value;
         }
 
         //--------------------------------------------------------------
@@ -90,34 +77,14 @@ namespace FruitMagic {
         //! @return 読み込んだ値
         //--------------------------------------------------------------
         hlslpp::float3 GetFloat3(const rj::Value& obj, const char* key, const char* names, const hlslpp::float3& fallback) {
-            auto it = obj.FindMember(key);
-            if(it == obj.MemberEnd() || !it->value.IsObject())
-                return fallback;
-
-            const char n0[2] = {names[0], '\0'};
-            const char n1[2] = {names[1], '\0'};
-            const char n2[2] = {names[2], '\0'};
-            return hlslpp::float3(GetFloat(it->value, n0, fallback.x), GetFloat(it->value, n1, fallback.y), GetFloat(it->value, n2, fallback.z));
+            hlslpp::float3 value = fallback;
+            if(names[0] == 'r')
+                Json::ReadColor(obj, key, value);
+            else
+                Json::ReadVec(obj, key, value);
+            return value;
         }
     }    // namespace
-
-    //----------------------------------------------------------------------------
-    //! 定義データ（JSON）のファイルを読み込みます。先頭の UTF-8 の BOM は取り除きます。
-    //----------------------------------------------------------------------------
-    std::string ReadDataText(const std::string& path) {
-        std::string text = Tsukino::IO::FileSystem::ReadText(Tsukino::Core::Path(path));
-        if(text.size() >= 3 && static_cast<unsigned char>(text[0]) == 0xEF && static_cast<unsigned char>(text[1]) == 0xBB &&
-           static_cast<unsigned char>(text[2]) == 0xBF)
-            text.erase(0, 3);
-        return text;
-    }
-
-    //----------------------------------------------------------------------------
-    //! 文字列を UTF-8 から表示用のワイド文字列へ変換します。
-    //----------------------------------------------------------------------------
-    std::wstring Utf8ToWide(const std::string& utf8) {
-        return std::filesystem::path(std::u8string(utf8.begin(), utf8.end())).wstring();
-    }
 
     //----------------------------------------------------------------------------
     //! 当たり判定の外接する高さの半分を返します。

@@ -5,52 +5,31 @@
 #include <FruitMagic/Game/OfflineReward.hpp>
 
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/JsonReader.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
+#include <FruitMagic/Game/Texts.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/Log.hpp>
-
-#include <cereal/external/rapidjson/document.h>
 
 #include <algorithm>
 #include <cmath>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
-    namespace {
-        namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
-
-        //--------------------------------------------------------------
-        //! 項目があれば数値を読み込みます。
-        //! @param  [in]     obj 読み込み元のオブジェクト
-        //! @param  [in]     key 項目名
-        //! @param  [in,out] out 読み込み先（項目が無ければそのまま）
-        //--------------------------------------------------------------
-        template <class T>
-        void ReadNumber(const rj::Value& obj, const char* key, T& out) {
-            auto it = obj.FindMember(key);
-            if(it != obj.MemberEnd() && it->value.IsNumber())
-                out = static_cast<T>(it->value.GetDouble());
-        }
-    }    // namespace
-
     //----------------------------------------------------------------------------
     //! 設定ファイルを読み込みます。
     //----------------------------------------------------------------------------
     bool OfflineConfig::Load(const std::string& path) {
-        const std::string text = ReadDataText(path);
-        rj::Document      doc;
-        doc.Parse(text.c_str());
-        if(text.empty() || doc.HasParseError() || !doc.IsObject()) {
-            Tsukino::Core::Log::Warn("OfflineConfig: cannot read " + path + ". Using defaults.");
+        Json::Document doc;
+        if(!Json::ParseFile(path, doc, "OfflineConfig"))
             return false;
-        }
 
-        ReadNumber(doc, "payoutRatio", payoutRatio);
-        ReadNumber(doc, "fruitPerCoin", fruitPerCoin);
-        ReadNumber(doc, "minSeconds", minSeconds);
-        ReadNumber(doc, "autosaveSeconds", autosaveSeconds);
+        Json::Read(doc, "payoutRatio", payoutRatio);
+        Json::Read(doc, "fruitPerCoin", fruitPerCoin);
+        Json::Read(doc, "minSeconds", minSeconds);
+        Json::Read(doc, "autosaveSeconds", autosaveSeconds);
 
         payoutRatio     = std::max(0.0f, payoutRatio);
         fruitPerCoin    = std::max(0.0f, fruitPerCoin);
@@ -116,13 +95,14 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! 秒数を「2時間15分」のような表示にします。
     //----------------------------------------------------------------------------
-    std::wstring FormatDuration(long long seconds) {
+    std::wstring FormatDuration(long long seconds, const Texts& texts) {
         const long long hours   = seconds / 3600;
         const long long minutes = (seconds % 3600) / 60;
         if(hours > 0)
-            return std::to_wstring(hours) + L"時間" + (minutes > 0 ? std::to_wstring(minutes) + L"分" : std::wstring());
+            return texts.Format("duration.hours", {{"n", std::to_wstring(hours)}}) +
+                   (minutes > 0 ? texts.Format("duration.minutes", {{"n", std::to_wstring(minutes)}}) : std::wstring());
         if(minutes > 0)
-            return std::to_wstring(minutes) + L"分";
-        return std::to_wstring(seconds) + L"秒";
+            return texts.Format("duration.minutes", {{"n", std::to_wstring(minutes)}});
+        return texts.Format("duration.seconds", {{"n", std::to_wstring(seconds)}});
     }
 }    // namespace FruitMagic

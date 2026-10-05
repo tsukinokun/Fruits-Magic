@@ -8,7 +8,7 @@
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
 
@@ -41,7 +41,7 @@ namespace FruitMagic::ECS {
                 m_reliefTimer += deltaTime;
                 if(m_reliefTimer >= economy.reliefSeconds) {
                     m_reliefTimer = 0.0f;
-                    state.coins += 1;
+                    state.coins += economy.reliefAmount;
                 }
             } else {
                 m_reliefTimer = 0.0f;
@@ -68,9 +68,10 @@ namespace FruitMagic::ECS {
         // 重いフレームでも1フレームに1枚まで（まとめて入れると同じ所に重なる）
         m_timer = 0.0f;
 
+        const TableLayout& layout = GetTableLayout(registry);
         // プレイヤーと同じ投入位置の列（プッシャー上面の上）に入れる
-        const float x = std::uniform_real_distribution<float>(-Layout::kLaunchLaneHalfWidth, Layout::kLaunchLaneHalfWidth)(m_rng);
-        registry.GetContext<PrizeFactory>().CreateCoin(registry, hlslpp::float3(x, Layout::kLaunchY, Layout::kLaunchZ));
+        const float x = std::uniform_real_distribution<float>(-layout.launchLaneHalfWidth, layout.launchLaneHalfWidth)(m_rng);
+        registry.GetContext<PrizeFactory>().CreateCoin(registry, hlslpp::float3(x, layout.LaunchY(), layout.LaunchZ()));
         if(registry.HasContext<PlayStats>())
             registry.GetContext<PlayStats>().fairyCoins += 1;
     }

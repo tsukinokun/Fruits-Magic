@@ -12,7 +12,11 @@
         "forward": 18.0,
         "side": 6.0,
         "up": 8.0,
-        "cameraShake": 0.6
+        "cameraShake": 0.6,
+        "cameraShakeSpeed": 45.0,
+        "cameraShakeVerticalFrequency": 1.3,
+        "cameraShakeVerticalRatio": 0.5,
+        "onTableMinY": -2.0
       }
     },
     {
@@ -34,7 +38,14 @@
       "unlockZukan": 6,
       "params": {
         "duration": 10.0,
-        "height": 10.0
+        "height": 10.0,
+        "minHeight": 1.0,
+        "riseSeconds": 0.5,
+        "halfThickness": 0.6,
+        "funnelDepth": 14.0,
+        "payoutInset": 1.0,
+        "frontOverhang": 0.5,
+        "trailInterval": 0.08
       }
     },
     {
@@ -45,7 +56,9 @@
       "unlockZukan": 10,
       "params": {
         "scale": 1.6,
-        "valueMultiplier": 2
+        "valueMultiplier": 2,
+        "extraGlow": 1.2,
+        "onTableMinY": -2.0
       }
     },
     {

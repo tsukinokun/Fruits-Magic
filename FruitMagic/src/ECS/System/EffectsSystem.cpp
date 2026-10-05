@@ -14,7 +14,8 @@
 #include <FruitMagic/Game/EffectsConfig.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicEffects.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/StageConfig.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/RimGlowComponent.hpp>
@@ -37,21 +38,6 @@ namespace FruitMagic::ECS {
 
         //! @brief 光の粒の画像の一辺のピクセル数（ワールドスプライトの大きさは「ピクセル数 × スケール」cm）
         constexpr float kSparkleTextureSize = 64.0f;
-
-        //! @brief 魔法を撃ったときの粒を出す位置（台の中央の少し上）
-        const hlslpp::float3 kTableCenter = hlslpp::float3(0.0f, 6.0f, 5.0f);
-
-        //! @brief 払い出し口に落ちた物の演出を出す高さ（落ちたと判定する高さより少し上。手前の縁の下から見える所）
-        constexpr float kDropEffectY = -12.0f;
-
-        //! @brief 色違い・金色の果物から粒をこぼす間隔（秒）
-        constexpr float kIdleInterval = 0.6f;
-
-        //! @brief 画面の光が消えるまでの速さ（強さ / 秒）
-        constexpr float kFlashFadeSpeed = 2.5f;
-
-        //! @brief 横方向の速さが落ちていく割合（/ 秒）。ふわっと止まるように
-        constexpr float kDrag = 1.5f;
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -64,14 +50,14 @@ namespace FruitMagic::ECS {
 
         // 魔法: "cast_<魔法の id>" のプリセットを台の中央に（無ければ何も出さない）。id は Update で引く
         m_castConnection = eventBus.Subscribe<MagicCastEvent>([this](const MagicCastEvent& e) {
-            m_pending.push_back(EffectEvent{"#cast:" + std::to_string(e.magicIndex), kTableCenter});
+            m_pending.push_back(EffectEvent{"#cast:" + std::to_string(e.magicIndex), m_castPosition});
         });
 
         // 払い出し口に落ちた果物: 色違い・金色なら "variant_<バリエーションの id>" を落ちた位置に
         m_dropConnection = eventBus.Subscribe<PrizeDroppedEvent>([this](const PrizeDroppedEvent& e) {
             if(e.kind != PrizeKind::Fruit || e.zone != DropZone::Payout)
                 return;
-            m_lastFruitDrop = hlslpp::float3(e.x, kDropEffectY, Layout::kFieldFrontZ + 4.0f);
+            m_lastFruitDrop = hlslpp::float3(e.x, m_dropEffectY, m_dropEffectZ);
             if(e.variantIndex > 0)
                 m_pending.push_back(EffectEvent{"#variant:" + std::to_string(e.variantIndex), m_lastFruitDrop});
         });
@@ -90,6 +76,11 @@ namespace FruitMagic::ECS {
             return;
         }
         const EffectsConfig& config = registry.GetContext<EffectsConfig>();
+
+        // イベントのハンドラ（Update の外）で使う位置を、設定と台の寸法から覚えておく
+        m_castPosition = config.motion.castPosition;
+        m_dropEffectY  = config.motion.dropEffectY;
+        m_dropEffectZ  = GetTableLayout(registry).fieldFrontZ + config.motion.dropEffectAhead;
 
         // 光の粒の画像は最初に使うときに読み込む
         if(!m_texturesLoaded) {
@@ -128,13 +119,13 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         m_idleTimer -= deltaTime;
         if(m_idleTimer <= 0.0f) {
-            m_idleTimer = kIdleInterval;
+            m_idleTimer = config.motion.idleInterval;
             if(const EffectPreset* idle = config.Find("shinyIdle")) {
                 std::vector<hlslpp::float3> positions;
                 registry.View<PrizeComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
                     [&](Tsukino::ECS::Entity, PrizeComponent& prize, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
-                        if(prize.kind == PrizeKind::Fruit && prize.variantIndex > 0 && float(transform.position.y) > -2.0f)
-                            positions.push_back(transform.position + hlslpp::float3(0.0f, 3.0f, 0.0f));
+                        if(prize.kind == PrizeKind::Fruit && prize.variantIndex > 0 && float(transform.position.y) > config.motion.idleMinY)
+                            positions.push_back(transform.position + hlslpp::float3(0.0f, config.motion.idleRise, 0.0f));
                     });
                 for(const hlslpp::float3& p : positions)
                     Burst(registry, *idle, p);
@@ -149,7 +140,7 @@ namespace FruitMagic::ECS {
         registry.View<ScreenFlashComponent, Tsukino::BuiltIn::ECS::SpriteComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
             [&](Tsukino::ECS::Entity, ScreenFlashComponent& flash, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
                 Tsukino::BuiltIn::ECS::TransformComponent& transform) {
-                flash.color.w    = std::max(0.0f, float(flash.color.w) - kFlashFadeSpeed * deltaTime);
+                flash.color.w    = std::max(0.0f, float(flash.color.w) - config.motion.flashFadeSpeed * deltaTime);
                 const float a    = flash.color.w;
                 sprite.tintColor = hlslpp::float4(flash.color.x * a, flash.color.y * a, flash.color.z * a, a);
                 transform.scale  = (a > 0.0f) ? flash.fullScale : hlslpp::float3(0.0f, 0.0f, 1.0f);
@@ -176,6 +167,7 @@ namespace FruitMagic::ECS {
         // 魔法「ふくらむ」の間、プッシャーの輪郭をピンクに脈打たせる
         //--------------------------------------------------------------
         const bool swelling = registry.HasContext<MagicEffects>() && registry.GetContext<MagicEffects>().pusherAmplitudeBonus > 0.0f;
+        const StageConfig& stage = GetStageConfig(registry);
         std::vector<Tsukino::ECS::Entity> pushers;
         registry.View<PusherComponent>().each([&](Tsukino::ECS::Entity entity, PusherComponent& pusher) {
             if(swelling || pusher.glowing)
@@ -190,9 +182,10 @@ namespace FruitMagic::ECS {
                 rim = &registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(pusher);
             }
             rim->active       = swelling;
-            rim->rimColor     = hlslpp::float3(1.0f, 0.45f, 0.7f);
-            rim->rimIntensity = 1.0f + 0.8f * std::sin(m_time * 8.0f);
-            rim->glow         = 0.25f + 0.15f * std::sin(m_time * 8.0f);
+            const float pulse = std::sin(m_time * stage.swellPulseSpeed);
+            rim->rimColor     = stage.swellColor;
+            rim->rimIntensity = stage.swellIntensity + stage.swellIntensityPulse * pulse;
+            rim->glow         = stage.swellGlow + stage.swellGlowPulse * pulse;
         }
     }
 
@@ -210,7 +203,11 @@ namespace FruitMagic::ECS {
             });
         }
 
-        const int maxParticles = registry.HasContext<EffectsConfig>() ? registry.GetContext<EffectsConfig>().MaxParticles() : 0;
+        if(!registry.HasContext<EffectsConfig>())
+            return;
+        const EffectsConfig&              config       = registry.GetContext<EffectsConfig>();
+        const EffectsMotion&              motion       = config.motion;
+        const int                         maxParticles = config.MaxParticles();
         const Tsukino::Asset::AssetHandle texture = (preset.texture == SparkleTexture::Glow) ? m_glowTexture : m_sparkleTexture;
 
         std::uniform_real_distribution<float> unit(0.0f, 1.0f);
@@ -222,15 +219,15 @@ namespace FruitMagic::ECS {
             const float radius = std::sqrt(unit(m_rng)) * preset.spread;
             const float speed  = unit(m_rng) * preset.speed;
             const float dir    = unit(m_rng) * 2.0f * kPi;
-            const hlslpp::float3 start = position + hlslpp::float3(std::cos(angle) * radius, unit(m_rng) * 1.5f, std::sin(angle) * radius);
+            const hlslpp::float3 start = position + hlslpp::float3(std::cos(angle) * radius, unit(m_rng) * motion.startHeight, std::sin(angle) * radius);
 
             SparkleParticleComponent particle;
-            particle.velocity = hlslpp::float3(std::cos(dir) * speed, preset.up * (0.5f + 0.5f * unit(m_rng)), std::sin(dir) * speed);
+            particle.velocity = hlslpp::float3(std::cos(dir) * speed, preset.up * (motion.upMin + (1.0f - motion.upMin) * unit(m_rng)), std::sin(dir) * speed);
             particle.color    = preset.colors[i % preset.colors.size()];
             particle.gravity  = preset.gravity;
-            particle.maxLife  = preset.life * (0.7f + 0.3f * unit(m_rng));
+            particle.maxLife  = preset.life * (motion.lifeMin + (1.0f - motion.lifeMin) * unit(m_rng));
             particle.life     = particle.maxLife;
-            particle.size     = preset.size * (0.7f + 0.6f * unit(m_rng));
+            particle.size     = preset.size * (motion.sizeMin + motion.sizeRange * unit(m_rng));
 
             Tsukino::ECS::Entity                       e = registry.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
@@ -253,6 +250,8 @@ namespace FruitMagic::ECS {
     //! 光の粒を動かし、寿命が来たものを消します。
     //----------------------------------------------------------------------------
     void EffectsSystem::UpdateParticles(Tsukino::ECS::Registry& registry, float deltaTime) {
+        const EffectsMotion motion = registry.HasContext<EffectsConfig>() ? registry.GetContext<EffectsConfig>().motion : EffectsMotion{};
+
         std::vector<Tsukino::ECS::Entity> dead;
         registry.View<SparkleParticleComponent, Tsukino::BuiltIn::ECS::TransformComponent, Tsukino::BuiltIn::ECS::SpriteComponent>().each(
             [&](Tsukino::ECS::Entity entity, SparkleParticleComponent& particle, Tsukino::BuiltIn::ECS::TransformComponent& transform,
@@ -264,13 +263,13 @@ namespace FruitMagic::ECS {
                 }
 
                 // 横はだんだん止まり、縦は重力で落ちる
-                const float drag    = std::max(0.0f, 1.0f - kDrag * deltaTime);
+                const float drag    = std::max(0.0f, 1.0f - motion.drag * deltaTime);
                 particle.velocity   = hlslpp::float3(particle.velocity.x * drag, particle.velocity.y - particle.gravity * deltaTime, particle.velocity.z * drag);
                 transform.position += particle.velocity * deltaTime;
 
                 // 寿命に合わせて小さく・暗く（加算合成なので色ごと暗くする）
                 const float k   = particle.life / particle.maxLife;
-                const float s   = particle.size * (0.4f + 0.6f * k) / kSparkleTextureSize;
+                const float s   = particle.size * (motion.shrinkMin + (1.0f - motion.shrinkMin) * k) / kSparkleTextureSize;
                 transform.scale = hlslpp::float3(s, s, 1.0f);
                 transform.dirty = true;
                 sprite.tintColor = hlslpp::float4(particle.color * k, k);

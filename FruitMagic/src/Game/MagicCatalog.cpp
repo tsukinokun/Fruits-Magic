@@ -4,22 +4,14 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Game/MagicCatalog.hpp>
 
-#include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/JsonReader.hpp>
 
-#include <Tsukino/Core/IO/FileSystem.hpp>
-#include <Tsukino/Core/Path.hpp>
 #include <Tsukino/Core/Log.hpp>
-
-#include <cereal/external/rapidjson/document.h>
 
 #include <algorithm>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
-    namespace {
-        namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
-    }    // namespace
-
     //----------------------------------------------------------------------------
     //! 効果の数値を返します。
     //----------------------------------------------------------------------------
@@ -34,50 +26,34 @@ namespace FruitMagic {
     bool MagicCatalog::Load(const std::string& path) {
         m_magics.clear();
 
-        const std::string text = ReadDataText(path);
-        rj::Document      doc;
-        doc.Parse(text.c_str());
-        if(text.empty() || doc.HasParseError() || !doc.IsObject()) {
-            Tsukino::Core::Log::Warn("MagicCatalog: cannot read " + path + ".");
+        Json::Document doc;
+        if(!Json::ParseFile(path, doc, "MagicCatalog"))
             return false;
-        }
 
-        auto magics = doc.FindMember("magics");
-        if(magics == doc.MemberEnd() || !magics->value.IsArray()) {
+        const Json::Value* magics = Json::FindArray(doc, "magics");
+        if(!magics) {
             Tsukino::Core::Log::Warn("MagicCatalog: Magic.json has no \"magics\" array.");
             return false;
         }
 
-        for(const rj::Value& m : magics->value.GetArray()) {
+        for(const Json::Value& m : magics->GetArray()) {
             if(!m.IsObject())
                 continue;
 
             MagicDef def;
-            auto     id = m.FindMember("id");
-            if(id == m.MemberEnd() || !id->value.IsString()) {
+            if(!Json::Read(m, "id", def.id)) {
                 Tsukino::Core::Log::Warn("MagicCatalog: a magic without \"id\" was skipped.");
                 continue;
             }
-            def.id = id->value.GetString();
+            def.name = Utf8ToWide(def.id);
+            Json::Read(m, "name", def.name);
+            Json::Read(m, "cost", def.cost);
+            Json::Read(m, "key", def.slot);
+            Json::Read(m, "unlockZukan", def.unlockZukan);
+            def.unlockZukan = std::max(0, def.unlockZukan);
 
-            auto name = m.FindMember("name");
-            def.name  = Utf8ToWide((name != m.MemberEnd() && name->value.IsString()) ? std::string(name->value.GetString()) : def.id);
-
-            auto cost = m.FindMember("cost");
-            if(cost != m.MemberEnd() && cost->value.IsNumber())
-                def.cost = static_cast<int>(cost->value.GetDouble());
-
-            auto slot = m.FindMember("key");
-            if(slot != m.MemberEnd() && slot->value.IsNumber())
-                def.slot = static_cast<int>(slot->value.GetDouble());
-
-            auto unlockZukan = m.FindMember("unlockZukan");
-            if(unlockZukan != m.MemberEnd() && unlockZukan->value.IsNumber())
-                def.unlockZukan = std::max(0, static_cast<int>(unlockZukan->value.GetDouble()));
-
-            auto params = m.FindMember("params");
-            if(params != m.MemberEnd() && params->value.IsObject()) {
-                for(auto p = params->value.MemberBegin(); p != params->value.MemberEnd(); ++p) {
+            if(const Json::Value* params = Json::FindObject(m, "params")) {
+                for(auto p = params->MemberBegin(); p != params->MemberEnd(); ++p) {
                     if(p->value.IsNumber())
                         def.params[p->name.GetString()] = static_cast<float>(p->value.GetDouble());
                 }

@@ -20,12 +20,15 @@
 #include <FruitMagic/Game/OfflineReward.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
 #include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
 #include <FruitMagic/Game/SaveData.hpp>
+#include <FruitMagic/Game/StageConfig.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
+#include <FruitMagic/Game/Texts.hpp>
+#include <FruitMagic/Game/UiConfig.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
@@ -120,45 +123,6 @@ namespace FruitMagic {
     namespace {
         constexpr float kPi = 3.14159265358979323846f;
 
-        //! @brief 物理に渡す1フレームの経過時間の上限（秒）。重いフレームで一気に進めてすり抜けるのを防ぐ
-        constexpr float kMaxSimulationStep = 1.0f / 30.0f;
-
-        //--------------------------------------------------------------
-        // 画面の UI の配置（画面ピクセル。画面は 1280 x 720）
-        //--------------------------------------------------------------
-        constexpr float kManaGaugeLeft     = 28.0f;     // マナゲージの左端
-        constexpr float kManaGaugeCenterY  = 100.0f;    // マナゲージの中心の高さ
-        constexpr float kManaGaugeWidth    = 220.0f;    // マナゲージの全幅
-        constexpr float kManaGaugeHeight   = 14.0f;     // マナゲージの高さ
-        constexpr float kReliefRingDiameter = 36.0f;    // おすそわけ待ちのリングの直径
-        constexpr float kReliefRingCenterX  = 46.0f;    // リングの中心X
-        constexpr float kReliefRingCenterY  = 268.0f;   // リングの中心Y（「おすそわけ待ち」の文字の高さに揃える）
-        constexpr float kReliefTextX        = 72.0f;    // 「おすそわけ待ち」の文字の左端（リングの右）
-        constexpr float kMagicButtonWidth  = 200.0f;    // 魔法ボタンの幅
-        constexpr float kMagicButtonHeight = 46.0f;     // 魔法ボタンの高さ
-        constexpr float kMagicButtonGap    = 16.0f;     // 魔法ボタンの間隔
-        constexpr float kMagicButtonY      = 640.0f;    // 魔法ボタンの中心の高さ
-        constexpr float kMenuButtonX       = 1170.0f;   // 画面の開閉ボタン（右上）の中心X
-        constexpr float kZukanButtonY      = 40.0f;     // 図鑑ボタンの中心Y
-        constexpr float kUpgradeButtonY    = 90.0f;     // 強化ボタンの中心Y
-        constexpr float kMenuButtonWidth   = 170.0f;    // 画面の開閉ボタンの幅
-        constexpr float kMenuButtonHeight  = 42.0f;     // 画面の開閉ボタンの高さ
-        constexpr float kMenuCenterX       = 640.0f;    // 画面（図鑑・強化）の中心X
-        constexpr float kMenuCenterY       = 340.0f;    // 画面の中心Y
-        constexpr float kMenuWidth         = 900.0f;    // 画面の幅
-        constexpr float kMenuHeight        = 540.0f;    // 画面の高さ
-        constexpr float kZukanRowPitch     = 44.0f;     // 図鑑の行の高さ（行が多ければスクロールする）
-        constexpr float kUpgradeRowPitch   = 100.0f;    // 強化画面の行の高さ（行が多ければスクロールする）
-        constexpr float kScrollBarWidth    = 10.0f;     // スクロールバーの幅
-        constexpr float kScrollBarInset    = 22.0f;     // 画面の右端からスクロールバーの中心まで
-        constexpr float kBuyButtonWidth    = 150.0f;    // 購入ボタンの幅
-        constexpr float kBuyButtonHeight   = 46.0f;     // 購入ボタンの高さ
-        constexpr float kWelcomeWidth      = 720.0f;    // 「おかえり」画面の幅
-        constexpr float kWelcomeHeight     = 300.0f;    // 「おかえり」画面の高さ
-
-        //! @brief プッシャーの振幅を強化の値へ近づける速さ（cm/秒）。一気に変えると速度が跳ねて景品を弾き飛ばすため
-        constexpr float kPusherAmplitudeChangeSpeed = 4.0f;
-
         //--------------------------------------------------------------
         //! バランス計測用の自動プレイで起動したかを返します（環境変数 FRUITMAGIC_AUTOPLAY=1）。
         //! @return 自動プレイなら true
@@ -173,26 +137,51 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
-        // 屋台の色（パステル）
+        //! UI の揃え方をエンジンの揃え方にします。
+        //! @param  [in] align UI の揃え方
+        //! @return エンジンの揃え方
         //--------------------------------------------------------------
-        const hlslpp::float3 kFloorColor     = hlslpp::float3(1.0f, 0.95f, 0.84f);    // 床（クリーム）
-        const hlslpp::float3 kSideWallColor  = hlslpp::float3(1.0f, 0.74f, 0.82f);    // 側壁（ピンク）
-        const hlslpp::float3 kBackPanelColor = hlslpp::float3(0.68f, 0.93f, 0.84f);   // 背面パネル（ミント）
-        const hlslpp::float3 kPusherColor    = hlslpp::float3(0.62f, 0.84f, 1.0f);    // プッシャー（空色。金のコインと見分けやすく）
-        const hlslpp::float3 kTrayColor      = hlslpp::float3(0.84f, 0.78f, 1.0f);    // 払い出し口（ラベンダー）
-        const hlslpp::float3 kGutterColor    = hlslpp::float3(0.55f, 0.47f, 0.72f);   // 溝（濃いめ）
-        const hlslpp::float3 kAwningRed      = hlslpp::float3(0.95f, 0.38f, 0.42f);   // 屋根の赤
-        const hlslpp::float3 kAwningWhite    = hlslpp::float3(1.0f, 0.97f, 0.92f);    // 屋根の白
-        const hlslpp::float3 kPostColor      = hlslpp::float3(0.78f, 0.56f, 0.36f);   // 柱（木）
-        const hlslpp::float3 kLanternColor   = hlslpp::float3(1.0f, 0.55f, 0.3f);     // ちょうちん
-
-        //! @brief プッシャーの半サイズ
-        hlslpp::float3 PusherHalfExtent() {
-            return hlslpp::float3(Layout::kPusherHalfWidth, Layout::kPusherHalfHeight, Layout::kPusherHalfDepth);
+        Tsukino::BuiltIn::ECS::HorizontalAlign ToEngineAlign(UiAlign align) {
+            switch(align) {
+                case UiAlign::Center: return Tsukino::BuiltIn::ECS::HorizontalAlign::Center;
+                case UiAlign::Right: return Tsukino::BuiltIn::ECS::HorizontalAlign::Right;
+                case UiAlign::Left:
+                default: return Tsukino::BuiltIn::ECS::HorizontalAlign::Left;
+            }
         }
 
-        //! @brief 押していないときのプッシャーの中心Z（起動時の位置）
-        constexpr float kPusherStartCenterZ = Layout::PusherCenterZ(Layout::kPusherAmplitude);
+        //--------------------------------------------------------------
+        //! 輪郭の光り方を付けます。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] entity   付けるエンティティ
+        //! @param  [in] style    光り方
+        //--------------------------------------------------------------
+        void AddGlow(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity, const RimGlowStyle& style) {
+            Tsukino::BuiltIn::ECS::RimGlowComponent& glow = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(entity);
+            glow.active                                   = true;
+            glow.rimColor                                 = style.color;
+            glow.rimIntensity                             = style.intensity;
+            glow.glow                                     = style.glow;
+        }
+
+        //--------------------------------------------------------------
+        // HUD の文字の種類と、Ui.json の "hud" のキーの対応
+        //--------------------------------------------------------------
+        struct HudKindName {
+            ECS::HudTextKind kind;
+            const char*      name;
+        };
+        constexpr HudKindName kHudKinds[] = {
+            {ECS::HudTextKind::Coins, "coins"},
+            {ECS::HudTextKind::Mana, "mana"},
+            {ECS::HudTextKind::DropPopup, "dropPopup"},
+            {ECS::HudTextKind::HarvestTotal, "harvestTotal"},
+            {ECS::HudTextKind::HarvestPopup, "harvestPopup"},
+            {ECS::HudTextKind::Relief, "relief"},
+            {ECS::HudTextKind::Roulette, "roulette"},
+            {ECS::HudTextKind::ControlsHint, "controlsHint"},
+            {ECS::HudTextKind::Notice, "notice"},
+        };
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -313,8 +302,16 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // ゲーム全体で共有するデータをレジストリのコンテキストへ置く
         //--------------------------------------------------------------
-        // 果物とルーレットの定義データ（Debug は作業ディレクトリ、Release は exe の隣が基準）
+        // 定義データ（Debug は作業ディレクトリ、Release は exe の隣が基準）
         const std::string dataRoot = (Tsukino::IO::FileSystem::GetAssetRootPath() / "Assets/Data").string();
+
+        // 台の寸法・見た目・UI・文言（台やほかの設定を作る前に読む）
+        TableLayout& layout = registry.SetContext<TableLayout>();
+        layout.Load(dataRoot + "/Table.json");
+        StageConfig& stage = registry.SetContext<StageConfig>();
+        stage.Load(dataRoot + "/Stage.json");
+        registry.SetContext<UiConfig>().Load(dataRoot + "/Ui.json");
+        registry.SetContext<Texts>().Load(dataRoot + "/Texts.json");
 
         FruitCatalog& catalog = registry.SetContext<FruitCatalog>();
         if(!catalog.Load(dataRoot)) {
@@ -337,7 +334,7 @@ namespace FruitMagic {
         collection.Load(dataRoot + "/Collection.json");
         MenuState& menu = registry.SetContext<MenuState>();
         registry.SetContext<UpgradeCatalog>().Load(dataRoot + "/Upgrades.json");
-        registry.SetContext<TableStats>();
+        registry.SetContext<TableStats>().pusherAmplitude = layout.pusherAmplitude;
         OfflineConfig& offline = registry.SetContext<OfflineConfig>();
         offline.Load(dataRoot + "/Offline.json");
         offline.savePath = autoPlay ? std::string() : SaveData::DefaultPath();
@@ -368,7 +365,7 @@ namespace FruitMagic {
         }
 
         PrizeFactory& factory = registry.SetContext<PrizeFactory>();
-        factory.Initialize(*context->assetManager);
+        factory.Initialize(*context->assetManager, layout, stage);
 
         CreateCabinet(factory);
         CreateInitialPrizes(factory);
@@ -382,33 +379,35 @@ namespace FruitMagic {
     //! シーンを更新します。
     //----------------------------------------------------------------------------
     void PusherScene::OnUpdate(Tsukino::EngineIntegration::EngineAPI& api, float deltaTime) {
+        Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        const TableLayout&      layout   = GetTableLayout(registry);
+
         // PhysicsSystem は1フレーム1ステップなので、起動直後のアセット読み込み等で
         // フレームが重くなったときに大きく進めないよう上限を設ける（その分ゲーム内時間は遅れる）。
         // プッシャーの移動にも同じ時間を使い、物理の1ステップで動く距離と食い違わないようにする
-        const float simulationStep = std::min(deltaTime, kMaxSimulationStep);
+        const float simulationStep = std::min(deltaTime, layout.maxSimulationStep);
 
         //--------------------------------------------------------------
         // プッシャーを前後に往復させる
         // m_scene.Update() より前に書き込むことで、同じフレームの PhysicsSystem が
         // 位置の差分から速度を求め、乗っている景品を押す
         //--------------------------------------------------------------
-        Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
         if(m_pusherEntity != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_pusherEntity)) {
-            m_pusherTime = std::fmod(m_pusherTime + simulationStep, Layout::kPusherPeriod);
+            m_pusherTime = std::fmod(m_pusherTime + simulationStep, layout.pusherPeriod);
 
-            // 押し幅の強化と魔法「ふくらむ」は、振幅を少しずつ近づけて反映する
+            // 押し幅の強化と魔法「ふくらむ」は、振幅を少しずつ近づけて反映する（一気に変えると速度が跳ねて景品を弾き飛ばす）
             if(registry.HasContext<TableStats>()) {
                 const float bonus  = registry.HasContext<MagicEffects>() ? registry.GetContext<MagicEffects>().pusherAmplitudeBonus : 0.0f;
-                const float target = std::min(registry.GetContext<TableStats>().pusherAmplitude + bonus, Layout::kPusherMaxAmplitude);
-                const float step   = kPusherAmplitudeChangeSpeed * simulationStep;
+                const float target = std::min(registry.GetContext<TableStats>().pusherAmplitude + bonus, layout.pusherMaxAmplitude);
+                const float step   = layout.pusherAmplitudeSpeed * simulationStep;
                 m_pusherAmplitude  = std::clamp(target, m_pusherAmplitude - step, m_pusherAmplitude + step);
             }
 
             // 最も引っ込んだ位置は振幅によらず同じで、振幅が増えた分だけ前に出る
-            const float phase = 2.0f * kPi * m_pusherTime / Layout::kPusherPeriod;
+            const float phase = 2.0f * kPi * m_pusherTime / layout.pusherPeriod;
 
             auto& t    = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_pusherEntity);
-            t.position = hlslpp::float3(0.0f, Layout::kPusherCenterY, Layout::PusherCenterZ(m_pusherAmplitude) + std::sin(phase) * m_pusherAmplitude);
+            t.position = hlslpp::float3(0.0f, layout.PusherCenterY(), layout.PusherCenterZ(m_pusherAmplitude) + std::sin(phase) * m_pusherAmplitude);
             t.dirty    = true;
         }
 
@@ -432,58 +431,63 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     void PusherScene::CreateCabinet(PrizeFactory& factory) {
         using Tsukino::BuiltIn::ECS::RigidbodyType;
-        using namespace Layout;
 
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        const TableLayout&      layout   = GetTableLayout(registry);
+        const StageConfig&      stage    = GetStageConfig(registry);
+        const float             thick    = layout.staticThickness;
 
         // プレイフィールドの床（上面が y = 0）。
         // 物理は離散ステップなので、フレームが重いと薄い床は景品がすり抜ける。
         // 見た目より厚めにして、1ステップで突き抜けないようにする
-        const float fieldHalfDepth = (kFieldFrontZ - kFieldBackZ) * 0.5f;
-        const float fieldCenterZ   = kFieldBackZ + fieldHalfDepth;
-        factory.CreateBox(registry, hlslpp::float3(0.0f, -kStaticThickness, fieldCenterZ),
-                          hlslpp::float3(kFieldHalfWidth, kStaticThickness, fieldHalfDepth), RigidbodyType::Static, kFloorColor);
+        const float fieldHalfDepth = (layout.fieldFrontZ - layout.fieldBackZ) * 0.5f;
+        const float fieldCenterZ   = layout.fieldBackZ + fieldHalfDepth;
+        factory.CreateBox(registry, hlslpp::float3(0.0f, -thick, fieldCenterZ), hlslpp::float3(layout.fieldHalfWidth, thick, fieldHalfDepth),
+                          RigidbodyType::Static, stage.floorColor);
 
         // 左右の側壁（景品が横からこぼれないように、床から少し上まで）
         for(float side : {-1.0f, 1.0f}) {
-            factory.CreateBox(registry, hlslpp::float3(side * (kFieldHalfWidth + 1.0f), 12.0f - kStaticThickness, fieldCenterZ),
-                              hlslpp::float3(1.0f, 12.0f + kStaticThickness, fieldHalfDepth), RigidbodyType::Static, kSideWallColor);
+            factory.CreateBox(registry,
+                              hlslpp::float3(side * (layout.fieldHalfWidth + layout.sideWallHalfThickness), layout.sideWallHeight - thick, fieldCenterZ),
+                              hlslpp::float3(layout.sideWallHalfThickness, layout.sideWallHeight + thick, fieldHalfDepth), RigidbodyType::Static,
+                              stage.sideWallColor);
         }
 
         // 背面パネル。プッシャー上面のすぐ上に置き、プッシャーが引っ込むときに
         // 上面に乗った景品を手前へ掻き落とす（実機のプッシャーと同じ仕組み）。
         // 隙間は作らず、パネルの下端をプッシャーの中へ少し食い込ませる（静的な物とKinematicは衝突しない）。
         // 隙間があると、引っ込むプッシャーに挟まれたコインが押し込まれて下をくぐり、奥へ運ばれてしまう
-        const float pusherTop = kPusherTopY;
-        const float panelGap  = -3.0f;    // 積み重なったコインに押されて少しめり込んだ物も止められる深さ
-        factory.CreateBox(registry, hlslpp::float3(0.0f, pusherTop + panelGap + 15.0f, kBackPanelZ),
-                          hlslpp::float3(kFieldHalfWidth, 15.0f, kBackPanelHalfThickness), RigidbodyType::Static, kBackPanelColor);
+        factory.CreateBox(registry, hlslpp::float3(0.0f, layout.PusherTopY() - layout.backPanelSink + layout.backPanelHalfHeight, layout.BackPanelZ()),
+                          hlslpp::float3(layout.fieldHalfWidth, layout.backPanelHalfHeight, layout.backPanelHalfThickness), RigidbodyType::Static,
+                          stage.backPanelColor);
 
         //--------------------------------------------------------------
         // 景品受け。中央が払い出し口、その左右が溝（一段低くして区別する）
         // 判定は PrizeDropSystem が落ちた位置で行うので、ここは見た目と受け止め用
         //--------------------------------------------------------------
-        const float trayCenterZ   = kFieldFrontZ + 15.0f;
-        const float trayHalfDepth = 18.0f;
-        factory.CreateBox(registry, hlslpp::float3(0.0f, kTrayTopY - kStaticThickness, trayCenterZ),
-                          hlslpp::float3(kPayoutHalfWidth, kStaticThickness, trayHalfDepth), RigidbodyType::Static, kTrayColor);
+        const float trayCenterZ = layout.fieldFrontZ + layout.trayOffsetZ;
+        factory.CreateBox(registry, hlslpp::float3(0.0f, layout.trayTopY - thick, trayCenterZ),
+                          hlslpp::float3(layout.payoutHalfWidth, thick, layout.trayHalfDepth), RigidbodyType::Static, stage.trayColor);
 
-        const float gutterHalfWidth = (kFieldHalfWidth + 5.0f - kPayoutHalfWidth) * 0.5f;
+        const float gutterHalfWidth = (layout.fieldHalfWidth + layout.gutterExtraWidth - layout.payoutHalfWidth) * 0.5f;
         for(float side : {-1.0f, 1.0f}) {
-            // 溝の底（払い出し口より 6cm 低い）
-            factory.CreateBox(registry, hlslpp::float3(side * (kPayoutHalfWidth + gutterHalfWidth), kTrayTopY - 6.0f - kStaticThickness, trayCenterZ),
-                              hlslpp::float3(gutterHalfWidth, kStaticThickness, trayHalfDepth), RigidbodyType::Static, kGutterColor);
+            // 溝の底（払い出し口より一段低い）
+            factory.CreateBox(registry,
+                              hlslpp::float3(side * (layout.payoutHalfWidth + gutterHalfWidth), layout.trayTopY - layout.gutterDepth - thick, trayCenterZ),
+                              hlslpp::float3(gutterHalfWidth, thick, layout.trayHalfDepth), RigidbodyType::Static, stage.gutterColor);
 
             // 払い出し口と溝の仕切り
-            factory.CreateBox(registry, hlslpp::float3(side * kPayoutHalfWidth, kTrayTopY + 2.0f, trayCenterZ),
-                              hlslpp::float3(0.5f, 2.0f, trayHalfDepth), RigidbodyType::Static);
+            factory.CreateBox(registry, hlslpp::float3(side * layout.payoutHalfWidth, layout.trayTopY + layout.dividerHalfSize.y, trayCenterZ),
+                              hlslpp::float3(layout.dividerHalfSize.x, layout.dividerHalfSize.y, layout.trayHalfDepth), RigidbodyType::Static,
+                              stage.dividerColor);
         }
 
         //--------------------------------------------------------------
-        // プッシャー（Kinematic。OnUpdate で位置を直接動かす）
+        // プッシャー（Kinematic。OnUpdate で位置を直接動かす）。起動時は強化前の振幅の位置に置く
         //--------------------------------------------------------------
-        m_pusherEntity = factory.CreateBox(registry, hlslpp::float3(0.0f, kPusherCenterY, kPusherStartCenterZ), PusherHalfExtent(),
-                                           RigidbodyType::Kinematic, kPusherColor);
+        m_pusherEntity = factory.CreateBox(registry, hlslpp::float3(0.0f, layout.PusherCenterY(), layout.PusherCenterZ(layout.pusherAmplitude)),
+                                           hlslpp::float3(layout.PusherHalfWidth(), layout.pusherHalfHeight, layout.pusherHalfDepth),
+                                           RigidbodyType::Kinematic, stage.pusherColor);
         registry.AddComponent<ECS::PusherComponent>(m_pusherEntity);    // 魔法「ふくらむ」の間、輪郭を光らせる目印
 
         CreateStall(factory);
@@ -493,66 +497,60 @@ namespace FruitMagic {
     //! 屋台の飾り（しましまの屋根・柱・ちょうちん）を生成します。見た目だけで、当たり判定は持ちません。
     //----------------------------------------------------------------------------
     void PusherScene::CreateStall(PrizeFactory& factory) {
-        using namespace Layout;
-
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        const TableLayout&      layout   = GetTableLayout(registry);
+        const StageConfig&      stage    = GetStageConfig(registry);
 
         //--------------------------------------------------------------
         // しましまの屋根。背面パネルの上から手前へ少し下がるように傾ける。
         // 高い位置にあるので、プレイヤーの目線から台の上は隠れない
         //--------------------------------------------------------------
-        constexpr int   kStripes      = 8;
-        constexpr float kAwningY      = 45.0f;     // 屋根の中心の高さ
-        constexpr float kAwningZ      = -42.0f;    // 屋根の中心のZ
-        constexpr float kAwningDepth  = 12.0f;     // 屋根の奥行の半分
-        constexpr float kAwningTiltX  = 18.0f;     // 手前へ下げる角度（度）
-        const float     awningHalfW   = kFieldHalfWidth + 6.0f;
-        const float     stripeHalfW   = awningHalfW / static_cast<float>(kStripes);
-        for(int i = 0; i < kStripes; ++i) {
+        const int   stripes     = stage.awningStripes;
+        const float tilt        = stage.awningTiltDegrees * kPi / 180.0f;
+        const float awningHalfW = layout.fieldHalfWidth + stage.awningOverhang;
+        const float stripeHalfW = awningHalfW / static_cast<float>(stripes);
+        for(int i = 0; i < stripes; ++i) {
             const float          x = -awningHalfW + stripeHalfW * (2.0f * static_cast<float>(i) + 1.0f);
-            Tsukino::ECS::Entity e = factory.CreateVisualBox(registry, hlslpp::float3(x, kAwningY, kAwningZ), hlslpp::float3(stripeHalfW, 0.6f, kAwningDepth),
-                                                             1.0f, (i % 2 == 0) ? kAwningRed : kAwningWhite);
+            Tsukino::ECS::Entity e = factory.CreateVisualBox(registry, hlslpp::float3(x, stage.awningY, stage.awningZ),
+                                                             hlslpp::float3(stripeHalfW, stage.awningHalfThickness, stage.awningHalfDepth), 1.0f,
+                                                             (i % 2 == 0) ? stage.awningRedColor : stage.awningWhiteColor);
             auto&                t = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
-            t.rotation             = PrizeFactory::EulerDegrees(hlslpp::float3(kAwningTiltX, 0.0f, 0.0f));
+            t.rotation             = PrizeFactory::EulerDegrees(hlslpp::float3(stage.awningTiltDegrees, 0.0f, 0.0f));
         }
 
         // 屋根の手前の縁の飾り（赤白の玉を並べる）
-        const float frontEdgeZ = kAwningZ + kAwningDepth * std::cos(kAwningTiltX * kPi / 180.0f);
-        const float frontEdgeY = kAwningY - kAwningDepth * std::sin(kAwningTiltX * kPi / 180.0f) - 1.2f;
-        for(int i = 0; i <= kStripes * 2; ++i) {
-            const float x = -awningHalfW + awningHalfW * static_cast<float>(i) / static_cast<float>(kStripes);
-            factory.CreateVisualBall(registry, hlslpp::float3(x, frontEdgeY, frontEdgeZ), hlslpp::float3(1.6f, 1.6f, 1.6f),
-                                     (i % 2 == 0) ? kAwningRed : kAwningWhite);
+        const float frontEdgeZ = stage.awningZ + stage.awningHalfDepth * std::cos(tilt);
+        const float frontEdgeY = stage.awningY - stage.awningHalfDepth * std::sin(tilt) - stage.awningBallDrop;
+        const float ballRadius = stage.awningBallRadius;
+        for(int i = 0; i <= stripes * 2; ++i) {
+            const float x = -awningHalfW + awningHalfW * static_cast<float>(i) / static_cast<float>(stripes);
+            factory.CreateVisualBall(registry, hlslpp::float3(x, frontEdgeY, frontEdgeZ), hlslpp::float3(ballRadius, ballRadius, ballRadius),
+                                     (i % 2 == 0) ? stage.awningRedColor : stage.awningWhiteColor);
         }
 
         //--------------------------------------------------------------
         // 屋根を支える柱（台の左右の外側）
         //--------------------------------------------------------------
         for(float side : {-1.0f, 1.0f}) {
-            factory.CreateVisualBox(registry, hlslpp::float3(side * (awningHalfW - 1.5f), kAwningY * 0.5f, frontEdgeZ - 1.0f),
-                                    hlslpp::float3(1.2f, kAwningY * 0.5f, 1.2f), 1.0f, kPostColor);
+            factory.CreateVisualBox(registry, hlslpp::float3(side * (awningHalfW - stage.postInset), stage.awningY * 0.5f, frontEdgeZ - stage.postBack),
+                                    hlslpp::float3(stage.postHalfSize, stage.awningY * 0.5f, stage.postHalfSize), 1.0f, stage.postColor);
         }
 
         //--------------------------------------------------------------
         // 屋根の下に下がるちょうちん（光る球と、温かい色の点光源）
         //--------------------------------------------------------------
-        for(float x : {-20.0f, 0.0f, 20.0f}) {
-            const hlslpp::float3 position(x, frontEdgeY - 6.0f, frontEdgeZ - 1.0f);
-            Tsukino::ECS::Entity e = factory.CreateVisualBall(registry, position, hlslpp::float3(2.6f, 3.2f, 2.6f), kLanternColor);
-
-            Tsukino::BuiltIn::ECS::RimGlowComponent& glow = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
-            glow.active                                   = true;
-            glow.rimColor                                 = hlslpp::float3(1.0f, 0.8f, 0.4f);
-            glow.rimIntensity                             = 0.8f;
-            glow.glow                                     = 0.25f;    // 強くすると白く飛んで色が分からなくなる
+        for(float x : stage.lanternX) {
+            const hlslpp::float3 position(x, frontEdgeY - stage.lanternDrop, frontEdgeZ - stage.lanternBack);
+            Tsukino::ECS::Entity e = factory.CreateVisualBall(registry, position, stage.lanternHalfSize, stage.lanternColor);
+            AddGlow(registry, e, stage.lanternGlow);
 
             // ちょうちんを吊るすひも
-            factory.CreateVisualBox(registry, position + hlslpp::float3(0.0f, 4.5f, 0.0f), hlslpp::float3(0.15f, 1.5f, 0.15f), 1.0f, kPostColor);
+            factory.CreateVisualBox(registry, position + hlslpp::float3(0.0f, stage.lanternStringOffset, 0.0f), stage.lanternStringHalfSize, 1.0f, stage.postColor);
 
             Tsukino::BuiltIn::ECS::PointLightComponent& light = registry.AddComponent<Tsukino::BuiltIn::ECS::PointLightComponent>(e);
-            light.color                                      = hlslpp::float3(1.0f, 0.65f, 0.35f);
-            light.intensity                                  = 900.0f;
-            light.range                                      = 70.0f;
+            light.color                                      = stage.lanternLightColor;
+            light.intensity                                  = stage.lanternLightIntensity;
+            light.range                                      = stage.lanternLightRange;
             light.enabled                                    = true;
         }
     }
@@ -561,33 +559,34 @@ namespace FruitMagic {
     //! 起動時に台に置いておく景品を生成します。
     //----------------------------------------------------------------------------
     void PusherScene::CreateInitialPrizes(PrizeFactory& factory) {
-        using namespace Layout;
-
-        Tsukino::ECS::Registry& registry   = m_scene.GetRegistry();
-        const hlslpp::float3    coinHalf   = PrizeFactory::CoinHalfExtent();
-        const float             coinHalfX  = coinHalf.x;
-        const float             coinHalfY  = coinHalf.y;
+        Tsukino::ECS::Registry& registry  = m_scene.GetRegistry();
+        const TableLayout&      layout    = GetTableLayout(registry);
+        const hlslpp::float3    coinHalf  = factory.CoinHalfExtent();
+        const float             coinHalfX = coinHalf.x;
+        const float             coinHalfY = coinHalf.y;
+        const float             lift      = layout.initialLift;    // 床・コインから浮かせる高さ（めり込み防止）
 
         // プッシャー前の床にコインを手前端まで敷き詰める（実機と同じく、押せばすぐ縁から落ちる状態にしておく）。
         // 最前列はプッシャーが届く位置から
-        const float pusherFrontMax = kPusherMinFrontZ + kPusherAmplitude * 2.0f;
+        const float pusherFrontMax = layout.pusherMinFrontZ + layout.pusherAmplitude * 2.0f;
         // 隙間があると押した分が隙間に吸われて縁まで伝わらないので、ほぼ接するくらいに詰める
-        const float firstRowZ      = pusherFrontMax - 5.0f;
-        const float pitch          = coinHalfX * 2.0f + 0.3f;
-        const int   rowCount       = static_cast<int>((kFieldFrontZ - coinHalfX - firstRowZ) / pitch) + 1;
-        const int   halfColCount   = static_cast<int>((kFieldHalfWidth - coinHalfX - 0.5f) / pitch);
+        const float firstRowZ      = pusherFrontMax - layout.initialCoinFrontBack;
+        const float pitch          = coinHalfX * 2.0f + layout.initialCoinGap;
+        const int   rowCount       = static_cast<int>((layout.fieldFrontZ - coinHalfX - firstRowZ) / pitch) + 1;
+        const int   halfColCount   = static_cast<int>((layout.fieldHalfWidth - coinHalfX - layout.initialCoinSideMargin) / pitch);
         for(int row = 0; row < rowCount; ++row) {
             for(int col = -halfColCount; col <= halfColCount; ++col) {
                 const float x = static_cast<float>(col) * pitch;
                 const float z = firstRowZ + static_cast<float>(row) * pitch;
-                factory.CreateCoin(registry, hlslpp::float3(x, coinHalfY + 0.5f, z));
+                factory.CreateCoin(registry, hlslpp::float3(x, coinHalfY + lift, z));
             }
         }
 
         // プッシャーの上にもコインを数枚
-        for(int col = -3; col <= 3; ++col) {
-            const float x = static_cast<float>(col) * 7.0f;
-            factory.CreateCoin(registry, hlslpp::float3(x, kPusherTopY + coinHalfY + 0.5f, kPusherStartCenterZ + 8.0f));
+        const float pusherStartZ = layout.PusherCenterZ(layout.pusherAmplitude);
+        for(int col = -layout.pusherTopCoinHalfCount; col <= layout.pusherTopCoinHalfCount; ++col) {
+            const float x = static_cast<float>(col) * layout.pusherTopCoinSpacing;
+            factory.CreateCoin(registry, hlslpp::float3(x, layout.PusherTopY() + coinHalfY + lift, pusherStartZ + layout.pusherTopCoinOffsetZ));
         }
 
         //--------------------------------------------------------------
@@ -598,16 +597,16 @@ namespace FruitMagic {
         const int           level   = registry.GetContext<GameState>().treeLevel;
         std::mt19937        rng(std::random_device{}());
 
-        const float fruitXs[] = {-16.0f, -6.0f, 6.0f, 16.0f};
-        for(int i = 0; i < 4; ++i) {
+        for(size_t i = 0; i < layout.initialFruitX.size(); ++i) {
             const int fruitIndex = catalog.PickSpawnable(level, rng);
             if(fruitIndex < 0)
                 break;
 
-            const FruitDef& def = catalog.Fruits()[fruitIndex];
-            const float     y   = coinHalfY * 2.0f + 0.5f + def.HalfHeightOfBounds() + 0.5f;
+            const FruitDef&   def    = catalog.Fruits()[fruitIndex];
+            const float       y      = coinHalfY * 2.0f + lift + def.HalfHeightOfBounds() + lift;
+            const float       z      = static_cast<float>(i % 2) * layout.initialFruitStepZ;
             const VariantDef& normal = registry.GetContext<CollectionConfig>().Variants()[0];
-            factory.CreateFruit(registry, def, fruitIndex, 0, normal.ColorOf(def), normal.glow, hlslpp::float3(fruitXs[i], y, static_cast<float>(i % 2) * 10.0f));
+            factory.CreateFruit(registry, def, fruitIndex, 0, normal.ColorOf(def), normal.glow, hlslpp::float3(layout.initialFruitX[i], y, z));
         }
     }
 
@@ -616,27 +615,29 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     void PusherScene::CreateEnvironment() {
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        const StageConfig&      stage    = GetStageConfig(registry);
+        const UiConfig&         ui       = GetUiConfig(registry);
 
         {
-            // ディレクショナルライト（影付き）
+            // ディレクショナルライト
             Tsukino::ECS::Entity                              e     = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::DirectionalLightComponent& light = registry.AddComponent<Tsukino::BuiltIn::ECS::DirectionalLightComponent>(e);
-            light.direction                                         = hlslpp::float3(-0.4f, -0.7f, -0.6f);    // 少し低い夕方の日差し
-            light.color                                             = hlslpp::float3(1.0f, 0.88f, 0.75f);
-            light.intensity                                         = 1.5f;
-            light.castShadow                                        = true;
+            light.direction                                         = stage.sunDirection;
+            light.color                                             = stage.sunColor;
+            light.intensity                                         = stage.sunIntensity;
+            light.castShadow                                        = stage.sunShadow;
         }
         {
-            // 筐体の上の点光源（減衰は intensity / (d^2 + 1) なので、距離60前後で効くように d^2 のオーダーにする）
+            // 筐体の上の点光源
             Tsukino::ECS::Entity                       e         = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
-            transform.position                                   = hlslpp::float3(0.0f, 60.0f, 0.0f);
+            transform.position                                   = stage.lampPosition;
             transform.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::PointLightComponent& light = registry.AddComponent<Tsukino::BuiltIn::ECS::PointLightComponent>(e);
-            light.color                                      = hlslpp::float3(1.0f, 0.85f, 0.6f);
-            light.intensity                                  = 6000.0f;
-            light.range                                      = 200.0f;
+            light.color                                      = stage.lampColor;
+            light.intensity                                  = stage.lampIntensity;
+            light.range                                      = stage.lampRange;
             light.enabled                                    = true;
         }
         {
@@ -645,30 +646,30 @@ namespace FruitMagic {
             registry.AddComponent<Tsukino::BuiltIn::ECS::SkyAtmosphereComponent>(e);
         }
         {
-            // 台の周りをゆっくり漂う光の粒（屋台の夕暮れの雰囲気）。カメラを中心に折り返すので、台の大きさに合わせて狭く・少なめに
+            // 台の周りをゆっくり漂う光の粒（屋台の夕暮れの雰囲気）
             Tsukino::ECS::Entity                             e         = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::AmbientParticleComponent& particles = registry.AddComponent<Tsukino::BuiltIn::ECS::AmbientParticleComponent>(e);
-            particles.count                                            = 160;
-            particles.volumeSize                                       = hlslpp::float3(260.0f, 140.0f, 260.0f);
-            particles.color                                            = hlslpp::float3(1.0f, 0.85f, 0.55f);
-            particles.minSize                                          = 0.25f;
-            particles.maxSize                                          = 0.7f;
-            particles.driftVelocity                                    = hlslpp::float3(1.5f, 0.8f, 0.0f);
-            particles.swayAmplitude                                    = 3.0f;
-            particles.nearFadeDistance                                 = 25.0f;
+            particles.count                                            = stage.particleCount;
+            particles.volumeSize                                       = stage.particleVolume;
+            particles.color                                            = stage.particleColor;
+            particles.minSize                                          = stage.particleMinSize;
+            particles.maxSize                                          = stage.particleMaxSize;
+            particles.driftVelocity                                    = stage.particleDrift;
+            particles.swayAmplitude                                    = stage.particleSway;
+            particles.nearFadeDistance                                 = stage.particleNearFade;
         }
         {
-            // カメラ（プレイヤーの目線：手前斜め上から台を見下ろす）
+            // カメラ（プレイヤーの目線）
             Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
-            t.position                                   = hlslpp::float3(0.0f, 75.0f, 105.0f);
+            t.position                                   = stage.cameraPosition;
             t.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::CameraComponent& cam = registry.AddComponent<Tsukino::BuiltIn::ECS::CameraComponent>(e);
             cam.useLookAt                               = true;
-            cam.lookAtTarget                            = hlslpp::float3(0.0f, 0.0f, -5.0f);
-            cam.nearZ                                   = 1.0f;
-            cam.farZ                                    = 5000.0f;
+            cam.lookAtTarget                            = stage.cameraLookAt;
+            cam.nearZ                                   = stage.cameraNear;
+            cam.farZ                                    = stage.cameraFar;
             cam.isPrimary                               = true;
         }
 
@@ -687,7 +688,7 @@ namespace FruitMagic {
 
             Tsukino::BuiltIn::ECS::CameraComponent& camera = registry.AddComponent<Tsukino::BuiltIn::ECS::CameraComponent>(e);
             camera.projectionType                          = Tsukino::BuiltIn::ECS::CameraComponent::ProjectionType::Orthographic;
-            camera.orthoSize                               = 720.0f;
+            camera.orthoSize                               = ui.screenHeight;
             camera.isPrimary                               = false;
         }
 
@@ -696,18 +697,18 @@ namespace FruitMagic {
             // デバッグカメラ（Debug ビルドのみ。切り替えは DebugCameraSystem の操作に従う）
             Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
-            t.position                                   = hlslpp::float3(60.0f, 60.0f, 80.0f);
+            t.position                                   = stage.debugCameraPosition;
             t.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::CameraComponent& cam = registry.AddComponent<Tsukino::BuiltIn::ECS::CameraComponent>(e);
-            cam.lookAtTarget                            = hlslpp::float3(0.0f, 0.0f, 0.0f);
-            cam.nearZ                                   = 1.0f;
-            cam.farZ                                    = 5000.0f;
+            cam.lookAtTarget                            = stage.debugCameraLookAt;
+            cam.nearZ                                   = stage.cameraNear;
+            cam.farZ                                    = stage.cameraFar;
             cam.isPrimary                               = false;
 
             Tsukino::BuiltIn::ECS::DebugCameraComponent& debug = registry.AddComponent<Tsukino::BuiltIn::ECS::DebugCameraComponent>(e);
-            debug.moveSpeed                                    = 100.0f;
-            debug.sprintSpeed                                  = 300.0f;
+            debug.moveSpeed                                    = stage.debugCameraSpeed;
+            debug.sprintSpeed                                  = stage.debugCameraSprint;
 
             registry.AddComponent<Tsukino::BuiltIn::ECS::DebugCameraTag>(e);
         }
@@ -719,15 +720,23 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     void PusherScene::CreatePlayerInterface(PrizeFactory& factory) {
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        const TableLayout&      layout   = GetTableLayout(registry);
+        const StageConfig&      stage    = GetStageConfig(registry);
+        const UiConfig&         ui       = GetUiConfig(registry);
+        const Texts&            texts    = GetTexts(registry);
 
         //--------------------------------------------------------------
         // 投入口の目印（半透明の板。CoinLauncherSystem が投入位置へ動かす）
         //--------------------------------------------------------------
         {
-            const hlslpp::float3 coinHalf = PrizeFactory::CoinHalfExtent();
-            Tsukino::ECS::Entity e        = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, Layout::kLaunchMarkerY, Layout::kLaunchZ),
-                                                                    hlslpp::float3(coinHalf.x, 0.2f, coinHalf.z), 0.5f);
-            registry.AddComponent<ECS::CoinLauncherComponent>(e);
+            const hlslpp::float3 coinHalf = factory.CoinHalfExtent();
+            Tsukino::ECS::Entity e        = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, layout.LaunchMarkerY(), layout.LaunchZ()),
+                                                                    hlslpp::float3(coinHalf.x, stage.launchMarkerHalfThickness, coinHalf.z), stage.launchMarkerOpacity);
+            ECS::CoinLauncherComponent& launcher = registry.AddComponent<ECS::CoinLauncherComponent>(e);
+            if(registry.HasContext<EconomyConfig>()) {
+                launcher.interval  = registry.GetContext<EconomyConfig>().launchInterval;
+                launcher.laneSpeed = registry.GetContext<EconomyConfig>().launchLaneSpeed;
+            }
         }
 
         //--------------------------------------------------------------
@@ -736,16 +745,10 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         {
             const float          halfWidth = registry.GetContext<TableStats>().checkerHalfWidth;
-            const hlslpp::float3 gold      = hlslpp::float3(1.0f, 0.7f, 0.1f);
-            Tsukino::ECS::Entity e         = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, -3.0f, Layout::kFieldFrontZ + 3.0f),
-                                                                     hlslpp::float3(halfWidth, 0.3f, 2.5f), 1.0f, gold);
-
-            // 台の上で見失わないよう、金色に少し光らせる
-            Tsukino::BuiltIn::ECS::RimGlowComponent& glow = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
-            glow.active                                   = true;
-            glow.rimColor                                 = gold;
-            glow.rimIntensity                             = 1.0f;
-            glow.glow                                     = 0.4f;
+            Tsukino::ECS::Entity e         = factory.CreateVisualBox(registry, hlslpp::float3(0.0f, stage.checkerMarkerY, layout.fieldFrontZ + stage.checkerMarkerOffsetZ),
+                                                                     hlslpp::float3(halfWidth, stage.checkerMarkerHalfThickness, stage.checkerMarkerHalfDepth), 1.0f,
+                                                                     stage.checkerMarkerGlow.color);
+            AddGlow(registry, e, stage.checkerMarkerGlow);
 
             // 穴の幅の強化で目印も伸ばせるよう、幅あたりのスケールを覚えておく
             ECS::CheckerComponent& checker = registry.AddComponent<ECS::CheckerComponent>(e);
@@ -755,43 +758,22 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // HUD（座標は画面左上からのピクセル。文字の大きさは scale.x）
         //--------------------------------------------------------------
-        struct HudSpec {
-            ECS::HudTextKind                       kind;
-            hlslpp::float2                         position;
-            float                                  scale;
-            hlslpp::float4                         color;
-            Tsukino::BuiltIn::ECS::HorizontalAlign align = Tsukino::BuiltIn::ECS::HorizontalAlign::Left;
-        };
-        const HudSpec specs[] = {
-            {ECS::HudTextKind::Coins, hlslpp::float2(24.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f)},
-            {ECS::HudTextKind::Mana, hlslpp::float2(kManaGaugeLeft + kManaGaugeWidth + 12.0f, kManaGaugeCenterY - 14.0f), 0.9f,
-             hlslpp::float4(0.85f, 0.7f, 1.0f, 1.0f)},
-            {ECS::HudTextKind::DropPopup, hlslpp::float2(28.0f, 122.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f)},
-            {ECS::HudTextKind::HarvestTotal, hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f)},
-            {ECS::HudTextKind::HarvestPopup, hlslpp::float2(28.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f)},
-            {ECS::HudTextKind::Relief, hlslpp::float2(kReliefTextX, 248.0f), 0.8f, hlslpp::float4(0.75f, 1.0f, 0.85f, 1.0f)},
-            {ECS::HudTextKind::Roulette, hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f),
-             Tsukino::BuiltIn::ECS::HorizontalAlign::Center},
-            {ECS::HudTextKind::ControlsHint, hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f)},
-            {ECS::HudTextKind::Notice, hlslpp::float2(640.0f, 250.0f), 1.15f, hlslpp::float4(1.0f, 0.75f, 0.95f, 1.0f),
-             Tsukino::BuiltIn::ECS::HorizontalAlign::Center},
-        };
-
-        for(const HudSpec& spec : specs) {
-            Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
-            Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
-            t.position                                   = hlslpp::float3(spec.position.x, spec.position.y, 0.0f);
-            t.scale                                      = hlslpp::float3(spec.scale, spec.scale, 1.0f);
-            t.dirty                                      = true;
+        for(const HudKindName& kind : kHudKinds) {
+            const UiText&                              spec = ui.HudText(kind.name);
+            Tsukino::ECS::Entity                       e    = m_scene.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& t    = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+            t.position                                      = hlslpp::float3(spec.position.x, spec.position.y, 0.0f);
+            t.scale                                         = hlslpp::float3(spec.scale, spec.scale, 1.0f);
+            t.dirty                                         = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
             font.color                                 = spec.color;
-            font.horizontalAlign                       = spec.align;
-            font.outlineColor                          = hlslpp::float4(0.15f, 0.08f, 0.05f, 1.0f);
-            font.outlineWidth                          = 2.0f;
+            font.horizontalAlign                       = ToEngineAlign(spec.align);
+            font.outlineColor                          = ui.hudOutlineColor;
+            font.outlineWidth                          = ui.outlineWidth;
 
             ECS::HudTextComponent& hud = registry.AddComponent<ECS::HudTextComponent>(e);
-            hud.kind                   = spec.kind;
+            hud.kind                   = kind.kind;
         }
 
         //--------------------------------------------------------------
@@ -819,7 +801,7 @@ namespace FruitMagic {
         // HUD の文字やボタンより奥に置き、文字が読めなくならないようにする
         //--------------------------------------------------------------
         {
-            Tsukino::ECS::Entity flash = createPanel(hlslpp::float2(640.0f, 360.0f), hlslpp::float2(1280.0f, 720.0f), hlslpp::float4(0.0f, 0.0f, 0.0f, 0.0f), -10);
+            Tsukino::ECS::Entity flash = createPanel(ui.ScreenCenter(), hlslpp::float2(ui.screenWidth, ui.screenHeight), hlslpp::float4(0.0f, 0.0f, 0.0f, 0.0f), -10);
             registry.GetComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(flash).blendMode = Tsukino::BuiltIn::ECS::SpriteBlendMode::Additive;
             ECS::ScreenFlashComponent& component = registry.AddComponent<ECS::ScreenFlashComponent>(flash);
             component.fullScale                  = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(flash).scale;
@@ -829,15 +811,15 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // マナゲージ（背景＋中身。中身の幅は HudSystem がマナに合わせて変える）
         //--------------------------------------------------------------
-        createPanel(hlslpp::float2(kManaGaugeLeft + kManaGaugeWidth * 0.5f, kManaGaugeCenterY), hlslpp::float2(kManaGaugeWidth + 4.0f, kManaGaugeHeight + 4.0f),
-                    hlslpp::float4(0.1f, 0.05f, 0.15f, 0.8f), 0);
+        createPanel(hlslpp::float2(ui.manaGaugeLeft + ui.manaGaugeWidth * 0.5f, ui.manaGaugeCenterY),
+                    hlslpp::float2(ui.manaGaugeWidth + ui.manaGaugePadding, ui.manaGaugeHeight + ui.manaGaugePadding), ui.manaGaugeBackColor, 0);
         {
-            Tsukino::ECS::Entity     e     = createPanel(hlslpp::float2(kManaGaugeLeft, kManaGaugeCenterY), hlslpp::float2(0.0f, kManaGaugeHeight),
-                                                         hlslpp::float4(0.75f, 0.45f, 1.0f, 1.0f), 1);
+            Tsukino::ECS::Entity     e     = createPanel(hlslpp::float2(ui.manaGaugeLeft, ui.manaGaugeCenterY), hlslpp::float2(0.0f, ui.manaGaugeHeight),
+                                                         ui.manaGaugeFillColor, 1);
             ECS::ManaGaugeComponent& gauge = registry.AddComponent<ECS::ManaGaugeComponent>(e);
-            gauge.left                     = kManaGaugeLeft;
-            gauge.fullWidth                = kManaGaugeWidth;
-            gauge.height                   = kManaGaugeHeight;
+            gauge.left                     = ui.manaGaugeLeft;
+            gauge.fullWidth                = ui.manaGaugeWidth;
+            gauge.height                   = ui.manaGaugeHeight;
             gauge.textureSize              = AssetPaths::kWhiteTextureSize;
         }
 
@@ -847,12 +829,12 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         {
             const Tsukino::Asset::AssetHandle ring       = context->assetManager->Load(Tsukino::Core::Path(AssetPaths::kRingTexture));
-            const float                       shownScale = kReliefRingDiameter / AssetPaths::kRingTextureSize;
+            const float                       shownScale = ui.reliefRingDiameter / AssetPaths::kRingTextureSize;
 
             auto createRing = [&](ECS::ReliefGaugePart part, const hlslpp::float4& color, int sortOrder) {
                 Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
                 Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
-                t.position                                   = hlslpp::float3(kReliefRingCenterX, kReliefRingCenterY, 0.0f);
+                t.position                                   = hlslpp::float3(ui.reliefRingCenter.x, ui.reliefRingCenter.y, 0.0f);
                 t.scale                                      = hlslpp::float3(0.0f, 0.0f, 1.0f);    // 待っていない間は隠す
                 t.dirty                                      = true;
 
@@ -867,36 +849,36 @@ namespace FruitMagic {
                 return e;
             };
 
-            createRing(ECS::ReliefGaugePart::Background, hlslpp::float4(0.1f, 0.05f, 0.15f, 0.7f), 0);
-            Tsukino::ECS::Entity fill = createRing(ECS::ReliefGaugePart::Fill, hlslpp::float4(0.75f, 1.0f, 0.55f, 1.0f), 1);
+            createRing(ECS::ReliefGaugePart::Background, ui.reliefRingBackColor, 0);
+            Tsukino::ECS::Entity fill = createRing(ECS::ReliefGaugePart::Fill, ui.reliefRingFillColor, 1);
             Tsukino::BuiltIn::ECS::SpriteComponent& sprite = registry.GetComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(fill);
             sprite.fillMode                                = Tsukino::BuiltIn::ECS::SpriteFillMode::Radial;
             sprite.fillAmount                              = 0.0f;
         }
 
         //--------------------------------------------------------------
-        // 魔法ボタン（画面下に5つ。色と文字は HudSystem、クリックは MagicInputSystem が扱う）
+        // 魔法ボタン（画面下に横並び。色と文字は HudSystem、クリックは MagicInputSystem が扱う）
         //--------------------------------------------------------------
-        const float totalWidth = kMagicButtonWidth * kMagicSlotCount + kMagicButtonGap * (kMagicSlotCount - 1);
-        const float firstX     = 640.0f - totalWidth * 0.5f + kMagicButtonWidth * 0.5f;
+        const float totalWidth = ui.magicButtonWidth * kMagicSlotCount + ui.magicButtonGap * (kMagicSlotCount - 1);
+        const float firstX     = ui.ScreenCenter().x - totalWidth * 0.5f + ui.magicButtonWidth * 0.5f;
         for(int slot = 1; slot <= kMagicSlotCount; ++slot) {
-            const hlslpp::float2 center(firstX + (kMagicButtonWidth + kMagicButtonGap) * static_cast<float>(slot - 1), kMagicButtonY);
+            const hlslpp::float2 center(firstX + (ui.magicButtonWidth + ui.magicButtonGap) * static_cast<float>(slot - 1), ui.magicButtonY);
 
-            Tsukino::ECS::Entity button = createPanel(center, hlslpp::float2(kMagicButtonWidth, kMagicButtonHeight), hlslpp::float4(0.4f, 0.4f, 0.4f, 1.0f), 10);
+            Tsukino::ECS::Entity button = createPanel(center, hlslpp::float2(ui.magicButtonWidth, ui.magicButtonHeight), ui.magicLockedColor, 10);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
 
             // ボタンの上の文字（ボタンの中心に揃える）
             Tsukino::ECS::Entity                       label = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t     = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(label);
             t.position                                       = hlslpp::float3(center.x, center.y, 0.0f);
-            t.scale                                          = hlslpp::float3(0.72f, 0.72f, 1.0f);    // 「4 おおきくなーれ 60」がボタンに収まる大きさ
+            t.scale                                          = hlslpp::float3(ui.magicLabelScale, ui.magicLabelScale, 1.0f);
             t.dirty                                          = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(label);
             font.horizontalAlign                       = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;
             font.verticalAlign                         = Tsukino::BuiltIn::ECS::VerticalAlign::Middle;
-            font.outlineColor                          = hlslpp::float4(0.15f, 0.05f, 0.2f, 1.0f);
-            font.outlineWidth                          = 2.0f;
+            font.outlineColor                          = ui.magicLabelOutline;
+            font.outlineWidth                          = ui.outlineWidth;
             font.sortOrder                             = 11;
 
             ECS::MagicButtonComponent& magicButton = registry.AddComponent<ECS::MagicButtonComponent>(button);
@@ -918,11 +900,17 @@ namespace FruitMagic {
             font.color                                 = color;
             font.horizontalAlign                       = align;
             font.verticalAlign                         = Tsukino::BuiltIn::ECS::VerticalAlign::Middle;
-            font.outlineColor                          = hlslpp::float4(0.1f, 0.03f, 0.15f, 1.0f);
-            font.outlineWidth                          = 2.0f;
+            font.outlineColor                          = ui.textOutlineColor;
+            font.outlineWidth                          = ui.outlineWidth;
             font.sortOrder                             = sortOrder;
             return e;
         };
+        auto createFontText = [&](const hlslpp::float2& position, const UiFont& style, Tsukino::BuiltIn::ECS::HorizontalAlign align, int sortOrder) {
+            return createText(position, style.scale, align, style.color, sortOrder);
+        };
+        constexpr auto kLeft   = Tsukino::BuiltIn::ECS::HorizontalAlign::Left;
+        constexpr auto kCenter = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;
+        const hlslpp::float4 kWhite(1.0f, 1.0f, 1.0f, 1.0f);
 
         //--------------------------------------------------------------
         // 画面（図鑑・強化）の開閉ボタン（右上。文字は MenuSystem が開閉に合わせて書く）
@@ -932,24 +920,23 @@ namespace FruitMagic {
             Tsukino::Input::KeyCode key;
             float                   y;
             hlslpp::float4          color;
-            const wchar_t*          closedText;
-            const wchar_t*          openText;
+            const char*             closedText;
+            const char*             openText;
         };
         const MenuButtonSpec menuButtons[] = {
-            {MenuKind::Zukan, Tsukino::Input::KeyCode::Tab, kZukanButtonY, hlslpp::float4(0.95f, 0.55f, 0.65f, 1.0f), L"図鑑 (Tab)", L"閉じる (Tab)"},
-            {MenuKind::Upgrade, Tsukino::Input::KeyCode::U, kUpgradeButtonY, hlslpp::float4(0.45f, 0.75f, 0.4f, 1.0f), L"強化 (U)", L"閉じる (U)"},
+            {MenuKind::Zukan, Tsukino::Input::KeyCode::Tab, ui.zukanButtonY, ui.zukanButtonColor, "menu.zukanButton", "menu.zukanClose"},
+            {MenuKind::Upgrade, Tsukino::Input::KeyCode::U, ui.upgradeButtonY, ui.upgradeButtonColor, "menu.upgradeButton", "menu.upgradeClose"},
         };
         for(const MenuButtonSpec& spec : menuButtons) {
-            Tsukino::ECS::Entity button = createPanel(hlslpp::float2(kMenuButtonX, spec.y), hlslpp::float2(kMenuButtonWidth, kMenuButtonHeight), spec.color, 10);
+            Tsukino::ECS::Entity button = createPanel(hlslpp::float2(ui.menuButtonX, spec.y), hlslpp::float2(ui.menuButtonWidth, ui.menuButtonHeight), spec.color, 10);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
 
             ECS::MenuButtonComponent& menuButton = registry.AddComponent<ECS::MenuButtonComponent>(button);
             menuButton.menu                      = spec.menu;
             menuButton.key                       = spec.key;
-            menuButton.label      = createText(hlslpp::float2(kMenuButtonX, spec.y), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                               hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 11);
-            menuButton.closedText = spec.closedText;
-            menuButton.openText   = spec.openText;
+            menuButton.label      = createText(hlslpp::float2(ui.menuButtonX, spec.y), ui.menuLabelScale, kCenter, kWhite, 11);
+            menuButton.closedText = texts.Get(spec.closedText);
+            menuButton.openText   = texts.Get(spec.openText);
         }
 
         //--------------------------------------------------------------
@@ -964,16 +951,19 @@ namespace FruitMagic {
             return e;
         };
 
+        // 画面の上下左右の端
+        const float menuTop    = ui.menuCenter.y - ui.menuSize.y * 0.5f;
+        const float menuBottom = ui.menuCenter.y + ui.menuSize.y * 0.5f;
+        const float menuLeft   = ui.menuCenter.x - ui.menuSize.x * 0.5f;
+        const float menuRight  = ui.menuCenter.x + ui.menuSize.x * 0.5f;
+
         // 画面の背景のパネル。画面の上のクリックでコインが投入されないよう、クリックを受け止める
         auto createMenuPanel = [&](MenuKind menu, const std::wstring& title) {
-            Tsukino::ECS::Entity panel = createPanel(hlslpp::float2(kMenuCenterX, kMenuCenterY), hlslpp::float2(kMenuWidth, kMenuHeight),
-                                                     hlslpp::float4(0.08f, 0.04f, 0.12f, 0.9f), 20);
+            Tsukino::ECS::Entity panel = createPanel(ui.menuCenter, ui.menuSize, ui.menuColor, 20);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
             addPage(panel, menu);
 
-            addPage(createText(hlslpp::float2(kMenuCenterX, kMenuCenterY - kMenuHeight * 0.5f + 32.0f), 1.3f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                               hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), 22),
-                    menu, title);
+            addPage(createFontText(hlslpp::float2(ui.menuCenter.x, menuTop + ui.menuTitleOffsetY), ui.menuTitle, kCenter, 22), menu, title);
         };
 
         //--------------------------------------------------------------
@@ -1004,10 +994,9 @@ namespace FruitMagic {
             contentTransform.dirty                                      = true;
 
             // スクロールバー（溝とつまみ）。表示・大きさ・位置は ScrollViewSystem が決める（中身が収まるときは出ない）
-            const float          barX  = kMenuCenterX + kMenuWidth * 0.5f - kScrollBarInset;
-            Tsukino::ECS::Entity track = createPanel(hlslpp::float2(barX, top + height * 0.5f), hlslpp::float2(kScrollBarWidth, height),
-                                                     hlslpp::float4(0.0f, 0.0f, 0.0f, 0.35f), 21);
-            Tsukino::ECS::Entity thumb = createPanel(hlslpp::float2(barX, top), hlslpp::float2(kScrollBarWidth, kScrollBarWidth), thumbColor, 22);
+            const float          barX  = menuRight - ui.scrollBarInset;
+            Tsukino::ECS::Entity track = createPanel(hlslpp::float2(barX, top + height * 0.5f), hlslpp::float2(ui.scrollBarWidth, height), ui.scrollTrackColor, 21);
+            Tsukino::ECS::Entity thumb = createPanel(hlslpp::float2(barX, top), hlslpp::float2(ui.scrollBarWidth, ui.scrollBarWidth), thumbColor, 22);
 
             // 画面のパネルと同じく、スクロールバーの上のクリックでコインが投入されないよう受け止める
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(track);
@@ -1015,7 +1004,7 @@ namespace FruitMagic {
 
             Tsukino::BuiltIn::ECS::ScrollBarComponent& bar = registry.AddComponent<Tsukino::BuiltIn::ECS::ScrollBarComponent>(track);
             bar.thumb                                      = thumb;
-            bar.size                                       = hlslpp::float2(kScrollBarWidth, height);
+            bar.size                                       = hlslpp::float2(ui.scrollBarWidth, height);
 
             Tsukino::BuiltIn::ECS::ScrollViewComponent& scroll = registry.AddComponent<Tsukino::BuiltIn::ECS::ScrollViewComponent>(view);
             scroll.content                                     = content;
@@ -1037,7 +1026,7 @@ namespace FruitMagic {
 
         //--------------------------------------------------------------
         // 図鑑の画面（行＝果物、列＝バリエーション）。最初は閉じていて、ZukanSystem が開閉する。
-        // 果物・バリエーションの数は定義データから決まるので、行の高さ・列の間隔もそれに合わせる
+        // バリエーションの数は定義データから決まるので、列の間隔もそれに合わせる
         //--------------------------------------------------------------
         {
             const FruitCatalog&     catalog    = registry.GetContext<FruitCatalog>();
@@ -1053,60 +1042,48 @@ namespace FruitMagic {
                 element.variantIndex                = variantIndex;
             };
 
-            createMenuPanel(MenuKind::Zukan, L"図鑑");
-
-            const float top    = kMenuCenterY - kMenuHeight * 0.5f;
-            const float left   = kMenuCenterX - kMenuWidth * 0.5f;
-            const float bottom = kMenuCenterY + kMenuHeight * 0.5f;
+            createMenuPanel(MenuKind::Zukan, texts.Get("zukan.title"));
 
             // 列の配置（バリエーションが増えたら間隔を詰める）
-            const float columnsLeft  = left + 330.0f;
-            const float columnsWidth = kMenuWidth - 330.0f - 40.0f;
+            const float columnsLeft  = menuLeft + ui.zukanColumnsLeft;
+            const float columnsWidth = ui.menuSize.x - ui.zukanColumnsLeft - ui.zukanColumnsRight;
             const float columnPitch  = columnsWidth / static_cast<float>(std::max(1, columns));
             auto        columnX      = [&](int v) { return columnsLeft + columnPitch * (static_cast<float>(v) + 0.5f); };
 
             // 列の見出し
-            const float headerY = top + 78.0f;
+            const float headerY = menuTop + ui.zukanHeaderOffsetY;
             for(int v = 0; v < columns; ++v) {
                 const std::wstring& name = collection.Variants()[v].name;
-                addPage(createText(hlslpp::float2(columnX(v), headerY), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                   hlslpp::float4(0.9f, 0.8f, 1.0f, 1.0f), 22),
-                        MenuKind::Zukan, name.empty() ? std::wstring(L"通常") : name);
+                addPage(createFontText(hlslpp::float2(columnX(v), headerY), ui.zukanHeader, kCenter, 22), MenuKind::Zukan,
+                        name.empty() ? texts.Get("zukan.normalVariant") : name);
             }
 
             // 行（果物が増えて枠に収まらなくなったらスクロールする。行の高さは変えない）
-            const float      rowsTop    = headerY + 30.0f;
-            const float      swatchSize = 26.0f;
-            const float      textScale  = 0.85f;
-            const ScrollList list       = createScrollList(MenuKind::Zukan, left + 16.0f, rowsTop, kMenuCenterX + kMenuWidth * 0.5f - 36.0f, bottom - 56.0f,
-                                                           kZukanRowPitch * static_cast<float>(rows), hlslpp::float4(0.95f, 0.6f, 0.75f, 1.0f));
+            const float      rowsTop = headerY + ui.zukanRowsGap;
+            const float      pitch   = ui.zukanRowPitch;
+            const ScrollList list    = createScrollList(MenuKind::Zukan, menuLeft + ui.zukanListLeft, rowsTop, menuRight - ui.zukanListRight, menuBottom - ui.zukanRowsBottom,
+                                                        pitch * static_cast<float>(rows), ui.zukanThumbColor);
             for(int f = 0; f < rows; ++f) {
-                const float y = rowsTop + kZukanRowPitch * (static_cast<float>(f) + 0.5f);
+                const float y = rowsTop + pitch * (static_cast<float>(f) + 0.5f);
 
-                addElement(attach(list, createText(hlslpp::float2(left + 36.0f, y), textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                                   hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22)),
-                           ECS::ZukanElementKind::RowName, f);
+                addElement(attach(list, createFontText(hlslpp::float2(menuLeft + ui.zukanNameX, y), ui.zukanName, kLeft, 22)), ECS::ZukanElementKind::RowName, f);
 
                 for(int v = 0; v < columns; ++v) {
                     const float x = columnX(v);
-                    addElement(attach(list, createPanel(hlslpp::float2(x - 30.0f, y), hlslpp::float2(swatchSize, swatchSize),
-                                                        hlslpp::float4(0.2f, 0.2f, 0.25f, 1.0f), 21)),
+                    addElement(attach(list, createPanel(hlslpp::float2(x + ui.zukanSwatchOffsetX, y), hlslpp::float2(ui.zukanSwatchSize, ui.zukanSwatchSize),
+                                                        ui.zukanSwatchColor, 21)),
                                ECS::ZukanElementKind::Swatch, f, v);
-                    addElement(attach(list, createText(hlslpp::float2(x - 10.0f, y), textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                                       hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 22)),
+                    addElement(attach(list, createFontText(hlslpp::float2(x + ui.zukanCountOffsetX, y), ui.zukanCount, kLeft, 22)),
                                ECS::ZukanElementKind::Count, f, v);
                 }
             }
 
             // 下部の集計
-            addElement(createText(hlslpp::float2(kMenuCenterX, bottom - 28.0f), 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                  hlslpp::float4(0.85f, 1.0f, 0.85f, 1.0f), 22),
-                       ECS::ZukanElementKind::Footer);
+            addElement(createFontText(hlslpp::float2(ui.menuCenter.x, menuBottom - ui.zukanFooterOffsetY), ui.zukanFooter, kCenter, 22), ECS::ZukanElementKind::Footer);
         }
 
         //--------------------------------------------------------------
-        // 強化の画面（行＝強化）。最初は閉じている。
-        // 強化の数は定義データから決まるので、行の高さもそれに合わせる
+        // 強化の画面（行＝強化）。最初は閉じている
         //--------------------------------------------------------------
         {
             const UpgradeCatalog& upgrades = registry.GetContext<UpgradeCatalog>();
@@ -1119,53 +1096,40 @@ namespace FruitMagic {
                 element.upgradeIndex                  = upgradeIndex;
             };
 
-            createMenuPanel(MenuKind::Upgrade, L"台の強化");
-
-            const float top    = kMenuCenterY - kMenuHeight * 0.5f;
-            const float left   = kMenuCenterX - kMenuWidth * 0.5f;
-            const float right  = kMenuCenterX + kMenuWidth * 0.5f;
-            const float bottom = kMenuCenterY + kMenuHeight * 0.5f;
+            createMenuPanel(MenuKind::Upgrade, texts.Get("upgrade.title"));
 
             // 手持ち（価格と見比べられるよう、タイトルのすぐ下）
-            addElement(createText(hlslpp::float2(kMenuCenterX, top + 74.0f), 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                  hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), 22),
+            addElement(createFontText(hlslpp::float2(ui.menuCenter.x, menuTop + ui.upgradeWalletOffsetY), ui.upgradeWallet, kCenter, 22),
                        ECS::UpgradeElementKind::Wallet);
 
             // 行（強化が増えて枠に収まらなくなったらスクロールする。行の高さは変えない）
-            const float      rowsTop = top + 104.0f;
-            const float      buttonX = right - 40.0f - kBuyButtonWidth * 0.5f;
-            const float      effectX = left + 445.0f;
-            const ScrollList list    = createScrollList(MenuKind::Upgrade, left + 16.0f, rowsTop, right - 34.0f, bottom - 24.0f,
-                                                        kUpgradeRowPitch * static_cast<float>(rows), hlslpp::float4(0.55f, 0.85f, 0.5f, 1.0f));
+            const float      rowsTop = menuTop + ui.upgradeRowsTop;
+            const float      pitch   = ui.upgradeRowPitch;
+            const float      buttonX = menuRight - ui.upgradeButtonRight - ui.upgradeButtonWidth * 0.5f;
+            const float      nameX   = menuLeft + ui.upgradeNameX;
+            const float      effectX = menuLeft + ui.upgradeEffectX;
+            const ScrollList list    = createScrollList(MenuKind::Upgrade, menuLeft + ui.upgradeListLeft, rowsTop, menuRight - ui.upgradeListRight,
+                                                        menuBottom - ui.upgradeRowsBottom, pitch * static_cast<float>(rows), ui.upgradeThumbColor);
             for(int u = 0; u < rows; ++u) {
                 const UpgradeDef& def = upgrades.Upgrades()[u];
-                const float       y   = rowsTop + kUpgradeRowPitch * (static_cast<float>(u) + 0.5f);
-                const float       dy  = kUpgradeRowPitch * 0.2f;    // 1行の中の上段・下段のずれ
+                const float       y   = rowsTop + pitch * (static_cast<float>(u) + 0.5f);
+                const float       dy  = pitch * ui.upgradeRowSpread;    // 1行の中の上段・下段のずれ
 
                 // 名前とレベル（上段）・説明（下段）
-                addElement(attach(list, createText(hlslpp::float2(left + 40.0f, y - dy), 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                                   hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22)),
-                           ECS::UpgradeElementKind::Name, u);
-                addPage(attach(list, createText(hlslpp::float2(left + 40.0f, y + dy), 0.62f, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                                hlslpp::float4(0.8f, 0.75f, 0.9f, 1.0f), 22)),
-                        MenuKind::Upgrade, def.description);
+                addElement(attach(list, createFontText(hlslpp::float2(nameX, y - dy), ui.upgradeName, kLeft, 22)), ECS::UpgradeElementKind::Name, u);
+                addPage(attach(list, createFontText(hlslpp::float2(nameX, y + dy), ui.upgradeDescription, kLeft, 22)), MenuKind::Upgrade, def.description);
 
-                // 効果（上段）・価格（下段）
-                addElement(attach(list, createText(hlslpp::float2(effectX, y - dy), 0.75f, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                                   hlslpp::float4(0.7f, 1.0f, 0.75f, 1.0f), 22)),
-                           ECS::UpgradeElementKind::Effect, u);
-                addElement(attach(list, createText(hlslpp::float2(effectX, y + dy), 0.7f, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                                   hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 22)),
+                // 効果（上段）・価格（下段。色は UpgradeSystem が買えるかどうかで変える）
+                addElement(attach(list, createFontText(hlslpp::float2(effectX, y - dy), ui.upgradeEffect, kLeft, 22)), ECS::UpgradeElementKind::Effect, u);
+                addElement(attach(list, createText(hlslpp::float2(effectX, y + dy), ui.upgradeCostScale, kLeft, ui.upgradeAffordableColor, 22)),
                            ECS::UpgradeElementKind::Cost, u);
 
                 // 購入ボタン（色は UpgradeSystem が買えるかどうかで変える）
-                Tsukino::ECS::Entity button = attach(list, createPanel(hlslpp::float2(buttonX, y), hlslpp::float2(kBuyButtonWidth, kBuyButtonHeight),
-                                                                       hlslpp::float4(0.3f, 0.28f, 0.34f, 1.0f), 21));
+                Tsukino::ECS::Entity button = attach(list, createPanel(hlslpp::float2(buttonX, y), hlslpp::float2(ui.upgradeButtonWidth, ui.upgradeButtonHeight),
+                                                                       ui.upgradeCannotBuyColor, 21));
                 registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
                 addElement(button, ECS::UpgradeElementKind::BuyButton, u);
-                addElement(attach(list, createText(hlslpp::float2(buttonX, y), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                                   hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22)),
-                           ECS::UpgradeElementKind::BuyLabel, u);
+                addElement(attach(list, createText(hlslpp::float2(buttonX, y), ui.upgradeLabelScale, kCenter, kWhite, 22)), ECS::UpgradeElementKind::BuyLabel, u);
             }
         }
 
@@ -1176,47 +1140,44 @@ namespace FruitMagic {
         {
             const OfflineReport& report = registry.GetContext<OfflineReport>();
             const TableStats&    stats  = registry.GetContext<TableStats>();
-            const float          top    = kMenuCenterY - kWelcomeHeight * 0.5f;
-            const float          bottom = kMenuCenterY + kWelcomeHeight * 0.5f;
+            const float          top    = ui.menuCenter.y - ui.welcomeSize.y * 0.5f;
+            const float          bottom = ui.menuCenter.y + ui.welcomeSize.y * 0.5f;
 
-            Tsukino::ECS::Entity panel = createPanel(hlslpp::float2(kMenuCenterX, kMenuCenterY), hlslpp::float2(kWelcomeWidth, kWelcomeHeight),
-                                                     hlslpp::float4(0.12f, 0.06f, 0.18f, 0.96f), 30);
+            Tsukino::ECS::Entity panel = createPanel(ui.menuCenter, ui.welcomeSize, ui.welcomeColor, 30);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
             addPage(panel, MenuKind::Welcome);
 
-            auto addLine = [&](float y, float scale, const hlslpp::float4& color, const std::wstring& text) {
-                addPage(createText(hlslpp::float2(kMenuCenterX, y), scale, Tsukino::BuiltIn::ECS::HorizontalAlign::Center, color, 32), MenuKind::Welcome, text);
+            auto addLine = [&](float y, const UiFont& style, const std::wstring& text) {
+                addPage(createFontText(hlslpp::float2(ui.menuCenter.x, top + y), style, kCenter, 32), MenuKind::Welcome, text);
             };
 
-            addLine(top + 40.0f, 1.3f, hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), L"おかえりなさい！");
-            addLine(top + 92.0f, 0.85f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), FormatDuration(report.awaySeconds) + L" のあいだに");
+            addLine(ui.welcomeTitleY, ui.welcomeTitle, texts.Get("welcome.title"));
+            addLine(ui.welcomeAwayY, ui.welcomeAway, texts.Format("welcome.away", {{"duration", FormatDuration(report.awaySeconds, texts)}}));
             if(report.hasFairy) {
-                std::wstring reward = L"妖精が コイン +" + std::to_wstring(report.coins);
+                std::wstring reward = texts.Format("welcome.reward", {{"coins", std::to_wstring(report.coins)}});
                 if(report.fruitCount > 0)
-                    reward += L" と 果実 +" + std::to_wstring(report.fruitPoints) + L"（果物 " + std::to_wstring(report.fruitCount) + L"個）";
-                addLine(top + 132.0f, 0.85f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), reward + L" を集めてくれました");
+                    reward += texts.Format("welcome.rewardFruit", {{"fruit", std::to_wstring(report.fruitPoints)}, {"count", std::to_wstring(report.fruitCount)}});
+                addLine(ui.welcomeRewardY, ui.welcomeReward, reward + texts.Get("welcome.rewardTail"));
             } else {
-                addLine(top + 132.0f, 0.75f, hlslpp::float4(0.85f, 0.8f, 0.95f, 1.0f), L"「妖精の自動投入」を強化すると、閉じている間もコインを集めてくれます");
+                addLine(ui.welcomeRewardY, ui.welcomeNoFairy, texts.Get("welcome.noFairy"));
             }
             if(report.capped) {
                 const long long limitSeconds = static_cast<long long>(stats.offlineMaxHours * 3600.0f);
-                addLine(top + 170.0f, 0.65f, hlslpp::float4(0.85f, 0.8f, 0.95f, 1.0f),
-                        L"（おるすばんは " + FormatDuration(limitSeconds) + L" までです。「おるすばん時間」の強化で延ばせます）");
+                addLine(ui.welcomeCappedY, ui.welcomeCapped, texts.Format("welcome.capped", {{"limit", FormatDuration(limitSeconds, texts)}}));
             }
 
             // 閉じるボタン（Enter でも閉じる。閉じた後は開かない）
-            const hlslpp::float2 buttonCenter(kMenuCenterX, bottom - 48.0f);
-            Tsukino::ECS::Entity button = createPanel(buttonCenter, hlslpp::float2(200.0f, 50.0f), hlslpp::float4(0.35f, 0.78f, 0.45f, 1.0f), 31);
+            const hlslpp::float2 buttonCenter(ui.menuCenter.x, bottom - ui.welcomeButtonOffsetY);
+            Tsukino::ECS::Entity button = createPanel(buttonCenter, ui.welcomeButtonSize, ui.welcomeButtonColor, 31);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
             addPage(button, MenuKind::Welcome);
 
             ECS::MenuButtonComponent& close = registry.AddComponent<ECS::MenuButtonComponent>(button);
             close.menu                      = MenuKind::Welcome;
             close.key                       = Tsukino::Input::KeyCode::Enter;
-            close.label      = addPage(createText(buttonCenter, 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 32),
-                                       MenuKind::Welcome);
-            close.openText   = L"受け取る (Enter)";
-            close.canOpen    = false;
+            close.label                     = addPage(createText(buttonCenter, ui.welcomeLabelScale, kCenter, kWhite, 32), MenuKind::Welcome);
+            close.openText                  = texts.Get("welcome.close");
+            close.canOpen                   = false;
         }
     }
 

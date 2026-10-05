@@ -8,9 +8,11 @@
 #include <FruitMagic/ECS/Event/NoticeEvent.hpp>
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
 #include <FruitMagic/ECS/Event/ZukanRegisteredEvent.hpp>
-#include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/JsonReader.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
+#include <FruitMagic/Game/Texts.hpp>
+#include <FruitMagic/Game/UiConfig.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/Audio/AudioManager.hpp>
@@ -22,29 +24,11 @@
 #include <Tsukino/Engine/Asset/AssetManager.hpp>
 #include <Tsukino/Engine/Asset/Audio/AudioAsset.hpp>
 
-#include <cereal/external/rapidjson/document.h>
-
 #include <algorithm>
 #include <memory>
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
-    namespace {
-        namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
-
-        //--------------------------------------------------------------
-        //! 項目があれば数値を読み込みます。
-        //! @param  [in]     obj 読み込み元のオブジェクト
-        //! @param  [in]     key 項目名
-        //! @param  [in,out] out 読み込み先（項目が無ければそのまま）
-        //--------------------------------------------------------------
-        void ReadFloat(const rj::Value& obj, const char* key, float& out) {
-            auto it = obj.FindMember(key);
-            if(it != obj.MemberEnd() && it->value.IsNumber())
-                out = static_cast<float>(it->value.GetDouble());
-        }
-    }    // namespace
-
     //----------------------------------------------------------------------------
     //! コンストラクタです。
     //----------------------------------------------------------------------------
@@ -91,24 +75,20 @@ namespace FruitMagic::ECS {
     //! 設定ファイルを読み、効果音の設定と全体の音量を取り出します。
     //----------------------------------------------------------------------------
     bool SoundSystem::Parse(const std::string& path, std::unordered_map<std::string, Sound>& sounds, float& masterVolume) {
-        const std::string text = ReadDataText(path);
-        rj::Document      doc;
-        doc.Parse(text.c_str());
-        auto list = (text.empty() || doc.HasParseError() || !doc.IsObject()) ? doc.MemberEnd() : doc.FindMember("sounds");
-        if(list == doc.MemberEnd() || !list->value.IsObject())
+        Json::Document     doc;
+        const Json::Value* list = Json::ParseFile(path, doc, "SoundSystem") ? Json::FindObject(doc, "sounds") : nullptr;
+        if(!list)
             return false;
-        ReadFloat(doc, "masterVolume", masterVolume);
+        Json::Read(doc, "masterVolume", masterVolume);
 
-        for(auto it = list->value.MemberBegin(); it != list->value.MemberEnd(); ++it) {
+        for(auto it = list->MemberBegin(); it != list->MemberEnd(); ++it) {
             if(!it->value.IsObject())
                 continue;
             Sound sound;
-            auto  file = it->value.FindMember("file");
-            if(file == it->value.MemberEnd() || !file->value.IsString())
+            if(!Json::Read(it->value, "file", sound.file))
                 continue;
-            sound.file = file->value.GetString();
-            ReadFloat(it->value, "volume", sound.volume);
-            ReadFloat(it->value, "minInterval", sound.minInterval);
+            Json::Read(it->value, "volume", sound.volume);
+            Json::Read(it->value, "minInterval", sound.minInterval);
             sounds[it->name.GetString()] = sound;
         }
         return true;
@@ -150,7 +130,7 @@ namespace FruitMagic::ECS {
         if(ctx->inputSystem && ctx->inputSystem->IsKeyPressed(Tsukino::Input::KeyCode::M)) {
             m_muted = !m_muted;
             ctx->audioManager->SetMasterVolume(m_muted ? 0.0f : m_masterVolume);
-            m_eventBus.Publish(NoticeEvent{m_muted ? L"音を消しました (M)" : L"音を出します (M)", 1.5f});
+            m_eventBus.Publish(NoticeEvent{GetTexts(registry).Get(m_muted ? "notice.muted" : "notice.unmuted"), GetUiConfig(registry).muteNoticeSeconds});
         }
 
         //--------------------------------------------------------------

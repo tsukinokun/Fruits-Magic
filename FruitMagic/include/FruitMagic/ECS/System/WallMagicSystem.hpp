@@ -48,6 +48,8 @@ namespace FruitMagic::ECS {
         float                             m_timer       = 0.0f;    // 効果の残り時間（秒）
         float                             m_elapsed     = 0.0f;    // 効果が始まってからの時間（秒）
         float                             m_height      = 10.0f;   // 壁の高さ（cm）
+        float                             m_riseSeconds = 0.5f;    // 壁がせり上がる（沈む）のにかける時間（秒）
+        float                             m_trailInterval = 0.08f; // 壁から粒を出す間隔（秒）
         std::vector<Tsukino::ECS::Entity> m_walls;                 // 出している壁
         std::vector<hlslpp::float4>       m_wallLines;             // 壁の床の線（奥側の x, z, 手前側の x, z）。粒を出す位置に使う
         float                             m_trailTimer  = 0.0f;    // 次に壁から粒を出すまでの時間（秒）

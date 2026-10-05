@@ -16,10 +16,12 @@ namespace Tsukino::ECS {
 // 名前空間 : FruitMagic
 namespace FruitMagic {
 
+    class Texts;    // 前方宣言
+
     //! 放置とセーブの設定です。Registry のコンテキストに置きます。
     struct OfflineConfig {
         float payoutRatio     = 0.5f;     // 妖精が入れたコインのうち、手持ちに戻る割合
-        float fruitPerCoin    = 0.03f;    // 妖精が入れたコイン1枚あたりに収穫できる果物の数
+        float fruitPerCoin    = 0.025f;   // 妖精が入れたコイン1枚あたりに収穫できる果物の数
         int   minSeconds      = 60;       // これより短い留守では報酬も「おかえり」も出さない（秒）
         float autosaveSeconds = 30.0f;    // 自動セーブの間隔（秒）
         std::string savePath;             // セーブファイルのパス（定義データではなくシーンが決める）
@@ -51,6 +53,7 @@ namespace FruitMagic {
 
     //! 秒数を「2時間15分」のような表示にします。
     //! @param  [in] seconds 秒数
+    //! @param  [in] texts   文言（"duration.hours" などの単位）
     //! @return 表示用の文字列
-    std::wstring FormatDuration(long long seconds);
+    std::wstring FormatDuration(long long seconds, const Texts& texts);
 }    // namespace FruitMagic

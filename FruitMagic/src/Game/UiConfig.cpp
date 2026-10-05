@@ -1,0 +1,240 @@
+//----------------------------------------------------------------------------
+//! @file   UiConfig.cpp
+//! @brief  画面の UI の配置・色・表示時間の読み込み
+//----------------------------------------------------------------------------
+#include <FruitMagic/Game/UiConfig.hpp>
+
+#include <FruitMagic/Game/JsonReader.hpp>
+
+#include <Tsukino/Core/ECS/Registry/Registry.hpp>
+#include <Tsukino/Core/Log.hpp>
+
+#include <algorithm>
+
+// 名前空間 : FruitMagic
+namespace FruitMagic {
+    namespace {
+        //--------------------------------------------------------------
+        //! 項目があれば文字の大きさと色 {scale, color} を読み込みます。
+        //! @param  [in]     obj 読み込み元のオブジェクト
+        //! @param  [in]     key 項目名
+        //! @param  [in,out] out 読み込み先（無い要素はそのまま）
+        //--------------------------------------------------------------
+        void ReadFont(const Json::Value& obj, const char* key, UiFont& out) {
+            if(const Json::Value* font = Json::FindObject(obj, key)) {
+                Json::Read(*font, "scale", out.scale);
+                Json::ReadColor(*font, "color", out.color);
+            }
+        }
+
+        //--------------------------------------------------------------
+        //! 文字の置き方 {position, scale, color, align} を読み込みます。
+        //! @param  [in]     value 読み込み元のオブジェクト
+        //! @param  [in,out] out   読み込み先（無い要素はそのまま）
+        //--------------------------------------------------------------
+        void ReadText(const Json::Value& value, UiText& out) {
+            Json::ReadVec(value, "position", out.position);
+            Json::Read(value, "scale", out.scale);
+            Json::ReadColor(value, "color", out.color);
+            std::string align;
+            if(Json::Read(value, "align", align))
+                out.align = (align == "center") ? UiAlign::Center : (align == "right") ? UiAlign::Right : UiAlign::Left;
+        }
+    }    // namespace
+
+    //----------------------------------------------------------------------------
+    //! 既定の HUD の文字の置き方を入れます。
+    //----------------------------------------------------------------------------
+    UiConfig::UiConfig() {
+        hudTexts["coins"]        = {hlslpp::float2(24.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), UiAlign::Left};
+        hudTexts["mana"]         = {hlslpp::float2(260.0f, 86.0f), 0.9f, hlslpp::float4(0.85f, 0.7f, 1.0f, 1.0f), UiAlign::Left};
+        hudTexts["dropPopup"]    = {hlslpp::float2(28.0f, 122.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f), UiAlign::Left};
+        hudTexts["harvestTotal"] = {hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left};
+        hudTexts["harvestPopup"] = {hlslpp::float2(28.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f), UiAlign::Left};
+        hudTexts["relief"]       = {hlslpp::float2(72.0f, 248.0f), 0.8f, hlslpp::float4(0.75f, 1.0f, 0.85f, 1.0f), UiAlign::Left};
+        hudTexts["roulette"]     = {hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f), UiAlign::Center};
+        hudTexts["controlsHint"] = {hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f), UiAlign::Left};
+        hudTexts["notice"]       = {hlslpp::float2(640.0f, 250.0f), 1.15f, hlslpp::float4(1.0f, 0.75f, 0.95f, 1.0f), UiAlign::Center};
+    }
+
+    //----------------------------------------------------------------------------
+    //! レジストリに置いた UI の設定を返します。
+    //----------------------------------------------------------------------------
+    const UiConfig& GetUiConfig(Tsukino::ECS::Registry& registry) {
+        static const UiConfig kDefault;
+        return registry.HasContext<UiConfig>() ? registry.GetContext<UiConfig>() : kDefault;
+    }
+
+    //----------------------------------------------------------------------------
+    //! HUD の文字の置き方を返します。
+    //----------------------------------------------------------------------------
+    const UiText& UiConfig::HudText(const std::string& kind) const {
+        static const UiText kFallback;
+        auto it = hudTexts.find(kind);
+        return (it != hudTexts.end()) ? it->second : kFallback;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 設定ファイルを読み込みます。
+    //----------------------------------------------------------------------------
+    bool UiConfig::Load(const std::string& path) {
+        Json::Document doc;
+        if(!Json::ParseFile(path, doc, "UiConfig"))
+            return false;
+
+        if(const Json::Value* screen = Json::FindObject(doc, "screen")) {
+            Json::Read(*screen, "width", screenWidth);
+            Json::Read(*screen, "height", screenHeight);
+        }
+        if(const Json::Value* outline = Json::FindObject(doc, "outline")) {
+            Json::ReadColor(*outline, "hud", hudOutlineColor);
+            Json::ReadColor(*outline, "text", textOutlineColor);
+            Json::Read(*outline, "width", outlineWidth);
+        }
+        if(const Json::Value* hud = Json::FindObject(doc, "hud")) {
+            for(auto it = hud->MemberBegin(); it != hud->MemberEnd(); ++it) {
+                if(it->value.IsObject())
+                    ReadText(it->value, hudTexts[it->name.GetString()]);
+            }
+        }
+        Json::ReadColor(doc, "rouletteJackpotColor", rouletteJackpotColor);
+
+        if(const Json::Value* mana = Json::FindObject(doc, "manaGauge")) {
+            Json::Read(*mana, "left", manaGaugeLeft);
+            Json::Read(*mana, "centerY", manaGaugeCenterY);
+            Json::Read(*mana, "width", manaGaugeWidth);
+            Json::Read(*mana, "height", manaGaugeHeight);
+            Json::Read(*mana, "padding", manaGaugePadding);
+            Json::ReadColor(*mana, "backColor", manaGaugeBackColor);
+            Json::ReadColor(*mana, "fillColor", manaGaugeFillColor);
+        }
+        if(const Json::Value* ring = Json::FindObject(doc, "reliefRing")) {
+            Json::Read(*ring, "diameter", reliefRingDiameter);
+            Json::ReadVec(*ring, "center", reliefRingCenter);
+            Json::ReadColor(*ring, "backColor", reliefRingBackColor);
+            Json::ReadColor(*ring, "fillColor", reliefRingFillColor);
+        }
+        if(const Json::Value* magic = Json::FindObject(doc, "magicButtons")) {
+            Json::Read(*magic, "width", magicButtonWidth);
+            Json::Read(*magic, "height", magicButtonHeight);
+            Json::Read(*magic, "gap", magicButtonGap);
+            Json::Read(*magic, "y", magicButtonY);
+            Json::Read(*magic, "labelScale", magicLabelScale);
+            Json::ReadColor(*magic, "labelOutline", magicLabelOutline);
+            Json::ReadColor(*magic, "lockedColor", magicLockedColor);
+            Json::ReadColor(*magic, "activeColor", magicActiveColor);
+            Json::ReadColor(*magic, "noManaColor", magicNoManaColor);
+            Json::ReadColor(*magic, "hoverColor", magicHoverColor);
+            Json::ReadColor(*magic, "readyColor", magicReadyColor);
+        }
+        if(const Json::Value* buttons = Json::FindObject(doc, "menuButtons")) {
+            Json::Read(*buttons, "x", menuButtonX);
+            Json::Read(*buttons, "zukanY", zukanButtonY);
+            Json::Read(*buttons, "upgradeY", upgradeButtonY);
+            Json::Read(*buttons, "width", menuButtonWidth);
+            Json::Read(*buttons, "height", menuButtonHeight);
+            Json::Read(*buttons, "labelScale", menuLabelScale);
+            Json::ReadColor(*buttons, "zukanColor", zukanButtonColor);
+            Json::ReadColor(*buttons, "upgradeColor", upgradeButtonColor);
+        }
+        if(const Json::Value* menu = Json::FindObject(doc, "menu")) {
+            Json::ReadVec(*menu, "center", menuCenter);
+            Json::ReadVec(*menu, "size", menuSize);
+            Json::ReadColor(*menu, "color", menuColor);
+            Json::Read(*menu, "titleOffsetY", menuTitleOffsetY);
+            ReadFont(*menu, "title", menuTitle);
+            Json::Read(*menu, "scrollBarWidth", scrollBarWidth);
+            Json::Read(*menu, "scrollBarInset", scrollBarInset);
+            Json::ReadColor(*menu, "scrollTrackColor", scrollTrackColor);
+        }
+        if(const Json::Value* zukan = Json::FindObject(doc, "zukan")) {
+            Json::Read(*zukan, "columnsLeft", zukanColumnsLeft);
+            Json::Read(*zukan, "columnsRight", zukanColumnsRight);
+            Json::Read(*zukan, "headerOffsetY", zukanHeaderOffsetY);
+            ReadFont(*zukan, "header", zukanHeader);
+            Json::Read(*zukan, "rowsGap", zukanRowsGap);
+            Json::Read(*zukan, "rowsBottom", zukanRowsBottom);
+            Json::Read(*zukan, "rowPitch", zukanRowPitch);
+            Json::Read(*zukan, "listLeft", zukanListLeft);
+            Json::Read(*zukan, "listRight", zukanListRight);
+            Json::ReadColor(*zukan, "thumbColor", zukanThumbColor);
+            Json::Read(*zukan, "nameX", zukanNameX);
+            ReadFont(*zukan, "name", zukanName);
+            Json::Read(*zukan, "swatchOffsetX", zukanSwatchOffsetX);
+            Json::Read(*zukan, "swatchSize", zukanSwatchSize);
+            Json::ReadColor(*zukan, "swatchColor", zukanSwatchColor);
+            Json::ReadColor(*zukan, "unknownColor", zukanUnknownColor);
+            Json::Read(*zukan, "countOffsetX", zukanCountOffsetX);
+            ReadFont(*zukan, "count", zukanCount);
+            Json::Read(*zukan, "footerOffsetY", zukanFooterOffsetY);
+            ReadFont(*zukan, "footer", zukanFooter);
+            zukanRowPitch = std::max(1.0f, zukanRowPitch);
+        }
+        if(const Json::Value* upgrade = Json::FindObject(doc, "upgrade")) {
+            Json::Read(*upgrade, "walletOffsetY", upgradeWalletOffsetY);
+            ReadFont(*upgrade, "wallet", upgradeWallet);
+            Json::Read(*upgrade, "rowsTop", upgradeRowsTop);
+            Json::Read(*upgrade, "rowsBottom", upgradeRowsBottom);
+            Json::Read(*upgrade, "rowPitch", upgradeRowPitch);
+            Json::Read(*upgrade, "rowSpread", upgradeRowSpread);
+            Json::Read(*upgrade, "listLeft", upgradeListLeft);
+            Json::Read(*upgrade, "listRight", upgradeListRight);
+            Json::ReadColor(*upgrade, "thumbColor", upgradeThumbColor);
+            Json::Read(*upgrade, "nameX", upgradeNameX);
+            ReadFont(*upgrade, "name", upgradeName);
+            ReadFont(*upgrade, "description", upgradeDescription);
+            Json::Read(*upgrade, "effectX", upgradeEffectX);
+            ReadFont(*upgrade, "effect", upgradeEffect);
+            Json::Read(*upgrade, "costScale", upgradeCostScale);
+            Json::Read(*upgrade, "buttonRight", upgradeButtonRight);
+            Json::Read(*upgrade, "buttonWidth", upgradeButtonWidth);
+            Json::Read(*upgrade, "buttonHeight", upgradeButtonHeight);
+            Json::Read(*upgrade, "labelScale", upgradeLabelScale);
+            Json::ReadColor(*upgrade, "buyColor", upgradeBuyColor);
+            Json::ReadColor(*upgrade, "buyHoverColor", upgradeBuyHoverColor);
+            Json::ReadColor(*upgrade, "cannotBuyColor", upgradeCannotBuyColor);
+            Json::ReadColor(*upgrade, "maxedColor", upgradeMaxedColor);
+            Json::ReadColor(*upgrade, "affordableColor", upgradeAffordableColor);
+            Json::ReadColor(*upgrade, "shortColor", upgradeShortColor);
+            upgradeRowPitch = std::max(1.0f, upgradeRowPitch);
+        }
+        if(const Json::Value* welcome = Json::FindObject(doc, "welcome")) {
+            Json::ReadVec(*welcome, "size", welcomeSize);
+            Json::ReadColor(*welcome, "color", welcomeColor);
+            Json::Read(*welcome, "titleY", welcomeTitleY);
+            Json::Read(*welcome, "awayY", welcomeAwayY);
+            Json::Read(*welcome, "rewardY", welcomeRewardY);
+            Json::Read(*welcome, "cappedY", welcomeCappedY);
+            ReadFont(*welcome, "title", welcomeTitle);
+            ReadFont(*welcome, "away", welcomeAway);
+            ReadFont(*welcome, "reward", welcomeReward);
+            ReadFont(*welcome, "noFairy", welcomeNoFairy);
+            ReadFont(*welcome, "capped", welcomeCapped);
+            Json::Read(*welcome, "buttonOffsetY", welcomeButtonOffsetY);
+            Json::ReadVec(*welcome, "buttonSize", welcomeButtonSize);
+            Json::ReadColor(*welcome, "buttonColor", welcomeButtonColor);
+            Json::Read(*welcome, "labelScale", welcomeLabelScale);
+        }
+        if(const Json::Value* timing = Json::FindObject(doc, "timing")) {
+            Json::Read(*timing, "payoutPopup", payoutPopupSeconds);
+            Json::Read(*timing, "harvestPopup", harvestPopupSeconds);
+            Json::Read(*timing, "registeredPopup", registeredPopupSeconds);
+            Json::Read(*timing, "magicLearned", magicLearnedSeconds);
+            Json::Read(*timing, "muteNotice", muteNoticeSeconds);
+            Json::Read(*timing, "growNotice", growNoticeSeconds);
+        }
+        if(const Json::Value* loading = Json::FindObject(doc, "loading")) {
+            Json::Read(*loading, "minSeconds", loadingMinSeconds);
+            Json::Read(*loading, "barWidth", loadingBarWidth);
+            Json::Read(*loading, "barHeight", loadingBarHeight);
+            Json::Read(*loading, "barCenterY", loadingBarCenterY);
+            Json::Read(*loading, "framePadding", loadingFramePadding);
+            Json::Read(*loading, "textY", loadingTextY);
+            Json::ReadColor(*loading, "backColor", loadingBackColor);
+            Json::ReadColor(*loading, "frameColor", loadingFrameColor);
+            Json::ReadColor(*loading, "fillColor", loadingFillColor);
+            ReadFont(*loading, "text", loadingText);
+        }
+        return true;
+    }
+}    // namespace FruitMagic

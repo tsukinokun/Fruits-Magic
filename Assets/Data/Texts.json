@@ -1,0 +1,90 @@
+{
+  "loading": {
+    "progress": "読み込み中… {n}%"
+  },
+  "duration": {
+    "hours": "{n}時間",
+    "minutes": "{n}分",
+    "seconds": "{n}秒"
+  },
+  "hud": {
+    "coins": "コイン: {n}",
+    "mana": "マナ {mana} / {max}",
+    "payout": "+{n}  ",
+    "gutter": "溝 {n}",
+    "harvestTotal": "果実: {fruit}   (収穫 {harvest})",
+    "registered": "図鑑に登録！ {name}",
+    "harvested": "{name} ゲット！",
+    "relief": "妖精のおすそわけ待ち… あと {n} 秒",
+    "controls": "←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音",
+    "controlsDebug": "←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音   F5: コリジョン表示   F2: コイン・果実 +100・マナ満タン"
+  },
+  "roulette": {
+    "spinning": "ルーレット ▶ {name}",
+    "miss": "ハズレ",
+    "hit": "当たり！ {name} が出た！",
+    "coins": "コイン +{n}！",
+    "missResult": "ハズレ…",
+    "jackpotSpin": "ジャックポットチャンス！ ▶ {display}",
+    "jackpot": "JACKPOT",
+    "jackpotWin": "JACKPOT!!",
+    "jackpotLose": "おしい…",
+    "stock": "   (のこり {n})"
+  },
+  "magicButton": {
+    "empty": "{slot}  ？",
+    "locked": "{slot}  ？  図鑑{zukan}",
+    "active": "{slot} {name}  {n}秒",
+    "ready": "{slot} {name}  {cost}"
+  },
+  "notice": {
+    "magicLearned": "新しい魔法「{name}」を覚えた！",
+    "jackpotChance": "ジャックポットチャンス！",
+    "jackpotLose": "おしい…  コイン +{n}",
+    "jackpotWin": "ジャックポット！！  コイン +{coins}  ルーレット +{spins}",
+    "muted": "音を消しました (M)",
+    "unmuted": "音を出します (M)",
+    "growNoFruit": "台の上に果物がない…（マナは戻った）",
+    "grown": "{name} が おおきくなった！"
+  },
+  "popup": {
+    "fruit": "{name}！",
+    "coins": "+{n}"
+  },
+  "menu": {
+    "zukanButton": "図鑑 (Tab)",
+    "zukanClose": "閉じる (Tab)",
+    "upgradeButton": "強化 (U)",
+    "upgradeClose": "閉じる (U)"
+  },
+  "zukan": {
+    "title": "図鑑",
+    "normalVariant": "通常",
+    "rowName": "【{rank}】{name}",
+    "unknown": "？？？",
+    "count": "×{n}",
+    "footer": "登録 {registered} / {total}     マナ獲得 +{bonus}%"
+  },
+  "upgrade": {
+    "title": "台の強化",
+    "wallet": "手持ち   コイン {coins}     果実 {fruit}",
+    "name": "{name}   Lv {level} / {max}",
+    "effectMax": "{now}（最大）",
+    "effectNext": "{now} → {next}",
+    "costCoins": "コイン {n}",
+    "costFruit": "   果実 {n}",
+    "maxed": "最大",
+    "buy": "強化する",
+    "short": "足りない"
+  },
+  "welcome": {
+    "title": "おかえりなさい！",
+    "away": "{duration} のあいだに",
+    "reward": "妖精が コイン +{coins}",
+    "rewardFruit": " と 果実 +{fruit}（果物 {count}個）",
+    "rewardTail": " を集めてくれました",
+    "noFairy": "「妖精の自動投入」を強化すると、閉じている間もコインを集めてくれます",
+    "capped": "（おるすばんは {limit} までです。「おるすばん時間」の強化で延ばせます）",
+    "close": "受け取る (Enter)"
+  }
+}

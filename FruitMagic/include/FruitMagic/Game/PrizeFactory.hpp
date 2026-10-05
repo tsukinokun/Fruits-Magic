@@ -6,6 +6,9 @@
 //!         Registry のコンテキストに置いて共有します。
 //----------------------------------------------------------------------------
 #pragma once
+#include <FruitMagic/Game/StageConfig.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
+
 #include <Tsukino/Core/ECS/Entity/Entity.hpp>
 #include <Tsukino/Engine/Asset/AssetHandle.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/RigidbodyComponent.hpp>
@@ -34,9 +37,11 @@ namespace FruitMagic {
     class PrizeFactory {
     public:
 
-        //! 生成に使うモデルを読み込みます。
+        //! 生成に使うモデルを読み込み、景品の大きさ・物理・見た目の設定を受け取ります。
         //! @param  [in] assetManager アセットマネージャー（果物のモデルを後から読むため保持する）
-        void Initialize(Tsukino::Asset::AssetManager& assetManager);
+        //! @param  [in] layout       台の寸法と景品の物理（コインの大きさ・摩擦など）
+        //! @param  [in] stage        見た目の設定（コインの色・輪郭の光）
+        void Initialize(Tsukino::Asset::AssetManager& assetManager, const TableLayout& layout, const StageConfig& stage);
 
         //! 箱型の物体（見た目＋Boxコライダー＋剛体）を生成します。
         //! @param  [in] registry   生成先のレジストリ
@@ -95,9 +100,9 @@ namespace FruitMagic {
         //! @return クォータニオン
         static hlslpp::quaternion EulerDegrees(const hlslpp::float3& degrees);
 
-        //! コインの半サイズを返します。
-        //! @return コインの各軸の半分サイズ
-        static hlslpp::float3 CoinHalfExtent() { return hlslpp::float3(2.5f, 0.4f, 2.5f); }
+        //! コインの半分の大きさを返します（Table.json の coin.halfExtent）。
+        //! @return 半分の大きさ
+        const hlslpp::float3& CoinHalfExtent() const { return m_layout.coinHalfExtent; }
 
     private:
 
@@ -128,6 +133,8 @@ namespace FruitMagic {
         const ModelInfo& GetTintedModel(const std::string& path, const hlslpp::float3& color);
 
         Tsukino::Asset::AssetManager*              m_assetManager = nullptr;    // モデルの読み込みに使う
+        TableLayout                                m_layout;                    // 景品の大きさ・物理（Initialize で受け取った写し）
+        StageConfig                                m_stage;                     // 景品の見た目（同上）
         std::unordered_map<std::string, ModelInfo> m_models;                    // パスごとのモデル
     };
 }    // namespace FruitMagic

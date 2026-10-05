@@ -18,6 +18,8 @@
 #include <FruitMagic/Game/MagicState.hpp>
 #include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
+#include <FruitMagic/Game/Texts.hpp>
+#include <FruitMagic/Game/UiConfig.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
@@ -33,15 +35,6 @@
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
     namespace {
-        //! @brief 払い出し表示を出しておく時間（秒）。続けて落ちたら延長して合算する
-        constexpr float kPopupDuration = 1.2f;
-
-        //! @brief 収穫表示を出しておく時間（秒）
-        constexpr float kHarvestPopupDuration = 2.0f;
-
-        //! @brief 「図鑑に登録！」を出しておく時間（秒）。通常の収穫表示より長く
-        constexpr float kRegisteredPopupDuration = 3.5f;
-
         //--------------------------------------------------------------
         //! 果物の表示名（バリエーション名付き）を返します。
         //! @param  [in] registry     レジストリ（FruitCatalog・CollectionConfig を参照する）
@@ -73,7 +66,7 @@ namespace FruitMagic::ECS {
                     m_harvestFruit   = e.fruitIndex;
                     m_harvestVariant = e.variantIndex;
                     m_harvestIsNew   = false;
-                    m_harvestTimer   = kHarvestPopupDuration;
+                    m_harvestTimer   = m_harvestPopupSeconds;
                 }
                 return;
             }
@@ -83,14 +76,14 @@ namespace FruitMagic::ECS {
             } else {
                 m_recentGutter += 1;
             }
-            m_popupTimer = kPopupDuration;
+            m_popupTimer = m_payoutPopupSeconds;
         });
 
         m_zukanConnection = eventBus.Subscribe<ZukanRegisteredEvent>([this](const ZukanRegisteredEvent& e) {
             m_harvestFruit   = e.fruitIndex;
             m_harvestVariant = e.variantIndex;
             m_harvestIsNew   = true;
-            m_harvestTimer   = kRegisteredPopupDuration;
+            m_harvestTimer   = m_registeredPopupSeconds;
         });
 
         m_noticeConnection = eventBus.Subscribe<NoticeEvent>([this](const NoticeEvent& e) {
@@ -103,6 +96,14 @@ namespace FruitMagic::ECS {
     //! HUD のテキストを更新します。
     //----------------------------------------------------------------------------
     void HudSystem::Update(Tsukino::ECS::Registry& registry, float deltaTime) {
+        const UiConfig& ui    = GetUiConfig(registry);
+        const Texts&    texts = GetTexts(registry);
+
+        // イベントのハンドラ（Update の外）で使う表示時間を覚えておく
+        m_payoutPopupSeconds     = ui.payoutPopupSeconds;
+        m_harvestPopupSeconds    = ui.harvestPopupSeconds;
+        m_registeredPopupSeconds = ui.registeredPopupSeconds;
+
         //--------------------------------------------------------------
         // 一時表示の残り時間。切れたら内容をリセット
         //--------------------------------------------------------------
@@ -137,67 +138,67 @@ namespace FruitMagic::ECS {
         view.each([&](Tsukino::ECS::Entity, HudTextComponent& hud, Tsukino::BuiltIn::ECS::FontComponent& font) {
             switch(hud.kind) {
                 case HudTextKind::Coins:
-                    font.text = L"コイン: " + std::to_wstring(state.coins);
+                    font.text = texts.Format("hud.coins", {{"n", std::to_wstring(state.coins)}});
                     break;
 
                 case HudTextKind::Mana:
-                    font.text = L"マナ " + std::to_wstring(state.mana) + L" / " + std::to_wstring(state.maxMana);
+                    font.text = texts.Format("hud.mana", {{"mana", std::to_wstring(state.mana)}, {"max", std::to_wstring(state.maxMana)}});
                     break;
 
                 case HudTextKind::DropPopup: {
                     std::wstring text;
                     if(m_recentPayout > 0)
-                        text += L"+" + std::to_wstring(m_recentPayout) + L"  ";
+                        text += texts.Format("hud.payout", {{"n", std::to_wstring(m_recentPayout)}});
                     if(m_recentGutter > 0)
-                        text += L"溝 " + std::to_wstring(m_recentGutter);
+                        text += texts.Format("hud.gutter", {{"n", std::to_wstring(m_recentGutter)}});
                     font.text = text;
                     break;
                 }
 
                 case HudTextKind::HarvestTotal:
-                    font.text = L"果実: " + std::to_wstring(state.fruitPoints) + L"   (収穫 " + std::to_wstring(harvestTotal) + L")";
+                    font.text = texts.Format("hud.harvestTotal", {{"fruit", std::to_wstring(state.fruitPoints)}, {"harvest", std::to_wstring(harvestTotal)}});
                     break;
 
                 case HudTextKind::HarvestPopup:
                     if(m_harvestFruit < 0)
                         font.text.clear();
                     else if(m_harvestIsNew)
-                        font.text = L"図鑑に登録！ " + FruitName(registry, m_harvestFruit, m_harvestVariant);
+                        font.text = texts.Format("hud.registered", {{"name", FruitName(registry, m_harvestFruit, m_harvestVariant)}});
                     else
-                        font.text = FruitName(registry, m_harvestFruit, m_harvestVariant) + L" ゲット！";
+                        font.text = texts.Format("hud.harvested", {{"name", FruitName(registry, m_harvestFruit, m_harvestVariant)}});
                     break;
 
                 case HudTextKind::Roulette: {
                     std::wstring text;
                     switch(roulette.phase) {
                         case RoulettePhase::Spinning:
-                            text = L"ルーレット ▶ " + ((roulette.displayFruit >= 0) ? FruitName(registry, roulette.displayFruit) : std::wstring(L"ハズレ"));
+                            text = texts.Format("roulette.spinning", {{"name", (roulette.displayFruit >= 0) ? FruitName(registry, roulette.displayFruit) : texts.Get("roulette.miss")}});
                             break;
                         case RoulettePhase::Result:
                             if(roulette.resultHit)
-                                text = L"当たり！ " + FruitName(registry, roulette.displayFruit, roulette.displayVariant) + L" が出た！";
+                                text = texts.Format("roulette.hit", {{"name", FruitName(registry, roulette.displayFruit, roulette.displayVariant)}});
                             else if(roulette.resultCoins > 0)
-                                text = L"コイン +" + std::to_wstring(roulette.resultCoins) + L"！";
+                                text = texts.Format("roulette.coins", {{"n", std::to_wstring(roulette.resultCoins)}});
                             else
-                                text = L"ハズレ…";
+                                text = texts.Get("roulette.missResult");
                             break;
                         case RoulettePhase::JackpotSpin:
-                            text = L"ジャックポットチャンス！ ▶ " + std::wstring(roulette.jackpotDisplay ? L"JACKPOT" : L"ハズレ");
+                            text = texts.Format("roulette.jackpotSpin", {{"display", roulette.jackpotDisplay ? texts.Get("roulette.jackpot") : texts.Get("roulette.miss")}});
                             break;
                         case RoulettePhase::JackpotResult:
-                            text = roulette.jackpotWin ? L"JACKPOT!!" : L"おしい…";
+                            text = roulette.jackpotWin ? texts.Get("roulette.jackpotWin") : texts.Get("roulette.jackpotLose");
                             break;
                         case RoulettePhase::Idle:
                         default:
                             break;
                     }
                     if(roulette.stock > 0)
-                        text += L"   (のこり " + std::to_wstring(roulette.stock) + L")";
+                        text += texts.Format("roulette.stock", {{"n", std::to_wstring(roulette.stock)}});
                     font.text = text;
 
                     // ジャックポットチャンスの間は金色に
                     const bool jackpot = roulette.phase == RoulettePhase::JackpotSpin || roulette.phase == RoulettePhase::JackpotResult;
-                    font.color         = jackpot ? hlslpp::float4(1.0f, 0.65f, 0.1f, 1.0f) : hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f);
+                    font.color         = jackpot ? ui.rouletteJackpotColor : ui.HudText("roulette").color;
                     break;
                 }
 
@@ -209,7 +210,7 @@ namespace FruitMagic::ECS {
                         break;
                     }
                     const int seconds = std::max(1, static_cast<int>(std::ceil(relief->secondsRemaining)));
-                    font.text         = L"妖精のおすそわけ待ち… あと " + std::to_wstring(seconds) + L" 秒";
+                    font.text         = texts.Format("hud.relief", {{"n", std::to_wstring(seconds)}});
                     break;
                 }
 
@@ -219,9 +220,9 @@ namespace FruitMagic::ECS {
 
                 case HudTextKind::ControlsHint:
 #ifdef _DEBUG
-                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音   F5: コリジョン表示   F2: コイン・果実 +100・マナ満タン";
+                    font.text = texts.Get("hud.controlsDebug");
 #else
-                    font.text = L"←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音";
+                    font.text = texts.Get("hud.controls");
 #endif
                     break;
             }
@@ -280,6 +281,8 @@ namespace FruitMagic::ECS {
         const MagicCatalog& catalog    = registry.GetContext<MagicCatalog>();
         const MagicState    magic      = registry.HasContext<MagicState>() ? registry.GetContext<MagicState>() : MagicState{};
         const int           registered = state.RegisteredCount();
+        const UiConfig&     ui         = GetUiConfig(registry);
+        const Texts&        texts      = GetTexts(registry);
 
         registry.View<MagicButtonComponent, Tsukino::BuiltIn::ECS::SpriteComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
             [&](Tsukino::ECS::Entity, MagicButtonComponent& button, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
@@ -291,25 +294,25 @@ namespace FruitMagic::ECS {
                 hlslpp::float4 color;
                 if(!def) {
                     // 割り当てが無い枠
-                    text  = std::to_wstring(button.slot) + L"  ？";
-                    color = hlslpp::float4(0.35f, 0.35f, 0.4f, 0.8f);
+                    text  = texts.Format("magicButton.empty", {{"slot", std::to_wstring(button.slot)}});
+                    color = ui.magicLockedColor;
                 } else if(!catalog.IsUnlocked(index, registered)) {
                     // 未解放。あと何枠で覚えるかの目安に、必要な図鑑の登録数を出す
-                    text  = std::to_wstring(button.slot) + L"  ？  図鑑" + std::to_wstring(def->unlockZukan);
-                    color = hlslpp::float4(0.35f, 0.35f, 0.4f, 0.8f);
+                    text  = texts.Format("magicButton.locked", {{"slot", std::to_wstring(button.slot)}, {"zukan", std::to_wstring(def->unlockZukan)}});
+                    color = ui.magicLockedColor;
                 } else if(magic.IsActive(index)) {
                     // 効果中は残り秒数（切り上げ）
                     const int seconds = static_cast<int>(std::ceil(magic.remaining[index]));
-                    text              = std::to_wstring(button.slot) + L" " + def->name + L"  " + std::to_wstring(seconds) + L"秒";
-                    color             = hlslpp::float4(0.55f, 0.35f, 0.75f, 0.9f);
+                    text              = texts.Format("magicButton.active", {{"slot", std::to_wstring(button.slot)}, {"name", def->name}, {"n", std::to_wstring(seconds)}});
+                    color             = ui.magicActiveColor;
                 } else {
-                    text = std::to_wstring(button.slot) + L" " + def->name + L"  " + std::to_wstring(def->cost);
+                    text = texts.Format("magicButton.ready", {{"slot", std::to_wstring(button.slot)}, {"name", def->name}, {"cost", std::to_wstring(def->cost)}});
                     if(state.mana < def->cost) {
                         // マナ不足は暗く
-                        color = hlslpp::float4(0.3f, 0.2f, 0.45f, 0.85f);
+                        color = ui.magicNoManaColor;
                     } else {
                         // 撃てる。カーソルが重なっていたら少し明るく
-                        color = pointer.hovered ? hlslpp::float4(1.0f, 0.7f, 1.0f, 1.0f) : hlslpp::float4(0.85f, 0.45f, 0.95f, 1.0f);
+                        color = pointer.hovered ? ui.magicHoverColor : ui.magicReadyColor;
                     }
                 }
                 sprite.tintColor = color;
@@ -345,8 +348,8 @@ namespace FruitMagic::ECS {
 
         // 起動直後（セーブを読んだ分）は出さず、プレイ中に増えたときだけ
         if(m_lastUnlocked >= 0 && unlocked > m_lastUnlocked) {
-            m_noticeText  = L"新しい魔法「" + newest + L"」を覚えた！";
-            m_noticeTimer = 4.0f;
+            m_noticeText  = GetTexts(registry).Format("notice.magicLearned", {{"name", newest}});
+            m_noticeTimer = GetUiConfig(registry).magicLearnedSeconds;
         }
         m_lastUnlocked = unlocked;
     }

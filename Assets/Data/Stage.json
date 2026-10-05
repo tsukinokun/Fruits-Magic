@@ -1,0 +1,107 @@
+{
+  "cabinet": {
+    "floor":     { "r": 1.0,  "g": 0.95, "b": 0.84 },
+    "sideWall":  { "r": 1.0,  "g": 0.74, "b": 0.82 },
+    "backPanel": { "r": 0.68, "g": 0.93, "b": 0.84 },
+    "pusher":    { "r": 0.62, "g": 0.84, "b": 1.0 },
+    "tray":      { "r": 0.84, "g": 0.78, "b": 1.0 },
+    "gutter":    { "r": 0.55, "g": 0.47, "b": 0.72 },
+    "divider":   { "r": 1.0,  "g": 1.0,  "b": 1.0 }
+  },
+  "awning": {
+    "stripes": 8,
+    "y": 45.0,
+    "z": -42.0,
+    "halfDepth": 12.0,
+    "tiltDegrees": 18.0,
+    "overhang": 6.0,
+    "halfThickness": 0.6,
+    "redColor":   { "r": 0.95, "g": 0.38, "b": 0.42 },
+    "whiteColor": { "r": 1.0,  "g": 0.97, "b": 0.92 },
+    "ballRadius": 1.6,
+    "ballDrop": 1.2
+  },
+  "post": {
+    "inset": 1.5,
+    "back": 1.0,
+    "halfSize": 1.2,
+    "color": { "r": 0.78, "g": 0.56, "b": 0.36 }
+  },
+  "lantern": {
+    "x": [-20.0, 0.0, 20.0],
+    "drop": 6.0,
+    "back": 1.0,
+    "halfSize": { "x": 2.6, "y": 3.2, "z": 2.6 },
+    "color": { "r": 1.0, "g": 0.55, "b": 0.3 },
+    "glow": { "color": { "r": 1.0, "g": 0.8, "b": 0.4 }, "intensity": 0.8, "glow": 0.25 },
+    "stringOffset": 4.5,
+    "stringHalfSize": { "x": 0.15, "y": 1.5, "z": 0.15 },
+    "lightColor": { "r": 1.0, "g": 0.65, "b": 0.35 },
+    "lightIntensity": 900.0,
+    "lightRange": 70.0
+  },
+  "sun": {
+    "direction": { "x": -0.4, "y": -0.7, "z": -0.6 },
+    "color": { "r": 1.0, "g": 0.88, "b": 0.75 },
+    "intensity": 1.5,
+    "shadow": true
+  },
+  "lamp": {
+    "position": { "x": 0.0, "y": 60.0, "z": 0.0 },
+    "color": { "r": 1.0, "g": 0.85, "b": 0.6 },
+    "intensity": 6000.0,
+    "range": 200.0
+  },
+  "particles": {
+    "count": 160,
+    "volume": { "x": 260.0, "y": 140.0, "z": 260.0 },
+    "color": { "r": 1.0, "g": 0.85, "b": 0.55 },
+    "minSize": 0.25,
+    "maxSize": 0.7,
+    "drift": { "x": 1.5, "y": 0.8, "z": 0.0 },
+    "sway": 3.0,
+    "nearFade": 25.0
+  },
+  "camera": {
+    "position": { "x": 0.0, "y": 75.0, "z": 105.0 },
+    "lookAt": { "x": 0.0, "y": 0.0, "z": -5.0 },
+    "near": 1.0,
+    "far": 5000.0
+  },
+  "debugCamera": {
+    "position": { "x": 60.0, "y": 60.0, "z": 80.0 },
+    "lookAt": { "x": 0.0, "y": 0.0, "z": 0.0 },
+    "speed": 100.0,
+    "sprint": 300.0
+  },
+  "launchMarker": {
+    "halfThickness": 0.2,
+    "opacity": 0.5
+  },
+  "checkerMarker": {
+    "y": -3.0,
+    "offsetZ": 3.0,
+    "halfThickness": 0.3,
+    "halfDepth": 2.5,
+    "glow": { "color": { "r": 1.0, "g": 0.7, "b": 0.1 }, "intensity": 1.0, "glow": 0.4 }
+  },
+  "prize": {
+    "coinColor": { "r": 1.0, "g": 0.78, "b": 0.25 },
+    "coinGlow": 0.25,
+    "rimPower": 3.0
+  },
+  "wallMagic": {
+    "color": { "r": 0.4, "g": 0.85, "b": 1.0 },
+    "opacity": 0.5,
+    "rimIntensity": 1.5,
+    "glow": 0.6
+  },
+  "swellMagic": {
+    "color": { "r": 1.0, "g": 0.45, "b": 0.7 },
+    "intensity": 1.0,
+    "intensityPulse": 0.8,
+    "glow": 0.25,
+    "glowPulse": 0.15,
+    "pulseSpeed": 8.0
+  }
+}

@@ -1,5 +1,38 @@
 {
   "maxParticles": 400,
+  "system": {
+    "castPosition": { "x": 0.0, "y": 6.0, "z": 5.0 },
+    "dropEffectY": -12.0,
+    "dropEffectAhead": 4.0,
+    "idleInterval": 0.6,
+    "idleMinY": -2.0,
+    "idleRise": 3.0,
+    "flashFadeSpeed": 2.5,
+    "drag": 1.5,
+    "startHeight": 1.5,
+    "upMin": 0.5,
+    "lifeMin": 0.7,
+    "sizeMin": 0.7,
+    "sizeRange": 0.6,
+    "shrinkMin": 0.4
+  },
+  "popup": {
+    "coinGatherSeconds": 0.25,
+    "maxPopups": 10,
+    "y": 6.0,
+    "rise": 12.0,
+    "fadeStart": 2.5,
+    "coinColor": { "r": 1.0, "g": 0.9, "b": 0.35, "a": 1.0 },
+    "outlineColor": { "r": 0.2, "g": 0.08, "b": 0.12 },
+    "outlineWidth": 2.0,
+    "coinLife": 1.0,
+    "coinScaleStep": 0.05,
+    "coinScaleMaxBonus": 0.5,
+    "fruitLife": 1.6,
+    "fruitLighten": 0.35,
+    "fruitScale": 0.95,
+    "variantScale": 1.1
+  },
   "presets": {
     "variant_shiny": {
       "texture": "sparkle", "count": 14, "speed": 14, "up": 12, "gravity": 10, "life": 0.9, "size": 6.0, "spread": 2,

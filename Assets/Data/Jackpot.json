@@ -5,5 +5,11 @@
   "resultSeconds": 2.5,
   "bonusCoins": 40,
   "consolationCoins": 5,
-  "spins": 3
+  "spins": 3,
+  "flipInterval": 0.12,
+  "winShowerSeconds": 3.0,
+  "loseShowerSeconds": 1.0,
+  "winNoticeSeconds": 4.0,
+  "chanceEffectPosition": { "x": 0.0, "y": 12.0, "z": 5.0 },
+  "winEffectPosition": { "x": 0.0, "y": 8.0, "z": 10.0 }
 }

@@ -7,8 +7,10 @@
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
+#include <FruitMagic/Game/Texts.hpp>
+#include <FruitMagic/Game/UiConfig.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
@@ -23,20 +25,6 @@
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
     namespace {
-        //--------------------------------------------------------------
-        // 購入ボタンの色
-        //--------------------------------------------------------------
-        const hlslpp::float4 kBuyColor        = hlslpp::float4(0.35f, 0.78f, 0.45f, 1.0f);    // 買える
-        const hlslpp::float4 kBuyHoverColor   = hlslpp::float4(0.5f, 0.92f, 0.6f, 1.0f);      // 買える（カーソルが重なっている）
-        const hlslpp::float4 kCannotBuyColor  = hlslpp::float4(0.3f, 0.28f, 0.34f, 1.0f);     // 手持ちが足りない
-        const hlslpp::float4 kMaxedColor      = hlslpp::float4(0.75f, 0.6f, 0.25f, 1.0f);     // 最大レベル
-
-        //--------------------------------------------------------------
-        // 価格の文字の色
-        //--------------------------------------------------------------
-        const hlslpp::float4 kAffordableTextColor = hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f);    // 足りる
-        const hlslpp::float4 kShortTextColor      = hlslpp::float4(1.0f, 0.55f, 0.55f, 1.0f);   // 足りない
-
         //--------------------------------------------------------------
         //! 強化の次のレベルを今の手持ちで買えるかを返します。
         //! @param  [in] def   強化の定義
@@ -80,10 +68,12 @@ namespace FruitMagic::ECS {
         // 画面の文字・ボタンの色
         //--------------------------------------------------------------
         const GameState& state = registry.GetContext<GameState>();
+        const UiConfig&  ui    = GetUiConfig(registry);
+        const Texts&     texts = GetTexts(registry);
         registry.View<UpgradeElementComponent>().each([&](Tsukino::ECS::Entity entity, UpgradeElementComponent& element) {
             if(element.kind == UpgradeElementKind::Wallet) {
                 if(auto* font = registry.try_get<Tsukino::BuiltIn::ECS::FontComponent>(entity))
-                    font->text = L"手持ち   コイン " + std::to_wstring(state.coins) + L"     果実 " + std::to_wstring(state.fruitPoints);
+                    font->text = texts.Format("upgrade.wallet", {{"coins", std::to_wstring(state.coins)}, {"fruit", std::to_wstring(state.fruitPoints)}});
                 return;
             }
 
@@ -99,7 +89,7 @@ namespace FruitMagic::ECS {
                 auto* sprite  = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(entity);
                 auto* pointer = registry.try_get<Tsukino::BuiltIn::ECS::PointerTargetComponent>(entity);
                 if(sprite)
-                    sprite->tintColor = maxed ? kMaxedColor : !canBuy ? kCannotBuyColor : (pointer && pointer->hovered) ? kBuyHoverColor : kBuyColor;
+                    sprite->tintColor = maxed ? ui.upgradeMaxedColor : !canBuy ? ui.upgradeCannotBuyColor : (pointer && pointer->hovered) ? ui.upgradeBuyHoverColor : ui.upgradeBuyColor;
                 return;
             }
 
@@ -109,12 +99,13 @@ namespace FruitMagic::ECS {
 
             switch(element.kind) {
                 case UpgradeElementKind::Name:
-                    font->text = def.name + L"   Lv " + std::to_wstring(level) + L" / " + std::to_wstring(def.MaxLevel());
+                    font->text = texts.Format("upgrade.name", {{"name", def.name}, {"level", std::to_wstring(level)}, {"max", std::to_wstring(def.MaxLevel())}});
                     break;
 
                 case UpgradeElementKind::Effect: {
                     const std::wstring now = def.FormatValue(def.ValueAt(level));
-                    font->text             = maxed ? now + L"（最大）" : now + L" → " + def.FormatValue(def.ValueAt(level + 1));
+                    font->text             = maxed ? texts.Format("upgrade.effectMax", {{"now", now}})
+                                                   : texts.Format("upgrade.effectNext", {{"now", now}, {"next", def.FormatValue(def.ValueAt(level + 1))}});
                     break;
                 }
 
@@ -124,16 +115,16 @@ namespace FruitMagic::ECS {
                         break;
                     }
                     const UpgradeLevel& next = def.levels[level];
-                    std::wstring        text = L"コイン " + std::to_wstring(next.coins);
+                    std::wstring        text = texts.Format("upgrade.costCoins", {{"n", std::to_wstring(next.coins)}});
                     if(next.fruit > 0)
-                        text += L"   果実 " + std::to_wstring(next.fruit);
+                        text += texts.Format("upgrade.costFruit", {{"n", std::to_wstring(next.fruit)}});
                     font->text  = text;
-                    font->color = canBuy ? kAffordableTextColor : kShortTextColor;
+                    font->color = canBuy ? ui.upgradeAffordableColor : ui.upgradeShortColor;
                     break;
                 }
 
                 case UpgradeElementKind::BuyLabel:
-                    font->text = maxed ? L"最大" : canBuy ? L"強化する" : L"足りない";
+                    font->text = texts.Get(maxed ? "upgrade.maxed" : canBuy ? "upgrade.buy" : "upgrade.short");
                     break;
 
                 default:
@@ -151,20 +142,24 @@ namespace FruitMagic::ECS {
 
         GameState&  state = registry.GetContext<GameState>();
         TableStats& stats = registry.GetContext<TableStats>();
+        const TableLayout& layout = GetTableLayout(registry);
+
+        // 押し幅の強化が無いときは台の既定の振幅（Table.json）
+        stats.pusherAmplitude = layout.pusherAmplitude;
 
         for(const UpgradeDef& def : registry.GetContext<UpgradeCatalog>().Upgrades()) {
             const float value = def.ValueAt(state.UpgradeLevelOf(def.id));
 
             if(def.id == "pusherStroke") {
-                // 振幅の上限はプッシャーの奥行で決まる（PusherLayout.hpp）。超える値は丸める
-                stats.pusherAmplitude = std::clamp(value, 1.0f, Layout::kPusherMaxAmplitude);
+                // 振幅の上限はプッシャーの奥行で決まる（Table.json の pusher.maxAmplitude）。超える値は丸める
+                stats.pusherAmplitude = std::clamp(value, 1.0f, layout.pusherMaxAmplitude);
             } else if(def.id == "treeLevel") {
                 state.treeLevel = std::max(0, static_cast<int>(value));
             } else if(def.id == "fairy") {
                 stats.autoLaunchInterval = std::max(0.0f, value);
             } else if(def.id == "checkerWidth") {
                 // データは穴の全幅。払い出し口からはみ出さない幅に丸める
-                stats.checkerHalfWidth = std::clamp(value * 0.5f, 0.5f, Layout::kPayoutHalfWidth);
+                stats.checkerHalfWidth = std::clamp(value * 0.5f, 0.5f, layout.payoutHalfWidth);
             } else if(def.id == "offlineHours") {
                 stats.offlineMaxHours = std::max(0.0f, value);
             } else {

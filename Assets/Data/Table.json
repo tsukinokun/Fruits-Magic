@@ -1,0 +1,73 @@
+{
+  "field": {
+    "halfWidth": 30.0,
+    "frontZ": 40.0,
+    "backZ": -105.0,
+    "staticThickness": 10.0
+  },
+  "pusher": {
+    "sideGap": 0.5,
+    "halfHeight": 5.0,
+    "sinkDepth": 2.0,
+    "halfDepth": 32.0,
+    "minFrontZ": -37.0,
+    "amplitude": 12.0,
+    "maxAmplitude": 24.0,
+    "period": 3.0,
+    "amplitudeChangeSpeed": 4.0
+  },
+  "backPanel": {
+    "distance": 13.0,
+    "halfThickness": 1.0,
+    "halfHeight": 15.0,
+    "sink": 3.0
+  },
+  "payout": {
+    "halfWidth": 20.0,
+    "dropJudgeY": -20.0,
+    "trayTopY": -30.0,
+    "trayOffsetZ": 15.0,
+    "trayHalfDepth": 18.0,
+    "gutterExtraWidth": 5.0,
+    "gutterDepth": 6.0,
+    "dividerHalfSize": { "x": 0.5, "y": 2.0 }
+  },
+  "sideWall": {
+    "halfThickness": 1.0,
+    "height": 12.0
+  },
+  "launch": {
+    "laneHalfWidth": 25.0,
+    "dropHeight": 1.5,
+    "markerHeight": 4.0,
+    "minClearance": 8.0
+  },
+  "coinShower": {
+    "backMargin": 4.0,
+    "frontMargin": 4.0,
+    "sideMargin": 1.0,
+    "dropY": 4.0,
+    "maxPerFrame": 3
+  },
+  "coin": {
+    "halfExtent": { "x": 2.5, "y": 0.4, "z": 2.5 },
+    "friction": 0.3,
+    "value": 1
+  },
+  "fruit": {
+    "friction": 0.5,
+    "restitution": 0.2
+  },
+  "maxSimulationStep": 0.0333333,
+  "initialPrizes": {
+    "coinFrontBack": 5.0,
+    "coinGap": 0.3,
+    "coinSideMargin": 0.5,
+    "lift": 0.5,
+    "pusherTopCoinHalfCount": 3,
+    "pusherTopCoinSpacing": 7.0,
+    "pusherTopCoinOffsetZ": 8.0,
+    "fruitX": [-16.0, -6.0, 6.0, 16.0],
+    "fruitStepZ": 10.0
+  }
+}

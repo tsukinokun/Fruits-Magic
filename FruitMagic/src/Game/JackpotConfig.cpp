@@ -4,52 +4,35 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Game/JackpotConfig.hpp>
 
-#include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/JsonReader.hpp>
 
 #include <Tsukino/Core/Log.hpp>
-
-#include <cereal/external/rapidjson/document.h>
 
 #include <algorithm>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
-    namespace {
-        namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
-
-        //--------------------------------------------------------------
-        //! 項目があれば数値を読み込みます。
-        //! @param  [in]     obj 読み込み元のオブジェクト
-        //! @param  [in]     key 項目名
-        //! @param  [in,out] out 読み込み先（項目が無ければそのまま）
-        //--------------------------------------------------------------
-        template <class T>
-        void ReadNumber(const rj::Value& obj, const char* key, T& out) {
-            auto it = obj.FindMember(key);
-            if(it != obj.MemberEnd() && it->value.IsNumber())
-                out = static_cast<T>(it->value.GetDouble());
-        }
-    }    // namespace
-
     //----------------------------------------------------------------------------
     //! 設定ファイルを読み込みます。
     //----------------------------------------------------------------------------
     bool JackpotConfig::Load(const std::string& path) {
-        const std::string text = ReadDataText(path);
-        rj::Document      doc;
-        doc.Parse(text.c_str());
-        if(text.empty() || doc.HasParseError() || !doc.IsObject()) {
-            Tsukino::Core::Log::Warn("JackpotConfig: cannot read " + path + ". Using defaults.");
+        Json::Document doc;
+        if(!Json::ParseFile(path, doc, "JackpotConfig"))
             return false;
-        }
 
-        ReadNumber(doc, "chanceRate", chanceRate);
-        ReadNumber(doc, "winRate", winRate);
-        ReadNumber(doc, "spinSeconds", spinSeconds);
-        ReadNumber(doc, "resultSeconds", resultSeconds);
-        ReadNumber(doc, "bonusCoins", bonusCoins);
-        ReadNumber(doc, "consolationCoins", consolationCoins);
-        ReadNumber(doc, "spins", spins);
+        Json::Read(doc, "chanceRate", chanceRate);
+        Json::Read(doc, "winRate", winRate);
+        Json::Read(doc, "spinSeconds", spinSeconds);
+        Json::Read(doc, "resultSeconds", resultSeconds);
+        Json::Read(doc, "bonusCoins", bonusCoins);
+        Json::Read(doc, "consolationCoins", consolationCoins);
+        Json::Read(doc, "spins", spins);
+        Json::Read(doc, "flipInterval", flipInterval);
+        Json::Read(doc, "winShowerSeconds", winShowerSeconds);
+        Json::Read(doc, "loseShowerSeconds", loseShowerSeconds);
+        Json::Read(doc, "winNoticeSeconds", winNoticeSeconds);
+        Json::ReadVec(doc, "chanceEffectPosition", chanceEffectPosition);
+        Json::ReadVec(doc, "winEffectPosition", winEffectPosition);
 
         chanceRate       = std::clamp(chanceRate, 0.0f, 1.0f);
         winRate          = std::clamp(winRate, 0.0f, 1.0f);
@@ -58,6 +41,7 @@ namespace FruitMagic {
         bonusCoins       = std::max(0, bonusCoins);
         consolationCoins = std::max(0, consolationCoins);
         spins            = std::max(0, spins);
+        flipInterval     = std::max(0.02f, flipInterval);
         return true;
     }
 }    // namespace FruitMagic

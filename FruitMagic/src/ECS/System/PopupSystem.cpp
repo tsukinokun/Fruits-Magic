@@ -7,8 +7,10 @@
 #include <FruitMagic/ECS/Component/EffectComponents.hpp>
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
+#include <FruitMagic/Game/EffectsConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
+#include <FruitMagic/Game/Texts.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
@@ -22,24 +24,6 @@
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
-    namespace {
-        //! @brief コインをまとめる時間（秒）。この間に落ちた分を1つの「+N」にする
-        constexpr float kCoinGatherSeconds = 0.25f;
-
-        //! @brief ポップの出る位置（台の手前の縁の少し上。これより下は画面下の魔法ボタンに隠れる）
-        constexpr float kPopupY = 6.0f;
-        constexpr float kPopupZ = Layout::kFieldFrontZ;
-
-        //! @brief 同時に出しておくポップの上限（多すぎると読めないので、超えたら古いものから消す）
-        constexpr int kMaxPopups = 10;
-
-        //! @brief コインのポップの色
-        const hlslpp::float4 kCoinColor = hlslpp::float4(1.0f, 0.9f, 0.35f, 1.0f);
-
-        //! @brief 文字の縁の色
-        const hlslpp::float3 kOutlineColor = hlslpp::float3(0.2f, 0.08f, 0.12f);
-    }    // namespace
-
     //----------------------------------------------------------------------------
     //! コンストラクタです。
     //----------------------------------------------------------------------------
@@ -54,6 +38,10 @@ namespace FruitMagic::ECS {
     //! ポップを出して動かします。
     //----------------------------------------------------------------------------
     void PopupSystem::Update(Tsukino::ECS::Registry& registry, float deltaTime) {
+        // ポップは台の手前の縁の上に出す
+        const float      popupZ = GetTableLayout(registry).fieldFrontZ;
+        const PopupStyle style  = registry.HasContext<EffectsConfig>() ? registry.GetContext<EffectsConfig>().popup : PopupStyle{};
+
         //--------------------------------------------------------------
         // ポップを1つ作る（ワールドの一点に追従する画面の文字）
         //--------------------------------------------------------------
@@ -68,18 +56,19 @@ namespace FruitMagic::ECS {
             font.color                                 = color;
             font.horizontalAlign                       = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;
             font.verticalAlign                         = Tsukino::BuiltIn::ECS::VerticalAlign::Middle;
-            font.outlineColor                          = hlslpp::float4(kOutlineColor, 1.0f);
-            font.outlineWidth                          = 2.0f;
+            font.outlineColor                          = hlslpp::float4(style.outlineColor, 1.0f);
+            font.outlineWidth                          = style.outlineWidth;
             font.sortOrder                             = 15;    // 魔法ボタン（10・11）より手前
 
             Tsukino::BuiltIn::ECS::WorldAnchorComponent& anchor = registry.AddComponent<Tsukino::BuiltIn::ECS::WorldAnchorComponent>(e);
             anchor.useFixedWorldPosition                         = true;
-            anchor.fixedWorldPosition                            = hlslpp::float3(x, kPopupY, kPopupZ);
+            anchor.fixedWorldPosition                            = hlslpp::float3(x, style.y, popupZ);
 
             PopupComponent& popup = registry.AddComponent<PopupComponent>(e);
             popup.color           = color;
             popup.life            = life;
             popup.maxLife         = life;
+            popup.rise            = style.rise;
         };
 
         //--------------------------------------------------------------
@@ -88,7 +77,7 @@ namespace FruitMagic::ECS {
         for(const Drop& drop : m_pending) {
             if(!drop.fruit) {
                 if(m_coinCount == 0)
-                    m_coinTimer = kCoinGatherSeconds;
+                    m_coinTimer = style.coinGatherSeconds;
                 m_coinCount += 1;
                 m_coinXSum += drop.x;
                 continue;
@@ -103,16 +92,16 @@ namespace FruitMagic::ECS {
             const CollectionConfig& collection = registry.GetContext<CollectionConfig>();
             const int               v          = std::clamp(drop.variantIndex, 0, static_cast<int>(collection.Variants().size()) - 1);
             const hlslpp::float3    c          = collection.Variants()[v].ColorOf(fruits[drop.fruitIndex]);
-            const hlslpp::float3    light      = c + (hlslpp::float3(1.0f, 1.0f, 1.0f) - c) * 0.35f;
-            spawn(collection.DisplayName(fruits[drop.fruitIndex], drop.variantIndex) + L"！", drop.x, hlslpp::float4(light, 1.0f), (v > 0) ? 1.1f : 0.95f, 1.6f);
+            const hlslpp::float3    light      = c + (hlslpp::float3(1.0f, 1.0f, 1.0f) - c) * style.fruitLighten;
+            spawn(GetTexts(registry).Format("popup.fruit", {{"name", collection.DisplayName(fruits[drop.fruitIndex], drop.variantIndex)}}), drop.x, hlslpp::float4(light, 1.0f), (v > 0) ? style.variantScale : style.fruitScale, style.fruitLife);
         }
         m_pending.clear();
 
         if(m_coinCount > 0) {
             m_coinTimer -= deltaTime;
             if(m_coinTimer <= 0.0f) {
-                const float scale = 1.0f + std::min(0.5f, 0.05f * static_cast<float>(m_coinCount));    // たくさん落ちたほど大きく
-                spawn(L"+" + std::to_wstring(m_coinCount), m_coinXSum / static_cast<float>(m_coinCount), kCoinColor, scale, 1.0f);
+                const float scale = 1.0f + std::min(style.coinScaleMaxBonus, style.coinScaleStep * static_cast<float>(m_coinCount));    // たくさん落ちたほど大きく
+                spawn(GetTexts(registry).Format("popup.coins", {{"n", std::to_wstring(m_coinCount)}}), m_coinXSum / static_cast<float>(m_coinCount), style.coinColor, scale, style.coinLife);
                 m_coinCount = 0;
                 m_coinXSum  = 0.0f;
             }
@@ -132,16 +121,16 @@ namespace FruitMagic::ECS {
                     return;
                 }
                 const float k      = popup.life / popup.maxLife;    // 1 → 0
-                const float alpha  = std::min(1.0f, k * 2.5f);      // 最後の4割で消えていく
+                const float alpha  = std::min(1.0f, k * style.fadeStart);    // 既定（2.5）なら最後の4割で消えていく
                 anchor.worldOffset = hlslpp::float3(0.0f, popup.rise * (1.0f - k), 0.0f);
                 font.color         = hlslpp::float4(popup.color.xyz, alpha);
-                font.outlineColor  = hlslpp::float4(kOutlineColor, alpha);
+                font.outlineColor  = hlslpp::float4(style.outlineColor, alpha);
                 alive.emplace_back(popup.life, entity);
             });
 
-        if(static_cast<int>(alive.size()) > kMaxPopups) {
+        if(static_cast<int>(alive.size()) > style.maxPopups) {
             std::sort(alive.begin(), alive.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-            for(size_t i = 0; i < alive.size() - kMaxPopups; ++i)
+            for(size_t i = 0; i < alive.size() - static_cast<size_t>(style.maxPopups); ++i)
                 dead.push_back(alive[i].second);
         }
         for(Tsukino::ECS::Entity entity : dead)

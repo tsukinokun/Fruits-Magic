@@ -27,11 +27,6 @@ namespace FruitMagic::ECS {
         //! @brief この魔法の id（Magic.json の "id"）
         constexpr const char* kMagicId = "shake";
 
-        //! @brief これより下にある景品は台から落ちている途中なので揺らさない
-        constexpr float kOnTableMinY = -2.0f;
-
-        //! @brief カメラの揺れの速さ（ラジアン/秒）
-        constexpr float kCameraShakeSpeed = 45.0f;
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -95,9 +90,12 @@ namespace FruitMagic::ECS {
         if(m_camera != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_camera)) {
             const float duration  = def.Param("duration", 1.2f);
             const float amplitude = def.Param("cameraShake", 0.6f) * std::max(0.0f, 1.0f - m_elapsed / duration);
+            const float shakeSpeed        = def.Param("cameraShakeSpeed", 45.0f);              // 揺れの速さ（ラジアン/秒）
+            const float verticalFrequency = def.Param("cameraShakeVerticalFrequency", 1.3f);   // 縦の揺れの速さ（横に対する倍率）
+            const float verticalRatio     = def.Param("cameraShakeVerticalRatio", 0.5f);       // 縦の揺れの大きさ（横に対する比）
 
             auto& t    = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_camera);
-            t.position = m_cameraBase + hlslpp::float3(std::sin(m_elapsed * kCameraShakeSpeed) * amplitude, std::sin(m_elapsed * kCameraShakeSpeed * 1.3f) * amplitude * 0.5f, 0.0f);
+            t.position = m_cameraBase + hlslpp::float3(std::sin(m_elapsed * shakeSpeed) * amplitude, std::sin(m_elapsed * shakeSpeed * verticalFrequency) * amplitude * verticalRatio, 0.0f);
             t.dirty    = true;
         }
 
@@ -116,6 +114,7 @@ namespace FruitMagic::ECS {
         const float     forward = def.Param("forward", 18.0f);
         const float     side    = def.Param("side", 6.0f);
         const float     up      = def.Param("up", 8.0f);
+        const float     minY    = def.Param("onTableMinY", -2.0f);    // これより下にある景品は台から落ちている途中なので揺らさない
 
         std::uniform_real_distribution<float> random(-1.0f, 1.0f);
 
@@ -126,7 +125,7 @@ namespace FruitMagic::ECS {
         std::vector<std::pair<Tsukino::ECS::Entity, hlslpp::float3>> requests;
         registry.View<PrizeComponent, Tsukino::BuiltIn::ECS::RigidbodyComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
             [&](Tsukino::ECS::Entity entity, PrizeComponent&, Tsukino::BuiltIn::ECS::RigidbodyComponent& rb, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
-                if(float(transform.position.y) < kOnTableMinY)
+                if(float(transform.position.y) < minY)
                     return;
                 const hlslpp::float3 velocity(random(m_rng) * side, up, forward);
                 requests.emplace_back(entity, velocity * rb.mass);

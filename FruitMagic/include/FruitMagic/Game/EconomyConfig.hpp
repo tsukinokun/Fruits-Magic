@@ -11,10 +11,13 @@ namespace FruitMagic {
 
     //! コインのやりくりの設定です。Registry のコンテキストに置きます。
     struct EconomyConfig {
-        int   startCoins      = 50;      // 新しく始めたときの手持ちのコイン
+        int   startCoins      = 100;     // 新しく始めたときの手持ちのコイン
         int   reliefBelow     = 10;      // 手持ちがこれより少ないと、妖精がコインを1枚ずつくれる（詰み防止）
         float reliefSeconds   = 4.0f;    // 妖精がコインをくれる間隔（秒）
+        int   reliefAmount    = 1;       // 妖精が1回にくれるコインの枚数
         int   maxCoinsOnTable = 450;     // コインのシャワーで台の上のコインをこれ以上増やさない（物理が重くなりすぎないように）
+        float launchInterval  = 0.15f;   // プレイヤーがコインを投入できる最短の間隔（秒）
+        float launchLaneSpeed = 40.0f;   // キー操作で投入位置を動かす速さ（cm/秒）
 
         //! 設定ファイルを読み込みます。
         //! @param  [in] path 設定ファイル（Economy.json）

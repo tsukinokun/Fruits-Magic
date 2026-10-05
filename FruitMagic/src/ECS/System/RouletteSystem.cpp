@@ -14,7 +14,8 @@
 #include <FruitMagic/Game/JackpotConfig.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
+#include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
 
@@ -26,21 +27,6 @@
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
-    namespace {
-        //! @brief 回転中に表示を切り替える間隔（秒）
-        constexpr float kFlipInterval = 0.08f;
-
-        //! @brief ジャックポットチャンスの抽選中に「JACKPOT」「ハズレ」を切り替える間隔（秒）。最後は少しゆっくりに
-        constexpr float kJackpotFlipInterval = 0.12f;
-
-        //! @brief 補充する果物を置く左右の範囲（中心からの距離、cm）。
-        //!        端に置くと押し出されて左右の溝へ落ちやすい（計測では収穫より溝落ちが多かった）ので、払い出し口の幅に収める
-        constexpr float kFruitSpawnHalfWidth = Layout::kPayoutHalfWidth - 6.0f;
-
-        //! @brief ジャックポットのコインを降らせる時間（秒）
-        constexpr float kJackpotShowerSeconds = 3.0f;
-    }    // namespace
-
     //----------------------------------------------------------------------------
     //! コンストラクタです。
     //----------------------------------------------------------------------------
@@ -62,6 +48,7 @@ namespace FruitMagic::ECS {
         const FruitCatalog&  catalog = registry.GetContext<FruitCatalog>();
         const int            level   = registry.GetContext<GameState>().treeLevel;
         const RouletteConfig config  = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
+        const JackpotConfig  jackpot = registry.HasContext<JackpotConfig>() ? registry.GetContext<JackpotConfig>() : JackpotConfig{};
 
         //--------------------------------------------------------------
         // チェッカーに入った分をためる（上限を超えた分は捨てる）。
@@ -81,7 +68,6 @@ namespace FruitMagic::ECS {
                 // まれにジャックポットチャンス。結果は最初に抽選しておき、抽選の様子は見せるだけにする
                 //--------------------------------------------------------------
                 if(registry.HasContext<JackpotConfig>()) {
-                    const JackpotConfig&                  jackpot = registry.GetContext<JackpotConfig>();
                     std::uniform_real_distribution<float> roll(0.0f, 1.0f);
                     if(roll(m_rng) < jackpot.chanceRate) {
                         state.phase          = RoulettePhase::JackpotSpin;
@@ -91,8 +77,8 @@ namespace FruitMagic::ECS {
                         m_flipTimer          = 0.0f;
                         if(registry.HasContext<PlayStats>())
                             registry.GetContext<PlayStats>().jackpotChances += 1;
-                        m_eventBus.Publish(NoticeEvent{L"ジャックポットチャンス！", jackpot.spinSeconds});
-                        m_eventBus.Publish(EffectEvent{"jackpotChance", hlslpp::float3(0.0f, 12.0f, 5.0f)});
+                        m_eventBus.Publish(NoticeEvent{GetTexts(registry).Get("notice.jackpotChance"), jackpot.spinSeconds});
+                        m_eventBus.Publish(EffectEvent{"jackpotChance", jackpot.chanceEffectPosition});
                         break;
                     }
                 }
@@ -123,7 +109,7 @@ namespace FruitMagic::ECS {
                 //--------------------------------------------------------------
                 m_flipTimer -= deltaTime;
                 if(m_flipTimer <= 0.0f) {
-                    m_flipTimer          = kFlipInterval;
+                    m_flipTimer          = config.flipInterval;
                     state.displayFruit   = (state.displayFruit >= 0) ? -1 : catalog.PickSpawnable(level, m_rng);
                     state.displayVariant = 0;
                 }
@@ -168,7 +154,7 @@ namespace FruitMagic::ECS {
                 //--------------------------------------------------------------
                 m_flipTimer -= deltaTime;
                 if(m_flipTimer <= 0.0f) {
-                    m_flipTimer          = kJackpotFlipInterval;
+                    m_flipTimer          = jackpot.flipInterval;
                     state.jackpotDisplay = !state.jackpotDisplay;
                 }
 
@@ -196,7 +182,9 @@ namespace FruitMagic::ECS {
         if(fruitIndex < 0 || fruitIndex >= static_cast<int>(catalog.Fruits().size()))
             return;
 
-        const FruitDef& def = catalog.Fruits()[fruitIndex];
+        const FruitDef&      def    = catalog.Fruits()[fruitIndex];
+        const TableLayout&   layout = GetTableLayout(registry);
+        const RouletteConfig config = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
 
         //--------------------------------------------------------------
         // プッシャー上面の投入列に、上面のすぐ上から置く
@@ -204,12 +192,13 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         const float halfWidth = (def.shape == FruitShape::Box) ? float(def.halfExtent.x) : def.radius;
         const float halfDepth = (def.shape == FruitShape::Box) ? float(def.halfExtent.z) : def.radius;
-        const float range     = std::max(0.0f, kFruitSpawnHalfWidth - halfWidth);
+        // 端に置くと押し出されて左右の溝へ落ちやすい（計測では収穫より溝落ちが多かった）ので、払い出し口の幅に収める
+        const float range     = std::max(0.0f, layout.payoutHalfWidth - config.fruitSpawnMargin - halfWidth);
         const float x         = std::uniform_real_distribution<float>(-range, range)(m_rng);
-        const float y         = Layout::kPusherTopY + def.HalfHeightOfBounds() + 0.5f;
+        const float y         = layout.PusherTopY() + def.HalfHeightOfBounds() + config.fruitSpawnLift;
 
         // 大きな果物は背面パネルに重ならないよう、その分だけ手前に置く
-        const float z = std::max(Layout::kLaunchZ, Layout::kBackPanelFrontZ + halfDepth + 0.5f);
+        const float z = std::max(layout.LaunchZ(), layout.BackPanelFrontZ() + halfDepth + config.fruitSpawnBackMargin);
 
         // バリエーションの色と光り方（設定が無ければ通常の見た目）
         hlslpp::float3 color = def.color;
@@ -234,19 +223,19 @@ namespace FruitMagic::ECS {
 
         // コインは台の手前側に降らせる（タダ。手持ちからは引かない）
         if(registry.HasContext<CoinShowerState>())
-            registry.GetContext<CoinShowerState>().Add(coins, win ? kJackpotShowerSeconds : 1.0f);
+            registry.GetContext<CoinShowerState>().Add(coins, win ? jackpot.winShowerSeconds : jackpot.loseShowerSeconds);
 
         if(!win) {
-            m_eventBus.Publish(NoticeEvent{L"おしい…  コイン +" + std::to_wstring(coins), jackpot.resultSeconds});
+            m_eventBus.Publish(NoticeEvent{GetTexts(registry).Format("notice.jackpotLose", {{"n", std::to_wstring(coins)}}), jackpot.resultSeconds});
             return;
         }
 
         // 当たり: ルーレットの回転も増やす（ためておける上限を超えてよい）
         if(registry.HasContext<RouletteState>())
             registry.GetContext<RouletteState>().stock += jackpot.spins;
-        m_eventBus.Publish(EffectEvent{"jackpot", hlslpp::float3(0.0f, 8.0f, 10.0f)});
+        m_eventBus.Publish(EffectEvent{"jackpot", jackpot.winEffectPosition});
         if(registry.HasContext<PlayStats>())
             registry.GetContext<PlayStats>().jackpots += 1;
-        m_eventBus.Publish(NoticeEvent{L"ジャックポット！！  コイン +" + std::to_wstring(coins) + L"  ルーレット +" + std::to_wstring(jackpot.spins), 4.0f});
+        m_eventBus.Publish(NoticeEvent{GetTexts(registry).Format("notice.jackpotWin", {{"coins", std::to_wstring(coins)}, {"spins", std::to_wstring(jackpot.spins)}}), jackpot.winNoticeSeconds});
     }
 }    // namespace FruitMagic::ECS

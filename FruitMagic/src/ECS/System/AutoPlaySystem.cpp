@@ -11,7 +11,7 @@
 #include <FruitMagic/Game/MagicState.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
@@ -46,6 +46,7 @@ namespace FruitMagic::ECS {
             return;
 
         GameState& state = registry.GetContext<GameState>();
+        const TableLayout& layout = GetTableLayout(registry);
 
         //--------------------------------------------------------------
         // 投入（プレイヤーの投入と同じ位置・同じく手持ちから引く）
@@ -53,8 +54,8 @@ namespace FruitMagic::ECS {
         m_launchTimer -= deltaTime;
         if(m_launchTimer <= 0.0f && state.coins > 0) {
             m_launchTimer = kLaunchInterval;
-            const float x = std::uniform_real_distribution<float>(-Layout::kLaunchLaneHalfWidth, Layout::kLaunchLaneHalfWidth)(m_rng);
-            registry.GetContext<PrizeFactory>().CreateCoin(registry, hlslpp::float3(x, Layout::kLaunchY, Layout::kLaunchZ));
+            const float x = std::uniform_real_distribution<float>(-layout.launchLaneHalfWidth, layout.launchLaneHalfWidth)(m_rng);
+            registry.GetContext<PrizeFactory>().CreateCoin(registry, hlslpp::float3(x, layout.LaunchY(), layout.LaunchZ()));
             state.coins -= 1;
             if(registry.HasContext<PlayStats>())
                 registry.GetContext<PlayStats>().coinsLaunched += 1;

@@ -4,61 +4,40 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Game/RouletteConfig.hpp>
 
-#include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/JsonReader.hpp>
 
-#include <Tsukino/Core/IO/FileSystem.hpp>
-#include <Tsukino/Core/Path.hpp>
 #include <Tsukino/Core/Log.hpp>
-
-#include <cereal/external/rapidjson/document.h>
 
 #include <algorithm>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
-    namespace {
-        namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
-
-        //--------------------------------------------------------------
-        //! 項目があれば数値を読み込みます。
-        //! @param  [in]     obj 読み込み元のオブジェクト
-        //! @param  [in]     key 項目名
-        //! @param  [in,out] out 読み込み先（項目が無ければそのまま）
-        //--------------------------------------------------------------
-        void ReadFloat(const rj::Value& obj, const char* key, float& out) {
-            auto it = obj.FindMember(key);
-            if(it != obj.MemberEnd() && it->value.IsNumber())
-                out = static_cast<float>(it->value.GetDouble());
-        }
-    }    // namespace
-
     //----------------------------------------------------------------------------
     //! 設定ファイルを読み込みます。
     //----------------------------------------------------------------------------
     bool RouletteConfig::Load(const std::string& path) {
-        const std::string text = ReadDataText(path);
-        rj::Document      doc;
-        doc.Parse(text.c_str());
-        if(text.empty() || doc.HasParseError() || !doc.IsObject()) {
-            Tsukino::Core::Log::Warn("RouletteConfig: cannot read " + path + ". Using defaults.");
+        Json::Document doc;
+        if(!Json::ParseFile(path, doc, "RouletteConfig"))
             return false;
-        }
 
-        float stock = static_cast<float>(maxStock);
-        ReadFloat(doc, "hitChance", hitChance);
-        ReadFloat(doc, "coinChance", coinChance);
-        float coins = static_cast<float>(coinAmount);
-        ReadFloat(doc, "coinAmount", coins);
-        coinAmount = std::max(0, static_cast<int>(coins));
-        ReadFloat(doc, "spinSeconds", spinSeconds);
-        ReadFloat(doc, "resultSeconds", resultSeconds);
-        ReadFloat(doc, "maxStock", stock);
-        ReadFloat(doc, "checkerRange", checkerRange);
-        ReadFloat(doc, "checkerPeriod", checkerPeriod);
+        Json::Read(doc, "hitChance", hitChance);
+        Json::Read(doc, "coinChance", coinChance);
+        Json::Read(doc, "coinAmount", coinAmount);
+        Json::Read(doc, "spinSeconds", spinSeconds);
+        Json::Read(doc, "resultSeconds", resultSeconds);
+        Json::Read(doc, "maxStock", maxStock);
+        Json::Read(doc, "checkerRange", checkerRange);
+        Json::Read(doc, "checkerPeriod", checkerPeriod);
+        Json::Read(doc, "flipInterval", flipInterval);
+        Json::Read(doc, "fruitSpawnMargin", fruitSpawnMargin);
+        Json::Read(doc, "fruitSpawnLift", fruitSpawnLift);
+        Json::Read(doc, "fruitSpawnBackMargin", fruitSpawnBackMargin);
 
-        hitChance = std::clamp(hitChance, 0.0f, 1.0f);
-        coinChance = std::clamp(coinChance, 0.0f, 1.0f);
-        maxStock  = std::max(1, static_cast<int>(stock));
+        hitChance    = std::clamp(hitChance, 0.0f, 1.0f);
+        coinChance   = std::clamp(coinChance, 0.0f, 1.0f);
+        coinAmount   = std::max(0, coinAmount);
+        maxStock     = std::max(1, maxStock);
+        flipInterval = std::max(0.02f, flipInterval);
 
         Tsukino::Core::Log::Info("RouletteConfig: hitChance=" + std::to_string(hitChance) + " maxStock=" + std::to_string(maxStock));
         return true;

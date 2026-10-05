@@ -9,6 +9,8 @@
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
+#include <FruitMagic/Game/Texts.hpp>
+#include <FruitMagic/Game/UiConfig.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
@@ -20,9 +22,6 @@
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
     namespace {
-        //! @brief 未登録の色見本の色
-        const hlslpp::float4 kUnregisteredColor = hlslpp::float4(0.22f, 0.2f, 0.26f, 1.0f);
-
         //--------------------------------------------------------------
         //! 枠の収穫数を返します（記録が無ければ 0）。
         //! @param  [in] state        プレイヤーの資源
@@ -65,6 +64,8 @@ namespace FruitMagic::ECS {
             return;
 
         const GameState&        state      = registry.GetContext<GameState>();
+        const UiConfig&         ui         = GetUiConfig(registry);
+        const Texts&            texts      = GetTexts(registry);
         const FruitCatalog&     catalog    = registry.GetContext<FruitCatalog>();
         const CollectionConfig& collection = registry.GetContext<CollectionConfig>();
         const int               totalEntries = static_cast<int>(catalog.Fruits().size() * collection.Variants().size());
@@ -82,7 +83,7 @@ namespace FruitMagic::ECS {
                     const hlslpp::float3 c = collection.Variants()[element.variantIndex].ColorOf(catalog.Fruits()[element.fruitIndex]);
                     sprite->tintColor      = hlslpp::float4(c.x, c.y, c.z, 1.0f);
                 } else {
-                    sprite->tintColor = kUnregisteredColor;
+                    sprite->tintColor = ui.zukanUnknownColor;
                 }
                 return;
             }
@@ -100,21 +101,20 @@ namespace FruitMagic::ECS {
                         break;
                     const FruitDef& def  = catalog.Fruits()[element.fruitIndex];
                     const auto&     rank = catalog.Ranks()[def.rankIndex];
-                    font->text           = L"【" + rank.name + L"】" + (AnyRegistered(state, element.fruitIndex) ? def.name : std::wstring(L"？？？"));
+                    font->text           = texts.Format("zukan.rowName", {{"rank", rank.name}, {"name", AnyRegistered(state, element.fruitIndex) ? def.name : texts.Get("zukan.unknown")}});
                     break;
                 }
 
                 case ZukanElementKind::Count: {
                     const int n = CountOf(state, element.fruitIndex, element.variantIndex);
-                    font->text  = (n > 0) ? L"×" + std::to_wstring(n) : std::wstring(L"？？？");
+                    font->text  = (n > 0) ? texts.Format("zukan.count", {{"n", std::to_wstring(n)}}) : texts.Get("zukan.unknown");
                     break;
                 }
 
                 case ZukanElementKind::Footer: {
                     const int registered = state.RegisteredCount();
                     const int bonus      = static_cast<int>(std::lround(collection.ManaBonusPerEntry() * 100.0f * static_cast<float>(registered)));
-                    font->text           = L"登録 " + std::to_wstring(registered) + L" / " + std::to_wstring(totalEntries) + L"     マナ獲得 +" +
-                                 std::to_wstring(bonus) + L"%";
+                    font->text           = texts.Format("zukan.footer", {{"registered", std::to_wstring(registered)}, {"total", std::to_wstring(totalEntries)}, {"bonus", std::to_wstring(bonus)}});
                     break;
                 }
 

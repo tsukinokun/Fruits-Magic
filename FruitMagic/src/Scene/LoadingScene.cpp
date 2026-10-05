@@ -5,6 +5,8 @@
 #include <FruitMagic/Scene/LoadingScene.hpp>
 
 #include <FruitMagic/Game/AssetPaths.hpp>
+#include <FruitMagic/Game/Texts.hpp>
+#include <FruitMagic/Game/UiConfig.hpp>
 #include <FruitMagic/Scene/PusherScene.hpp>
 
 #include <Tsukino/EngineIntegration/EngineAPI.hpp>
@@ -31,24 +33,6 @@
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
-    namespace {
-        //--------------------------------------------------------------
-        // 画面の配置（画面ピクセル。画面は 1280 x 720）
-        //--------------------------------------------------------------
-        constexpr float kScreenWidth  = 1280.0f;    // 画面の幅
-        constexpr float kScreenHeight = 720.0f;     // 画面の高さ
-        constexpr float kBarWidth     = 560.0f;     // バーの全幅
-        constexpr float kBarHeight    = 18.0f;      // バーの高さ
-        constexpr float kBarCenterY   = 400.0f;     // バーの中心の高さ
-        constexpr float kTextY        = 350.0f;     // 文字の中心の高さ
-
-        //! @brief ロード画面を出しておく最短の時間（秒）。キャッシュが効いて一瞬で読み終えたときのちらつきを防ぐ
-        constexpr float kMinDisplaySeconds = 0.3f;
-
-        //! @brief バーの左端
-        constexpr float BarLeft() { return (kScreenWidth - kBarWidth) * 0.5f; }
-    }    // namespace
-
     //----------------------------------------------------------------------------
     //! シーン固有の初期化処理を行います。
     //----------------------------------------------------------------------------
@@ -66,10 +50,15 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::FontRendererSystem>(), (int)SystemPriority::Font);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::SpriteRenderSystem>(), (int)SystemPriority::Sprite);
 
-        CreateScreen();
-
         // 定義データの場所は PusherScene と同じ（Debug は作業ディレクトリ、Release は exe の隣が基準）
         const std::string dataRoot = (Tsukino::IO::FileSystem::GetAssetRootPath() / "Assets/Data").string();
+
+        // この画面の配置と文言だけは先に（本体スレッドで）読む。小さなファイルなので待たされない
+        m_scene.GetRegistry().SetContext<UiConfig>().Load(dataRoot + "/Ui.json");
+        m_scene.GetRegistry().SetContext<Texts>().Load(dataRoot + "/Texts.json");
+
+        CreateScreen();
+
         m_preloader.Start(*context->assetManager, dataRoot);
 
         Tsukino::Core::Log::Info("LoadingScene: initialized.");
@@ -84,24 +73,25 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // 進み具合をバーと文字に反映する（バーは左端を揃えたまま伸ばす）
         //--------------------------------------------------------------
-        const float            progress = m_preloader.Progress();
+        const float             progress = m_preloader.Progress();
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        const UiConfig&         ui       = GetUiConfig(registry);
         if(m_barEntity != entt::null) {
-            const float width = kBarWidth * progress;
+            const float width = ui.loadingBarWidth * progress;
             auto&       t     = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_barEntity);
-            t.position        = hlslpp::float3(BarLeft() + width * 0.5f, kBarCenterY, 0.0f);
-            t.scale           = hlslpp::float3(width / AssetPaths::kWhiteTextureSize, kBarHeight / AssetPaths::kWhiteTextureSize, 1.0f);
+            t.position        = hlslpp::float3((ui.screenWidth - ui.loadingBarWidth) * 0.5f + width * 0.5f, ui.loadingBarCenterY, 0.0f);
+            t.scale           = hlslpp::float3(width / AssetPaths::kWhiteTextureSize, ui.loadingBarHeight / AssetPaths::kWhiteTextureSize, 1.0f);
             t.dirty           = true;
         }
         if(m_textEntity != entt::null) {
             const int percent = static_cast<int>(std::floor(progress * 100.0f));
-            registry.GetComponent<Tsukino::BuiltIn::ECS::FontComponent>(m_textEntity).text = L"読み込み中… " + std::to_wstring(percent) + L"%";
+            registry.GetComponent<Tsukino::BuiltIn::ECS::FontComponent>(m_textEntity).text = GetTexts(registry).Format("loading.progress", {{"n", std::to_wstring(percent)}});
         }
 
         //--------------------------------------------------------------
         // 読み終えたら台のシーンへ（切り替えは次のフレームの頭で行われる）
         //--------------------------------------------------------------
-        if(!m_changing && m_preloader.IsFinished() && m_elapsed >= kMinDisplaySeconds) {
+        if(!m_changing && m_preloader.IsFinished() && m_elapsed >= ui.loadingMinSeconds) {
             m_changing = true;
             api.ChangeScene(std::make_unique<PusherScene>());
         }
@@ -122,6 +112,8 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     void LoadingScene::CreateScreen() {
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        const UiConfig&         ui       = GetUiConfig(registry);
+        const float             barLeft  = (ui.screenWidth - ui.loadingBarWidth) * 0.5f;
 
         //--------------------------------------------------------------
         // カメラ。画面スプライトはメインでない正射影のカメラで描かれるが、
@@ -146,7 +138,7 @@ namespace FruitMagic {
 
             Tsukino::BuiltIn::ECS::CameraComponent& camera = registry.AddComponent<Tsukino::BuiltIn::ECS::CameraComponent>(e);
             camera.projectionType                          = Tsukino::BuiltIn::ECS::CameraComponent::ProjectionType::Orthographic;
-            camera.orthoSize                               = kScreenHeight;
+            camera.orthoSize                               = ui.screenHeight;
             camera.isPrimary                               = false;
         }
 
@@ -171,13 +163,12 @@ namespace FruitMagic {
         };
 
         // 背景（屋台の夕暮れに合わせた濃い紫）
-        createPanel(hlslpp::float2(kScreenWidth * 0.5f, kScreenHeight * 0.5f), hlslpp::float2(kScreenWidth, kScreenHeight),
-                    hlslpp::float4(0.12f, 0.06f, 0.18f, 1.0f), 0);
+        createPanel(ui.ScreenCenter(), hlslpp::float2(ui.screenWidth, ui.screenHeight), ui.loadingBackColor, 0);
 
         // バーの枠と中身（中身の幅は OnUpdate が進み具合に合わせて変える）
-        createPanel(hlslpp::float2(kScreenWidth * 0.5f, kBarCenterY), hlslpp::float2(kBarWidth + 6.0f, kBarHeight + 6.0f),
-                    hlslpp::float4(0.05f, 0.02f, 0.08f, 1.0f), 1);
-        m_barEntity = createPanel(hlslpp::float2(BarLeft(), kBarCenterY), hlslpp::float2(0.0f, kBarHeight), hlslpp::float4(1.0f, 0.75f, 0.35f, 1.0f), 2);
+        createPanel(hlslpp::float2(ui.ScreenCenter().x, ui.loadingBarCenterY),
+                    hlslpp::float2(ui.loadingBarWidth + ui.loadingFramePadding, ui.loadingBarHeight + ui.loadingFramePadding), ui.loadingFrameColor, 1);
+        m_barEntity = createPanel(hlslpp::float2(barLeft, ui.loadingBarCenterY), hlslpp::float2(0.0f, ui.loadingBarHeight), ui.loadingFillColor, 2);
 
         //--------------------------------------------------------------
         // 「読み込み中」の文字（バーの上）
@@ -185,17 +176,17 @@ namespace FruitMagic {
         {
             Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
-            t.position                                   = hlslpp::float3(kScreenWidth * 0.5f, kTextY, 0.0f);
-            t.scale                                      = hlslpp::float3(1.1f, 1.1f, 1.0f);
+            t.position                                   = hlslpp::float3(ui.ScreenCenter().x, ui.loadingTextY, 0.0f);
+            t.scale                                      = hlslpp::float3(ui.loadingText.scale, ui.loadingText.scale, 1.0f);
             t.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
-            font.text                                  = L"読み込み中… 0%";
-            font.color                                 = hlslpp::float4(1.0f, 0.92f, 0.85f, 1.0f);
+            font.text                                  = GetTexts(registry).Format("loading.progress", {{"n", L"0"}});
+            font.color                                 = ui.loadingText.color;
             font.horizontalAlign                       = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;
             font.verticalAlign                         = Tsukino::BuiltIn::ECS::VerticalAlign::Middle;
-            font.outlineColor                          = hlslpp::float4(0.1f, 0.03f, 0.15f, 1.0f);
-            font.outlineWidth                          = 2.0f;
+            font.outlineColor                          = ui.textOutlineColor;
+            font.outlineWidth                          = ui.outlineWidth;
             font.sortOrder                             = 3;
             m_textEntity                               = e;
         }

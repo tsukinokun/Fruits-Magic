@@ -14,6 +14,8 @@
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
+#include <FruitMagic/Game/Texts.hpp>
+#include <FruitMagic/Game/UiConfig.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
@@ -26,12 +28,6 @@ namespace FruitMagic::ECS {
     namespace {
         //! @brief この魔法の id（Magic.json の "id"）
         constexpr const char* kMagicId = "grow";
-
-        //! @brief これより下にある果物は台から落ちている途中なので対象にしない
-        constexpr float kOnTableMinY = -2.0f;
-
-        //! @brief 大きくした果物の輪郭の光に足す強さ（目立たせる）
-        constexpr float kExtraGlow = 1.2f;
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -56,6 +52,7 @@ namespace FruitMagic::ECS {
             return;
 
         const MagicDef&     def     = registry.GetContext<MagicCatalog>().Magics()[cast];
+        const float         minY    = def.Param("onTableMinY", -2.0f);    // これより下にある果物は台から落ちている途中なので選ばない
         const FruitCatalog& catalog = registry.GetContext<FruitCatalog>();
 
         //--------------------------------------------------------------
@@ -65,7 +62,7 @@ namespace FruitMagic::ECS {
         float                bestZ  = 0.0f;
         registry.View<PrizeComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
             [&](Tsukino::ECS::Entity entity, PrizeComponent& prize, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
-                if(prize.kind != PrizeKind::Fruit || prize.valueMultiplier > 1 || float(transform.position.y) < kOnTableMinY)
+                if(prize.kind != PrizeKind::Fruit || prize.valueMultiplier > 1 || float(transform.position.y) < minY)
                     return;
                 if(prize.fruitIndex < 0 || prize.fruitIndex >= static_cast<int>(catalog.Fruits().size()))
                     return;
@@ -79,7 +76,7 @@ namespace FruitMagic::ECS {
             // 対象が無ければマナを返す（撃ち損にしない）
             GameState& state = registry.GetContext<GameState>();
             state.mana       = std::min(state.maxMana, state.mana + def.cost);
-            m_eventBus.Publish(NoticeEvent{L"台の上に果物がない…（マナは戻った）", 2.5f});
+            m_eventBus.Publish(NoticeEvent{GetTexts(registry).Get("notice.growNoFruit"), GetUiConfig(registry).growNoticeSeconds});
             return;
         }
 
@@ -104,7 +101,7 @@ namespace FruitMagic::ECS {
         const auto&    variants = registry.GetContext<CollectionConfig>().Variants();
         const int      variant  = std::clamp(prize.variantIndex, 0, static_cast<int>(variants.size()) - 1);
         hlslpp::float3 color    = variants[variant].ColorOf(giant);
-        float          glow     = variants[variant].glow + kExtraGlow;
+        float          glow     = variants[variant].glow + def.Param("extraGlow", 1.2f);
 
         Tsukino::ECS::Entity grown = registry.GetContext<PrizeFactory>().CreateFruit(registry, giant, prize.fruitIndex, prize.variantIndex, color, glow, newPosition);
         registry.GetComponent<PrizeComponent>(grown).valueMultiplier = std::max(1, static_cast<int>(def.Param("valueMultiplier", 2.0f)));
@@ -114,6 +111,6 @@ namespace FruitMagic::ECS {
         registry.AddComponent<PopScaleComponent>(grown).baseScale = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(grown).scale;
         m_eventBus.Publish(EffectEvent{"grow", newPosition});
 
-        m_eventBus.Publish(NoticeEvent{registry.GetContext<CollectionConfig>().DisplayName(giant, prize.variantIndex) + L" が おおきくなった！", 2.5f});
+        m_eventBus.Publish(NoticeEvent{GetTexts(registry).Format("notice.grown", {{"name", registry.GetContext<CollectionConfig>().DisplayName(giant, prize.variantIndex)}}), GetUiConfig(registry).growNoticeSeconds});
     }
 }    // namespace FruitMagic::ECS

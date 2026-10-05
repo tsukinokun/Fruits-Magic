@@ -6,5 +6,9 @@
   "checkerRange": 16.0,
   "checkerPeriod": 4.0,
   "coinChance": 0.3,
-  "coinAmount": 5
+  "coinAmount": 5,
+  "flipInterval": 0.08,
+  "fruitSpawnMargin": 6.0,
+  "fruitSpawnLift": 0.5,
+  "fruitSpawnBackMargin": 0.5
 }

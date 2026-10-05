@@ -7,7 +7,7 @@
 #include <FruitMagic/ECS/Component/PrizeComponent.hpp>
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
@@ -35,14 +35,15 @@ namespace FruitMagic::ECS {
         // （View の反復中にハンドラ側でエンティティを触られないよう、発行は反復の後で行う）
         //--------------------------------------------------------------
         std::vector<PrizeDroppedEvent> dropped;
+        const TableLayout& layout = GetTableLayout(registry);
 
         auto view = registry.View<PrizeComponent, Tsukino::BuiltIn::ECS::TransformComponent>();
         view.each([&](Tsukino::ECS::Entity entity, PrizeComponent& prize, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
-            if(float(transform.position.y) >= Layout::kDropJudgeY)
+            if(float(transform.position.y) >= layout.dropJudgeY)
                 return;
 
             // 落ちた時点の左右位置で、正面の払い出し口か左右の溝かを決める
-            const bool isPayout = std::abs(float(transform.position.x)) <= Layout::kPayoutHalfWidth;
+            const bool isPayout = std::abs(float(transform.position.x)) <= layout.payoutHalfWidth;
 
             PrizeDroppedEvent e;
             e.prize = entity;

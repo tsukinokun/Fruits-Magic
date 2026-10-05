@@ -105,15 +105,4 @@ namespace FruitMagic {
         std::vector<FruitRank> m_ranks;     // ランクの一覧
         std::vector<FruitDef>  m_fruits;    // 果物の一覧
     };
-
-    //! 定義データ（JSON）のファイルを読み込みます。先頭の UTF-8 の BOM は取り除きます。
-    //! @param  [in] path 読み込むファイル
-    //! @return 中身。読めなかった場合は空文字列
-    //! @note   メモ帳などで保存すると BOM が付くことがあり、JSON の解析器はそれを読めないため
-    std::string ReadDataText(const std::string& path);
-
-    //! 文字列を UTF-8 から表示用のワイド文字列へ変換します。
-    //! @param  [in] utf8 UTF-8 の文字列
-    //! @return ワイド文字列
-    std::wstring Utf8ToWide(const std::string& utf8);
 }    // namespace FruitMagic

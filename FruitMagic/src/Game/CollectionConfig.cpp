@@ -5,18 +5,13 @@
 #include <FruitMagic/Game/CollectionConfig.hpp>
 
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/JsonReader.hpp>
 
-#include <Tsukino/Core/IO/FileSystem.hpp>
-#include <Tsukino/Core/Path.hpp>
 #include <Tsukino/Core/Log.hpp>
-
-#include <cereal/external/rapidjson/document.h>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
     namespace {
-        namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
-
         //--------------------------------------------------------------
         //! 「通常」だけの既定のバリエーションを返します。
         //! @return 通常のバリエーション
@@ -46,55 +41,36 @@ namespace FruitMagic {
     bool CollectionConfig::Load(const std::string& path) {
         m_variants.clear();
 
-        const std::string text = ReadDataText(path);
-        rj::Document      doc;
-        doc.Parse(text.c_str());
-        auto variants = (text.empty() || doc.HasParseError() || !doc.IsObject()) ? doc.MemberEnd() : doc.FindMember("variants");
-        if(variants == doc.MemberEnd() || !variants->value.IsArray()) {
+        Json::Document     doc;
+        const Json::Value* variants = Json::ParseFile(path, doc, "CollectionConfig") ? Json::FindArray(doc, "variants") : nullptr;
+        if(!variants) {
             Tsukino::Core::Log::Warn("CollectionConfig: cannot read variants from " + path + ". Only the normal variant is used.");
             m_variants.push_back(MakeNormalVariant());
             return false;
         }
 
-        for(const rj::Value& v : variants->value.GetArray()) {
+        for(const Json::Value& v : variants->GetArray()) {
             if(!v.IsObject())
                 continue;
 
             VariantDef def;
-            auto       id = v.FindMember("id");
-            def.id        = (id != v.MemberEnd() && id->value.IsString()) ? id->value.GetString() : "variant" + std::to_string(m_variants.size());
-
-            auto name = v.FindMember("name");
-            if(name != v.MemberEnd() && name->value.IsString())
-                def.name = Utf8ToWide(name->value.GetString());
-
-            auto chance = v.FindMember("chance");
-            if(chance != v.MemberEnd() && chance->value.IsNumber())
-                def.chance = static_cast<float>(chance->value.GetDouble());
-
-            auto multiplier = v.FindMember("valueMultiplier");
-            if(multiplier != v.MemberEnd() && multiplier->value.IsNumber())
-                def.valueMultiplier = static_cast<int>(multiplier->value.GetDouble());
-
-            auto glow = v.FindMember("glow");
-            if(glow != v.MemberEnd() && glow->value.IsNumber())
-                def.glow = static_cast<float>(glow->value.GetDouble());
+            if(!Json::Read(v, "id", def.id))
+                def.id = "variant" + std::to_string(m_variants.size());
+            Json::Read(v, "name", def.name);
+            Json::Read(v, "chance", def.chance);
+            Json::Read(v, "valueMultiplier", def.valueMultiplier);
+            Json::Read(v, "glow", def.glow);
 
             // "base" / "shiny" はモード名、それ以外（"gold" や {r,g,b}）は固定色
-            auto color = v.FindMember("color");
-            if(color != v.MemberEnd()) {
-                if(color->value.IsString() && std::string(color->value.GetString()) == "shiny") {
+            if(const Json::Value* color = Json::Find(v, "color")) {
+                if(color->IsString() && std::string(color->GetString()) == "shiny") {
                     def.colorMode = VariantColorMode::Shiny;
-                } else if(color->value.IsString() && std::string(color->value.GetString()) == "base") {
+                } else if(color->IsString() && std::string(color->GetString()) == "base") {
                     def.colorMode = VariantColorMode::Base;
-                } else if(color->value.IsObject()) {
+                } else if(color->IsObject()) {
                     def.colorMode = VariantColorMode::Fixed;
-                    auto r        = color->value.FindMember("r");
-                    auto g        = color->value.FindMember("g");
-                    auto b        = color->value.FindMember("b");
-                    def.color     = hlslpp::float3((r != color->value.MemberEnd() && r->value.IsNumber()) ? static_cast<float>(r->value.GetDouble()) : 1.0f,
-                                               (g != color->value.MemberEnd() && g->value.IsNumber()) ? static_cast<float>(g->value.GetDouble()) : 1.0f,
-                                               (b != color->value.MemberEnd() && b->value.IsNumber()) ? static_cast<float>(b->value.GetDouble()) : 1.0f);
+                    def.color     = hlslpp::float3(1.0f, 1.0f, 1.0f);    // 書かれていない成分は 1
+                    Json::ReadColorValue(*color, def.color);
                 } else {
                     def.colorMode = VariantColorMode::Fixed;    // "gold" など。色は既定の金色
                 }
@@ -106,9 +82,7 @@ namespace FruitMagic {
         if(m_variants.empty())
             m_variants.push_back(MakeNormalVariant());
 
-        auto bonus = doc.FindMember("manaBonusPerEntry");
-        if(bonus != doc.MemberEnd() && bonus->value.IsNumber())
-            m_manaBonusPerEntry = static_cast<float>(bonus->value.GetDouble());
+        Json::Read(doc, "manaBonusPerEntry", m_manaBonusPerEntry);
 
         Tsukino::Core::Log::Info("CollectionConfig: loaded " + std::to_string(m_variants.size()) + " variants.");
         return true;

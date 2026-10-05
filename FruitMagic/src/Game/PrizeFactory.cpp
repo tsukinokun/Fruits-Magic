@@ -32,10 +32,6 @@
 // 名前空間 : FruitMagic
 namespace FruitMagic {
     namespace {
-        //! @brief コインの色（金色）と、少しだけ光らせる強さ
-        const hlslpp::float3 kCoinColor = hlslpp::float3(1.0f, 0.78f, 0.25f);
-        constexpr float      kCoinGlow  = 0.25f;
-
         //--------------------------------------------------------------
         //! メッシュの AABB 上の点を、ノードの回転と移動で描画時の空間へ移します。
         //! @param  [in]     node 変換に使うノード
@@ -145,8 +141,10 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! 生成に使うモデルを読み込みます。
     //----------------------------------------------------------------------------
-    void PrizeFactory::Initialize(Tsukino::Asset::AssetManager& assetManager) {
+    void PrizeFactory::Initialize(Tsukino::Asset::AssetManager& assetManager, const TableLayout& layout, const StageConfig& stage) {
         m_assetManager = &assetManager;
+        m_layout       = layout;
+        m_stage        = stage;
         m_models.clear();
         GetModel(AssetPaths::kBlockModel);
     }
@@ -230,7 +228,7 @@ namespace FruitMagic {
         Tsukino::BuiltIn::ECS::RigidbodyComponent& rb = registry.AddComponent<Tsukino::BuiltIn::ECS::RigidbodyComponent>(e);
         rb.type                                       = type;
         if(type == Tsukino::BuiltIn::ECS::RigidbodyType::Dynamic) {
-            SetupDynamicBody(rb, 0.3f);
+            SetupDynamicBody(rb, m_layout.coinFriction);    // 動く箱はコイン
         }
 
         return e;
@@ -266,16 +264,16 @@ namespace FruitMagic {
         Tsukino::ECS::Entity e = CreateBox(registry, position, CoinHalfExtent(), Tsukino::BuiltIn::ECS::RigidbodyType::Dynamic);
 
         // 金色にして少し光らせる（台の上で果物と見分けやすく、ポップに）
-        registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e).modelHandle = GetTintedModel(AssetPaths::kBlockModel, kCoinColor).handle;
+        registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e).modelHandle = GetTintedModel(AssetPaths::kBlockModel, m_stage.coinColor).handle;
         Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
         rim.active                                   = true;
-        rim.rimColor                                 = kCoinColor;
-        rim.rimIntensity                             = kCoinGlow;
-        rim.rimPower                                 = 3.0f;
+        rim.rimColor                                 = m_stage.coinColor;
+        rim.rimIntensity                             = m_stage.coinGlow;
+        rim.rimPower                                 = m_stage.prizeRimPower;
 
         ECS::PrizeComponent& prize = registry.AddComponent<ECS::PrizeComponent>(e);
         prize.kind                 = ECS::PrizeKind::Coin;
-        prize.value                = 1;
+        prize.value                = m_layout.coinValue;
 
         return e;
     }
@@ -329,12 +327,12 @@ namespace FruitMagic {
         rim.active                                   = true;
         rim.rimColor                                  = color;
         rim.rimIntensity                              = glow;
-        rim.rimPower                                  = 3.0f;
+        rim.rimPower                                  = m_stage.prizeRimPower;
 
         Tsukino::BuiltIn::ECS::RigidbodyComponent& rb = registry.AddComponent<Tsukino::BuiltIn::ECS::RigidbodyComponent>(e);
-        SetupDynamicBody(rb, 0.5f);
+        SetupDynamicBody(rb, m_layout.fruitFriction);
         rb.mass        = def.mass;
-        rb.restitution = 0.2f;
+        rb.restitution = m_layout.fruitRestitution;
 
         ECS::PrizeComponent& prize = registry.AddComponent<ECS::PrizeComponent>(e);
         prize.kind                 = ECS::PrizeKind::Fruit;
@@ -397,7 +395,7 @@ namespace FruitMagic {
                 rim.active                                   = true;
                 rim.rimColor                                 = part.color;
                 rim.rimIntensity                             = part.glow;
-                rim.rimPower                                 = 3.0f;
+                rim.rimPower                                 = m_stage.prizeRimPower;
             }
 
             owned.parts.push_back(e);

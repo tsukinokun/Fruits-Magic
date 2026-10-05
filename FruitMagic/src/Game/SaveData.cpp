@@ -7,6 +7,7 @@
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/JsonReader.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/IO/FileSystem.hpp>
@@ -29,19 +30,6 @@ namespace FruitMagic::SaveData {
 
         //! @brief セーブデータの形式の版。形式を変えたら上げ、読み込み側で古い版を変換する
         constexpr int kVersion = 1;
-
-        //--------------------------------------------------------------
-        //! 項目があれば整数を読み込みます。
-        //! @param  [in]     obj 読み込み元のオブジェクト
-        //! @param  [in]     key 項目名
-        //! @param  [in,out] out 読み込み先（項目が無ければそのまま）
-        //--------------------------------------------------------------
-        template <class T>
-        void ReadInteger(const rj::Value& obj, const char* key, T& out) {
-            auto it = obj.FindMember(key);
-            if(it != obj.MemberEnd() && it->value.IsInt64())
-                out = static_cast<T>(it->value.GetInt64());
-        }
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -173,11 +161,11 @@ namespace FruitMagic::SaveData {
         const CollectionConfig& collection = registry.GetContext<CollectionConfig>();
 
         savedAt = 0;
-        ReadInteger(doc, "savedAt", savedAt);
-        ReadInteger(doc, "coins", state.coins);
-        ReadInteger(doc, "fruitPoints", state.fruitPoints);
-        ReadInteger(doc, "harvestValue", state.harvestValue);
-        ReadInteger(doc, "mana", state.mana);
+        Json::Read(doc, "savedAt", savedAt);
+        Json::Read(doc, "coins", state.coins);
+        Json::Read(doc, "fruitPoints", state.fruitPoints);
+        Json::Read(doc, "harvestValue", state.harvestValue);
+        Json::Read(doc, "mana", state.mana);
         state.coins       = std::max(0, state.coins);
         state.fruitPoints = std::max(0LL, state.fruitPoints);
         state.mana        = std::clamp(state.mana, 0, state.maxMana);

@@ -61,6 +61,9 @@ namespace FruitMagic::ECS {
         int                            m_recentPayout = 0;        // 表示中の「払い出し」の合計
         int                            m_recentGutter = 0;        // 表示中の「溝に落ちた」数
         float                          m_popupTimer   = 0.0f;     // 払い出し表示を消すまでの残り時間（秒）
+        float                          m_payoutPopupSeconds     = 1.2f;    // 払い出し表示を出しておく時間（Ui.json。Update で覚える）
+        float                          m_harvestPopupSeconds    = 2.0f;    // 収穫表示を出しておく時間（同上）
+        float                          m_registeredPopupSeconds = 3.5f;    // 「図鑑に登録！」を出しておく時間（同上）
         Tsukino::ECS::ScopedConnection m_zukanConnection;         // 図鑑登録の購読解除を自動で行う接続
         int                            m_harvestFruit = -1;       // 表示中の収穫した果物の添字（-1 は表示なし）
         int                            m_harvestVariant = 0;      // 表示中の収穫した果物のバリエーションの添字

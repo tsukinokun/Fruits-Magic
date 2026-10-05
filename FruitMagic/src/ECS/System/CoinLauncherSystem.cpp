@@ -8,7 +8,7 @@
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
@@ -58,6 +58,7 @@ namespace FruitMagic::ECS {
         const bool launchPressed = input.IsKeyPressed(Tsukino::Input::KeyCode::Space) ||
                                    (input.IsKeyPressed(Tsukino::Input::KeyCode::LButton) && !pointerOnUi);
 
+        const TableLayout& layout = GetTableLayout(registry);
         std::vector<hlslpp::float3> launchPositions;    // このフレームに投入するコインの位置
 
         auto view = registry.View<CoinLauncherComponent, Tsukino::BuiltIn::ECS::TransformComponent>();
@@ -73,13 +74,13 @@ namespace FruitMagic::ECS {
             if(mouseMoved && windowWidth > 0) {
                 // 画面の左端〜右端を、投入できる範囲の画面上の左端〜右端に対応させる
                 const float t  = std::clamp(static_cast<float>(mouseX) / static_cast<float>(windowWidth), 0.0f, 1.0f);
-                launcher.laneX = (t * 2.0f - 1.0f) * Layout::kScreenRightX * Layout::kLaunchLaneHalfWidth;
+                launcher.laneX = (t * 2.0f - 1.0f) * Layout::kScreenRightX * layout.launchLaneHalfWidth;
             }
 
-            launcher.laneX = std::clamp(launcher.laneX, -Layout::kLaunchLaneHalfWidth, Layout::kLaunchLaneHalfWidth);
+            launcher.laneX = std::clamp(launcher.laneX, -layout.launchLaneHalfWidth, layout.launchLaneHalfWidth);
 
             // 目印を投入位置へ動かす
-            transform.position = hlslpp::float3(launcher.laneX, Layout::kLaunchMarkerY, Layout::kLaunchZ);
+            transform.position = hlslpp::float3(launcher.laneX, layout.LaunchMarkerY(), layout.LaunchZ());
             transform.dirty    = true;
 
             //--------------------------------------------------------------
@@ -91,7 +92,7 @@ namespace FruitMagic::ECS {
 
             state.coins -= 1;
             launcher.cooldown = launcher.interval;
-            launchPositions.push_back(hlslpp::float3(launcher.laneX, Layout::kLaunchY, Layout::kLaunchZ));
+            launchPositions.push_back(hlslpp::float3(launcher.laneX, layout.LaunchY(), layout.LaunchZ()));
         });
 
         //--------------------------------------------------------------

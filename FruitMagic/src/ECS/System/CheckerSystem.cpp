@@ -7,7 +7,7 @@
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Event/CheckerEnteredEvent.hpp>
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
-#include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
 
@@ -43,8 +43,9 @@ namespace FruitMagic::ECS {
         const RouletteConfig config    = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
         const float          halfWidth = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().checkerHalfWidth : TableStats{}.checkerHalfWidth;
 
+        const TableLayout& layout = GetTableLayout(registry);
         // 穴が払い出し口からはみ出さない範囲で往復させる
-        const float range = std::max(0.0f, std::min(config.checkerRange, Layout::kPayoutHalfWidth - halfWidth));
+        const float range = std::max(0.0f, std::min(config.checkerRange, layout.payoutHalfWidth - halfWidth));
 
         //--------------------------------------------------------------
         // 穴を左右に往復させる（目印の Transform も一緒に動かす）

@@ -61,6 +61,9 @@ namespace FruitMagic::ECS {
         Tsukino::ECS::ScopedConnection m_zukanConnection;       // ZukanRegisteredEvent の購読
         std::vector<EffectEvent>       m_pending;               // 次の Update で出す粒
         hlslpp::float3                 m_lastFruitDrop = hlslpp::float3(0.0f, -15.0f, 44.0f);    // 直近に収穫した果物の落ちた位置（図鑑登録の演出に使う）
+        hlslpp::float3                 m_castPosition  = hlslpp::float3(0.0f, 6.0f, 5.0f);       // 魔法を撃ったときの粒を出す位置（Update で設定から覚える）
+        float                          m_dropEffectY   = -12.0f;                                 // 払い出し口に落ちた物の演出を出す高さ（同上）
+        float                          m_dropEffectZ   = 44.0f;                                  // 同じくZ（同上）
         Tsukino::Asset::AssetHandle    m_sparkleTexture;        // 星形の画像
         Tsukino::Asset::AssetHandle    m_glowTexture;           // ぼかした円の画像
         bool                           m_texturesLoaded = false;    // 画像を読み込んだか

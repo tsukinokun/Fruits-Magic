@@ -2,5 +2,8 @@
   "startCoins": 100,
   "reliefBelow": 10,
   "reliefSeconds": 4.0,
-  "maxCoinsOnTable": 450
+  "maxCoinsOnTable": 450,
+  "reliefAmount": 1,
+  "launchInterval": 0.15,
+  "launchLaneSpeed": 40.0
 }
