@@ -16,6 +16,7 @@ namespace FruitMagic::ECS {
         HarvestPopup,    // 直近に収穫した果物（「いちご ゲット！」）
         Roulette,        // ルーレット（回転中の表示・結果・ストック）
         ControlsHint,    // 操作説明
+        Relief,          // おすそわけ待ち（手持ちが少ない間だけ、次の1枚までの秒数）
         Notice,          // お知らせ（「新しい魔法を覚えた！」「ジャックポット！」など。NoticeEvent で出す）
     };
 

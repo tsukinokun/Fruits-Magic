@@ -1,6 +1,6 @@
 {
   "startCoins": 100,
-  "reliefBelow": 5,
+  "reliefBelow": 10,
   "reliefSeconds": 4.0,
   "maxCoinsOnTable": 450
 }

@@ -7,13 +7,16 @@
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
+#include <FruitMagic/ECS/Component/ReliefGaugeComponent.hpp>
 #include <FruitMagic/ECS/Event/NoticeEvent.hpp>
 #include <FruitMagic/ECS/Event/ZukanRegisteredEvent.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
+#include <FruitMagic/Game/EconomyConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
+#include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
@@ -198,6 +201,18 @@ namespace FruitMagic::ECS {
                     break;
                 }
 
+                case HudTextKind::Relief: {
+                    // 手持ちが少ない間だけ、妖精のおすそわけを待っていることと次の1枚までの秒数を出す
+                    const ReliefState* relief = registry.HasContext<ReliefState>() ? &registry.GetContext<ReliefState>() : nullptr;
+                    if(!relief || !relief->waiting) {
+                        font.text.clear();
+                        break;
+                    }
+                    const int seconds = std::max(1, static_cast<int>(std::ceil(relief->secondsRemaining)));
+                    font.text         = L"妖精のおすそわけ待ち… あと " + std::to_wstring(seconds) + L" 秒";
+                    break;
+                }
+
                 case HudTextKind::Notice:
                     font.text = m_noticeText;
                     break;
@@ -213,6 +228,7 @@ namespace FruitMagic::ECS {
         });
 
         UpdateManaGauge(registry, state);
+        UpdateReliefGauge(registry);
         UpdateMagicButtons(registry, state);
     }
 
@@ -229,6 +245,28 @@ namespace FruitMagic::ECS {
                 transform.position = hlslpp::float3(gauge.left + width * 0.5f, float(transform.position.y), 0.0f);
                 transform.scale    = hlslpp::float3(width / gauge.textureSize, gauge.height / gauge.textureSize, 1.0f);
                 transform.dirty    = true;
+            });
+    }
+
+    //----------------------------------------------------------------------------
+    //! おすそわけ待ちのリングを、待っている間だけ出し、次の1枚までの進み具合で塗ります。
+    //----------------------------------------------------------------------------
+    void HudSystem::UpdateReliefGauge(Tsukino::ECS::Registry& registry) {
+        const bool  waiting  = registry.HasContext<ReliefState>() && registry.GetContext<ReliefState>().waiting;
+        const float interval = registry.HasContext<EconomyConfig>() ? registry.GetContext<EconomyConfig>().reliefSeconds : 0.0f;
+        const float progress = (waiting && interval > 0.0f) ? std::clamp(1.0f - registry.GetContext<ReliefState>().secondsRemaining / interval, 0.0f, 1.0f)
+                                                            : 0.0f;
+
+        registry.View<ReliefGaugeComponent, Tsukino::BuiltIn::ECS::SpriteComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
+            [&](Tsukino::ECS::Entity, ReliefGaugeComponent& gauge, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
+                Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+                // 待っていない間は拡大率 0 で隠す（拡大率 0 のスプライトは描かれない）
+                const float scale = waiting ? gauge.shownScale : 0.0f;
+                transform.scale   = hlslpp::float3(scale, scale, 1.0f);
+                transform.dirty   = true;
+
+                if(gauge.part == ReliefGaugePart::Fill)
+                    sprite.fillAmount = progress;
             });
     }
 

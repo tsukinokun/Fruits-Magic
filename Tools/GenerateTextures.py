@@ -1,11 +1,12 @@
-"""演出用の光の画像（Assets/Textures/Sparkle.png・Glow.png）を作るスクリプト。
+"""演出用の光の画像（Assets/Textures/Sparkle.png・Glow.png）と、UI のリング（Ring.png）を作るスクリプト。
 
 外部ライブラリを使わず、標準ライブラリだけで PNG を書き出す。
 画像を作り直したいときは、リポジトリのルートで次を実行する:
 
     python Tools/GenerateTextures.py
 
-加算合成で使うので、色（RGB）も透明度と同じだけ暗くしてある（縁が黒くならないように）。
+光の画像は加算合成で使うので、色（RGB）も透明度と同じだけ暗くしてある（縁が黒くならないように）。
+リングは通常の半透明合成で使うので、色は白のまま透明度だけで形を作る（色は SpriteComponent::tintColor で付ける）。
 """
 import math
 import os
@@ -62,11 +63,27 @@ def sparkle(x, y):
     return to_rgba(min(1.0, core + ray_h ** 1.2 + ray_v ** 1.2))
 
 
+# リングの外側・内側の半径（中心から縁までを 1 とした割合）。太さは1辺の約18%
+RING_OUTER = 0.97
+RING_INNER = 0.61
+
+
+def ring(x, y):
+    """白いリング（円形のゲージの枠と中身に使う）。縁は1ピクセル幅でなめらかにする。"""
+    c = (SIZE - 1) / 2.0
+    r = math.hypot(x - c, y - c)
+    # 外側・内側の縁からの距離（ピクセル。内側が正）
+    coverage = min(RING_OUTER * c - r, r - RING_INNER * c) + 0.5
+    a = max(0, min(255, int(round(max(0.0, min(1.0, coverage)) * 255))))
+    return (255, 255, 255, a)
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     write_png(os.path.join(OUT_DIR, "Glow.png"), SIZE, glow)
     write_png(os.path.join(OUT_DIR, "Sparkle.png"), SIZE, sparkle)
-    print("wrote Glow.png, Sparkle.png to", OUT_DIR)
+    write_png(os.path.join(OUT_DIR, "Ring.png"), SIZE, ring)
+    print("wrote Glow.png, Sparkle.png, Ring.png to", OUT_DIR)
 
 
 if __name__ == "__main__":

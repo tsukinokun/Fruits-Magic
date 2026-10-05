@@ -21,6 +21,7 @@
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
 #include <FruitMagic/Game/SaveData.hpp>
@@ -33,6 +34,7 @@
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
+#include <FruitMagic/ECS/Component/ReliefGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
 #include <FruitMagic/ECS/System/AutoPlaySystem.hpp>
@@ -124,6 +126,10 @@ namespace FruitMagic {
         constexpr float kManaGaugeCenterY  = 100.0f;    // マナゲージの中心の高さ
         constexpr float kManaGaugeWidth    = 220.0f;    // マナゲージの全幅
         constexpr float kManaGaugeHeight   = 14.0f;     // マナゲージの高さ
+        constexpr float kReliefRingDiameter = 36.0f;    // おすそわけ待ちのリングの直径
+        constexpr float kReliefRingCenterX  = 46.0f;    // リングの中心X
+        constexpr float kReliefRingCenterY  = 268.0f;   // リングの中心Y（「おすそわけ待ち」の文字の高さに揃える）
+        constexpr float kReliefTextX        = 72.0f;    // 「おすそわけ待ち」の文字の左端（リングの右）
         constexpr float kMagicButtonWidth  = 200.0f;    // 魔法ボタンの幅
         constexpr float kMagicButtonHeight = 46.0f;     // 魔法ボタンの高さ
         constexpr float kMagicButtonGap    = 16.0f;     // 魔法ボタンの間隔
@@ -317,6 +323,7 @@ namespace FruitMagic {
         registry.SetContext<CoinShowerState>();
         registry.SetContext<JackpotConfig>().Load(dataRoot + "/Jackpot.json");
         registry.SetContext<PlayStats>();
+        registry.SetContext<ReliefState>();
         registry.SetContext<EffectsConfig>().Load(dataRoot + "/Effects.json");
         CollectionConfig& collection = registry.SetContext<CollectionConfig>();
         collection.Load(dataRoot + "/Collection.json");
@@ -754,6 +761,7 @@ namespace FruitMagic {
             {ECS::HudTextKind::DropPopup, hlslpp::float2(28.0f, 122.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f)},
             {ECS::HudTextKind::HarvestTotal, hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f)},
             {ECS::HudTextKind::HarvestPopup, hlslpp::float2(28.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f)},
+            {ECS::HudTextKind::Relief, hlslpp::float2(kReliefTextX, 248.0f), 0.8f, hlslpp::float4(0.75f, 1.0f, 0.85f, 1.0f)},
             {ECS::HudTextKind::Roulette, hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f),
              Tsukino::BuiltIn::ECS::HorizontalAlign::Center},
             {ECS::HudTextKind::ControlsHint, hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f)},
@@ -823,6 +831,39 @@ namespace FruitMagic {
             gauge.fullWidth                = kManaGaugeWidth;
             gauge.height                   = kManaGaugeHeight;
             gauge.textureSize              = AssetPaths::kWhiteTextureSize;
+        }
+
+        //--------------------------------------------------------------
+        // おすそわけ待ちのリング（「おすそわけ待ち」の文字の左。下地＋中身）。
+        // 待っている間だけ HudSystem が表示し、中身を真上から時計回りに塗る
+        //--------------------------------------------------------------
+        {
+            const Tsukino::Asset::AssetHandle ring       = context->assetManager->Load(Tsukino::Core::Path(AssetPaths::kRingTexture));
+            const float                       shownScale = kReliefRingDiameter / AssetPaths::kRingTextureSize;
+
+            auto createRing = [&](ECS::ReliefGaugePart part, const hlslpp::float4& color, int sortOrder) {
+                Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
+                Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+                t.position                                   = hlslpp::float3(kReliefRingCenterX, kReliefRingCenterY, 0.0f);
+                t.scale                                      = hlslpp::float3(0.0f, 0.0f, 1.0f);    // 待っていない間は隠す
+                t.dirty                                      = true;
+
+                Tsukino::BuiltIn::ECS::SpriteComponent& sprite = registry.AddComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e);
+                sprite.textureHandle                           = ring;
+                sprite.tintColor                               = color;
+                sprite.sortOrder                               = sortOrder;
+
+                ECS::ReliefGaugeComponent& gauge = registry.AddComponent<ECS::ReliefGaugeComponent>(e);
+                gauge.part                       = part;
+                gauge.shownScale                 = shownScale;
+                return e;
+            };
+
+            createRing(ECS::ReliefGaugePart::Background, hlslpp::float4(0.1f, 0.05f, 0.15f, 0.7f), 0);
+            Tsukino::ECS::Entity fill = createRing(ECS::ReliefGaugePart::Fill, hlslpp::float4(0.75f, 1.0f, 0.55f, 1.0f), 1);
+            Tsukino::BuiltIn::ECS::SpriteComponent& sprite = registry.GetComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(fill);
+            sprite.fillMode                                = Tsukino::BuiltIn::ECS::SpriteFillMode::Radial;
+            sprite.fillAmount                              = 0.0f;
         }
 
         //--------------------------------------------------------------

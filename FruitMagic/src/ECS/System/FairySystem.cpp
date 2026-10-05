@@ -9,6 +9,7 @@
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/PusherLayout.hpp>
+#include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
@@ -44,6 +45,13 @@ namespace FruitMagic::ECS {
                 }
             } else {
                 m_reliefTimer = 0.0f;
+            }
+
+            // HUD に「おすそわけ待ち」を出すため、足した後の手持ちで待ち状態を書く
+            if(registry.HasContext<ReliefState>()) {
+                ReliefState& relief     = registry.GetContext<ReliefState>();
+                relief.waiting          = state.coins < economy.reliefBelow;
+                relief.secondsRemaining = relief.waiting ? economy.reliefSeconds - m_reliefTimer : 0.0f;
             }
         }
 

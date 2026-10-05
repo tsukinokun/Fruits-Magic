@@ -43,6 +43,10 @@ namespace FruitMagic::ECS {
         //! @param  [in] state    プレイヤーの資源
         void UpdateManaGauge(Tsukino::ECS::Registry& registry, const GameState& state);
 
+        //! おすそわけ待ちのリングを、待っている間だけ出し、次の1枚までの進み具合で塗ります。
+        //! @param  [in] registry レジストリ
+        void UpdateReliefGauge(Tsukino::ECS::Registry& registry);
+
         //! 魔法ボタンの色と文字を、解放状態・マナ・効果中かに合わせます。
         //! @param  [in] registry レジストリ
         //! @param  [in] state    プレイヤーの資源

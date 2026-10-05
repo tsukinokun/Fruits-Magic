@@ -64,7 +64,7 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     std::vector<std::string> AssetPreloader::CollectPaths(const std::string& dataRoot) {
         std::vector<std::string> paths = {AssetPaths::kBlockModel, AssetPaths::kBallModel, AssetPaths::kWhiteTexture, AssetPaths::kSparkleTexture,
-                                          AssetPaths::kGlowTexture};
+                                          AssetPaths::kGlowTexture, AssetPaths::kRingTexture};
         auto add = [&](const std::string& path) {
             if(!path.empty() && std::find(paths.begin(), paths.end(), path) == paths.end())
                 paths.push_back(path);
