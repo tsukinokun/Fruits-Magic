@@ -3,15 +3,18 @@
 //! @brief  画面（図鑑・強化）の開閉と表示・非表示を切り替えるシステム
 //----------------------------------------------------------------------------
 #pragma once
+#include <FruitMagic/Game/MenuState.hpp>
+
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
     //! 画面の開閉のシステムです。開閉ボタンのクリックか、ボタンに割り当てたキーで画面を開閉し
-    //! （別の画面を開くと前の画面は閉じる）、画面の要素（MenuPageComponent）の表示・非表示を切り替えます。
+    //! （別の画面を開くと前の画面は閉じる。Esc は開いている画面を閉じ、何も開いていなければオプションを開く）、画面の要素（MenuPageComponent）の表示・非表示を切り替えます。
     //! 開いている画面の中身は、画面ごとのシステム（ZukanSystem・UpgradeSystem）が書きます。
     //! 画面の行のスクロール（MenuPageComponent を持つ ScrollViewComponent）は、開いている画面のものだけ受け付けさせ、開いたときは一番上へ戻します。
+    //! オプションのデータ消去の確認（OptionsState）を出している間は、Esc で確認だけ閉じ、ほかの開閉とスクロールは受け付けません。
     class MenuSystem : public Tsukino::ECS::ISystem {
     public:
 
@@ -19,5 +22,8 @@ namespace FruitMagic::ECS {
         //! @param  [in] registry  レジストリ
         //! @param  [in] deltaTime 前フレームからの経過時間（秒）
         void Update(Tsukino::ECS::Registry& registry, float deltaTime) override;
+
+    private:
+        MenuKind m_lastOpen = MenuKind::None;    // 前のフレームに開いていた画面（開いた瞬間にスクロールを一番上へ戻すため）
     };
 }    // namespace FruitMagic::ECS

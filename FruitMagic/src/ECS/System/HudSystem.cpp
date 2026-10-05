@@ -18,6 +18,7 @@
 #include <FruitMagic/Game/MagicState.hpp>
 #include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
+#include <FruitMagic/Game/Settings.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
 
@@ -219,6 +220,11 @@ namespace FruitMagic::ECS {
                     break;
 
                 case HudTextKind::ControlsHint:
+                    // オプションで隠せる（操作説明はオプション画面にもある）
+                    if(registry.HasContext<Settings>() && !registry.GetContext<Settings>().showControlsHint) {
+                        font.text.clear();
+                        break;
+                    }
 #ifdef _DEBUG
                     font.text = texts.Get("hud.controlsDebug");
 #else

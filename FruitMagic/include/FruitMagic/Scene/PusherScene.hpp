@@ -59,5 +59,6 @@ namespace FruitMagic {
         Tsukino::ECS::Entity m_pusherEntity{entt::null};    // 往復するプッシャー
         float                m_pusherTime = 0.0f;          // プッシャーの往復に使う経過時間（秒）
         float                m_pusherAmplitude = 0.0f;     // 今のプッシャーの振幅（cm）。押し幅の強化の値へ少しずつ近づける
+        bool                 m_skipSaveOnExit = false;     // 終了時にセーブしない（「データを消して最初から」でセーブを消した後）
     };
 }    // namespace FruitMagic

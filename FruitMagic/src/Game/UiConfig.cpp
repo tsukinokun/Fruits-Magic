@@ -136,6 +136,8 @@ namespace FruitMagic {
             Json::Read(*buttons, "labelScale", menuLabelScale);
             Json::ReadColor(*buttons, "zukanColor", zukanButtonColor);
             Json::ReadColor(*buttons, "upgradeColor", upgradeButtonColor);
+            Json::Read(*buttons, "optionsY", optionsButtonY);
+            Json::ReadColor(*buttons, "optionsColor", optionsButtonColor);
         }
         if(const Json::Value* menu = Json::FindObject(doc, "menu")) {
             Json::ReadVec(*menu, "center", menuCenter);
@@ -215,6 +217,57 @@ namespace FruitMagic {
             Json::ReadColor(*welcome, "buttonColor", welcomeButtonColor);
             Json::Read(*welcome, "labelScale", welcomeLabelScale);
         }
+        if(const Json::Value* options = Json::FindObject(doc, "options")) {
+            Json::Read(*options, "listTop", optionsListTop);
+            Json::Read(*options, "listBottom", optionsListBottom);
+            Json::Read(*options, "listLeft", optionsListLeft);
+            Json::Read(*options, "listRight", optionsListRight);
+            Json::ReadColor(*options, "thumbColor", optionsThumbColor);
+            Json::Read(*options, "labelX", optionsLabelX);
+            Json::Read(*options, "rowsTop", optionsRowsTop);
+            Json::Read(*options, "rowPitch", optionsRowPitch);
+            Json::Read(*options, "minusX", optionsMinusX);
+            Json::Read(*options, "valueX", optionsValueX);
+            Json::Read(*options, "plusX", optionsPlusX);
+            Json::ReadVec(*options, "stepSize", optionsStepSize);
+            Json::ReadVec(*options, "toggleSize", optionsToggleSize);
+            ReadFont(*options, "label", optionsLabel);
+            ReadFont(*options, "value", optionsValue);
+            Json::Read(*options, "buttonLabelScale", optionsButtonLabelScale);
+            Json::ReadColor(*options, "buttonFill", optionsButtonFill);
+            Json::ReadColor(*options, "buttonHover", optionsButtonHover);
+            Json::ReadColor(*options, "toggleOn", optionsToggleOn);
+            Json::ReadColor(*options, "toggleOff", optionsToggleOff);
+            Json::ReadVec(*options, "quitSize", optionsQuitSize);
+            Json::ReadColor(*options, "quitColor", optionsQuitColor);
+            Json::Read(*options, "dataBelowFold", optionsDataBelowFold);
+            Json::Read(*options, "dataNoteGap", optionsDataNoteGap);
+            Json::Read(*options, "dataButtonGap", optionsDataButtonGap);
+            Json::Read(*options, "bottomMargin", optionsBottomMargin);
+            ReadFont(*options, "dataTitle", optionsDataTitle);
+            ReadFont(*options, "dataNote", optionsDataNote);
+            Json::ReadVec(*options, "resetSize", optionsResetSize);
+            Json::ReadColor(*options, "resetColor", optionsResetColor);
+        }
+        if(const Json::Value* confirm = Json::FindObject(doc, "confirm")) {
+            Json::ReadVec(*confirm, "size", confirmSize);
+            Json::ReadColor(*confirm, "color", confirmColor);
+            Json::ReadColor(*confirm, "dimColor", confirmDimColor);
+            Json::Read(*confirm, "stepY", confirmStepY);
+            Json::Read(*confirm, "messageY", confirmMessageY);
+            Json::Read(*confirm, "noteY", confirmNoteY);
+            Json::Read(*confirm, "buttonOffsetY", confirmButtonOffsetY);
+            Json::Read(*confirm, "yesOffsetX", confirmYesOffsetX);
+            Json::Read(*confirm, "noOffsetX", confirmNoOffsetX);
+            Json::ReadVec(*confirm, "buttonSize", confirmButtonSize);
+            ReadFont(*confirm, "step", confirmStep);
+            ReadFont(*confirm, "message", confirmMessage);
+            ReadFont(*confirm, "note", confirmNote);
+            Json::ReadColor(*confirm, "yesColor", confirmYesColor);
+            Json::ReadColor(*confirm, "yesWaitColor", confirmYesWaitColor);
+            Json::ReadColor(*confirm, "noColor", confirmNoColor);
+            Json::Read(*confirm, "delay", confirmDelay);
+        }
         if(const Json::Value* timing = Json::FindObject(doc, "timing")) {
             Json::Read(*timing, "payoutPopup", payoutPopupSeconds);
             Json::Read(*timing, "harvestPopup", harvestPopupSeconds);
@@ -222,6 +275,7 @@ namespace FruitMagic {
             Json::Read(*timing, "magicLearned", magicLearnedSeconds);
             Json::Read(*timing, "muteNotice", muteNoticeSeconds);
             Json::Read(*timing, "growNotice", growNoticeSeconds);
+            Json::Read(*timing, "musicRestart", musicRestartDelay);
         }
         if(const Json::Value* loading = Json::FindObject(doc, "loading")) {
             Json::Read(*loading, "minSeconds", loadingMinSeconds);

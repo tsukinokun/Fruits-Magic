@@ -22,10 +22,13 @@ namespace Tsukino::ECS {
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
-    //! 効果音のシステムです。鳴らす音のファイル・音量・最短の間隔は Assets/Data/Sounds.json で決めます。
+    //! 効果音と BGM のシステムです。鳴らす音のファイル・音量・最短の間隔と BGM は Assets/Data/Sounds.json で決めます。
+    //! - BGM は読み込んだらループで流す。音量はオプションの設定（Settings）を掛け、変わったら少し待ってから流し直す
+    //!   （エンジンは再生中の音量を変えられないため。曲は頭からになる）
+    //! - 効果音の音量は、鳴らすたびに設定の効果音の音量を掛ける
     //! - 出来事（落下・図鑑登録・魔法）はイベントで、投入・強化・画面の開閉・ルーレットの進み具合は状態の変化で知る
     //! - 同じ音は minInterval 秒より短い間隔では鳴らさない（コインがまとめて落ちても数回だけ鳴る）
-    //! - M キーで消音を切り替える
+    //! - M キーで消音を切り替える（設定に保存する）
     class SoundSystem : public Tsukino::ECS::ISystem {
     public:
 
@@ -39,7 +42,7 @@ namespace FruitMagic::ECS {
         //! @param  [in] deltaTime 前フレームからの経過時間（秒）
         void Update(Tsukino::ECS::Registry& registry, float deltaTime) override;
 
-        //! 設定ファイルに書かれた効果音のファイルを列挙します（ロード画面の先読み用）。
+        //! 設定ファイルに書かれた効果音と BGM のファイルを列挙します（ロード画面の先読み用）。
         //! @param  [in] path 設定ファイル（Sounds.json）
         //! @return 効果音のファイル（リポジトリルート相対）。読めなければ空
         static std::vector<std::string> ListSoundFiles(const std::string& path);
@@ -59,12 +62,18 @@ namespace FruitMagic::ECS {
         //! @param  [in] path 設定ファイル
         void Load(const std::string& path);
 
-        //! 設定ファイルを読み、効果音の設定と全体の音量を取り出します。
+        //! 設定ファイルを読み、効果音・BGM の設定と全体の音量を取り出します。
         //! @param  [in]     path         設定ファイル
         //! @param  [out]    sounds       名前ごとの効果音
+        //! @param  [out]    music        BGM（"music" が無ければ file が空のまま）
         //! @param  [in,out] masterVolume 全体の音量（項目が無ければそのまま）
         //! @return 読めたら true
-        static bool Parse(const std::string& path, std::unordered_map<std::string, Sound>& sounds, float& masterVolume);
+        static bool Parse(const std::string& path, std::unordered_map<std::string, Sound>& sounds, Sound& music, float& masterVolume);
+
+        //! BGM を設定の音量で流します（流れていれば止めてから流し直す。音量 0 なら止めるだけ）。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] volume   流す音量（設定を掛けた後）
+        void PlayMusic(Tsukino::ECS::Registry& registry, float volume);
 
         //! 音を鳴らします（間隔が短すぎる・読み込めていない音は鳴らさない）。
         //! @param  [in] registry レジストリ
@@ -76,9 +85,12 @@ namespace FruitMagic::ECS {
         Tsukino::ECS::ScopedConnection         m_zukanConnection;   // ZukanRegisteredEvent の購読
         Tsukino::ECS::ScopedConnection         m_castConnection;    // MagicCastEvent の購読
         std::unordered_map<std::string, Sound> m_sounds;            // 名前ごとの効果音
+        Sound                                  m_music;             // BGM（file が空なら流さない）
+        float                                  m_musicVolume  = -1.0f;   // 今流している BGM の音量（-1 はまだ流していない）
+        float                                  m_musicRestart = 0.0f;    // BGM を新しい音量で流し直すまでの時間（秒。0 なら待っていない）
+        bool                                   m_appliedMuted = false;   // 全体の音量に反映した消音の状態
         std::vector<std::string>               m_pending;           // 次の Update で鳴らす音
         float                                  m_masterVolume = 0.8f;    // 全体の音量
-        bool                                   m_muted        = false;   // 消音中か
         bool                                   m_loaded       = false;   // 音を読み込んだか（最初の Update で読む）
 
         //--------------------------------------------------------------

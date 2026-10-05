@@ -24,6 +24,9 @@
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
 #include <FruitMagic/Game/SaveData.hpp>
+#include <FruitMagic/Game/OptionsState.hpp>
+#include <FruitMagic/Game/SceneRequest.hpp>
+#include <FruitMagic/Game/Settings.hpp>
 #include <FruitMagic/Game/StageConfig.hpp>
 #include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
@@ -37,6 +40,8 @@
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
+#include <FruitMagic/ECS/Component/OptionsDialogComponent.hpp>
+#include <FruitMagic/ECS/Component/OptionsElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ReliefGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
@@ -53,6 +58,7 @@
 #include <FruitMagic/ECS/System/MagicInputSystem.hpp>
 #include <FruitMagic/ECS/System/ManaSystem.hpp>
 #include <FruitMagic/ECS/System/MenuSystem.hpp>
+#include <FruitMagic/ECS/System/OptionsSystem.hpp>
 #include <FruitMagic/ECS/System/MeteorMagicSystem.hpp>
 #include <FruitMagic/ECS/System/PopupSystem.hpp>
 #include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
@@ -70,6 +76,8 @@
 #endif
 
 #include <Tsukino/EngineIntegration/EngineAPI.hpp>
+#include <Tsukino/Audio/AudioManager.hpp>
+#include <Tsukino/Core/Window.hpp>
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 
 #include <Tsukino/EngineIntegration/ECS/System/TransformSystem.hpp>
@@ -114,6 +122,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <random>
 #include <string>
@@ -211,6 +220,7 @@ namespace FruitMagic {
             ScrollView,          // 開いている画面の行のスクロール（Menu が決めた開閉の後、Transform の前）
             Zukan,
             Upgrade,
+            Options,
             MagicInput,
             AutoPlay,            // （計測用）投入・魔法・強化
             CoinLauncher,        // 投入したコインを今フレームの Transform・物理に乗せる
@@ -256,6 +266,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::ScrollViewSystem>(), (int)SystemPriority::ScrollView);
         m_scene.AddSystem(std::make_shared<ECS::ZukanSystem>(), (int)SystemPriority::Zukan);
         m_scene.AddSystem(std::make_shared<ECS::UpgradeSystem>(), (int)SystemPriority::Upgrade);
+        m_scene.AddSystem(std::make_shared<ECS::OptionsSystem>(), (int)SystemPriority::Options);
         m_scene.AddSystem(std::make_shared<ECS::MagicInputSystem>(eventBus), (int)SystemPriority::MagicInput);
         m_scene.AddSystem(std::make_shared<ECS::CoinLauncherSystem>(), (int)SystemPriority::CoinLauncher);
         m_scene.AddSystem(std::make_shared<ECS::FairySystem>(), (int)SystemPriority::Fairy);
@@ -343,6 +354,11 @@ namespace FruitMagic {
         offline.Load(dataRoot + "/Offline.json");
         offline.savePath = autoPlay ? std::string() : SaveData::DefaultPath();
 
+        // オプションの設定（セーブデータとは別のファイル。自動プレイでは読み書きしない）
+        registry.SetContext<Settings>().Load(autoPlay ? std::string() : Settings::DefaultPath());
+        registry.SetContext<SceneRequest>();
+        registry.SetContext<OptionsState>();
+
         EconomyConfig& economy = registry.SetContext<EconomyConfig>();
         economy.Load(dataRoot + "/Economy.json");
 
@@ -416,6 +432,30 @@ namespace FruitMagic {
         }
 
         m_scene.Update(simulationStep);
+
+        //--------------------------------------------------------------
+        // オプション画面からの頼みごと（システムの更新が終わってから行う）
+        //--------------------------------------------------------------
+        if(registry.HasContext<SceneRequest>()) {
+            SceneRequest& request = registry.GetContext<SceneRequest>();
+            if(request.restart) {
+                // セーブを消し、このシーンの終了時に保存し直さないようにしてから、新しい台で始め直す
+                request.restart = false;
+                if(registry.HasContext<OfflineConfig>() && !registry.GetContext<OfflineConfig>().savePath.empty()) {
+                    std::error_code error;
+                    std::filesystem::remove(registry.GetContext<OfflineConfig>().savePath, error);
+                }
+                m_skipSaveOnExit = true;
+                Tsukino::Core::Log::Info("PusherScene: restarting with a new game.");
+                api.ChangeScene(std::make_unique<PusherScene>());
+            } else if(request.quit) {
+                // 普通にウィンドウを閉じたのと同じ流れで終わる（終了時に OnExit でセーブされる）
+                request.quit = false;
+                Tsukino::EngineIntegration::EngineContext* ctx = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
+                if(ctx && ctx->window)
+                    PostMessageW(ctx->window->GetHWND(), WM_CLOSE, 0, 0);
+            }
+        }
     }
 
     //----------------------------------------------------------------------------
@@ -424,6 +464,14 @@ namespace FruitMagic {
     void PusherScene::OnExit() {
         Tsukino::Core::Log::Info("PusherScene: exiting.");
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+
+        // 鳴っている音（BGM のループ）を止める。最初からやり直すとき、次のシーンの BGM と重ならないように
+        Tsukino::EngineIntegration::EngineContext* ctx = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
+        if(ctx && ctx->audioManager)
+            ctx->audioManager->StopAll();
+
+        if(m_skipSaveOnExit)
+            return;
         if(!registry.HasContext<OfflineConfig>() || registry.GetContext<OfflineConfig>().savePath.empty())
             return;
         if(SaveData::Save(registry, registry.GetContext<OfflineConfig>().savePath))
@@ -930,6 +978,8 @@ namespace FruitMagic {
         const MenuButtonSpec menuButtons[] = {
             {MenuKind::Zukan, Tsukino::Input::KeyCode::Tab, ui.zukanButtonY, ui.zukanButtonColor, "menu.zukanButton", "menu.zukanClose"},
             {MenuKind::Upgrade, Tsukino::Input::KeyCode::U, ui.upgradeButtonY, ui.upgradeButtonColor, "menu.upgradeButton", "menu.upgradeClose"},
+            // Esc は MenuSystem が別に扱う（開いている画面を閉じる・何も無ければオプション）ので、ボタンにはキーを割り当てない
+            {MenuKind::Options, Tsukino::Input::KeyCode::None, ui.optionsButtonY, ui.optionsButtonColor, "menu.optionsButton", "menu.optionsClose"},
         };
         for(const MenuButtonSpec& spec : menuButtons) {
             Tsukino::ECS::Entity button = createPanel(hlslpp::float2(ui.menuButtonX, spec.y), hlslpp::float2(ui.menuButtonWidth, ui.menuButtonHeight), spec.color, 10);
@@ -1182,6 +1232,108 @@ namespace FruitMagic {
             close.label                     = addPage(createText(buttonCenter, ui.welcomeLabelScale, kCenter, kWhite, 32), MenuKind::Welcome);
             close.openText                  = texts.Get("welcome.close");
             close.canOpen                   = false;
+        }
+
+        //--------------------------------------------------------------
+        // オプション画面。タイトルの下をスクロールする領域にし、上から設定（音量・消音・操作説明の表示）と
+        // 「ゲームを終了」を並べる。「データを消して最初から」は最初に見える範囲より下に置き、スクロールしないと見えない。
+        // ボタンの文字と色、音量の表示は OptionsSystem が書く
+        //--------------------------------------------------------------
+        {
+            createMenuPanel(MenuKind::Options, texts.Get("options.title"));
+
+            // 中身の高さは「データ」の段の位置で決まるので、先に並べる位置を出す
+            const float      listTop     = menuTop + ui.optionsListTop;
+            const float      listBottom  = menuBottom - ui.optionsListBottom;
+            const float      dataTitleY  = listBottom + ui.optionsDataBelowFold;
+            const float      resetY      = dataTitleY + ui.optionsDataButtonGap;
+            const float      contentSize = resetY + ui.optionsResetSize.y * 0.5f + ui.optionsBottomMargin - listTop;
+            const ScrollList list        = createScrollList(MenuKind::Options, menuLeft + ui.optionsListLeft, listTop, menuRight - ui.optionsListRight, listBottom,
+                                                            contentSize, ui.optionsThumbColor);
+
+            // 文字を1つ置く（中身の子にする）
+            auto addText = [&](const hlslpp::float2& position, const UiFont& style, Tsukino::BuiltIn::ECS::HorizontalAlign align, const std::wstring& text = L"") {
+                return addPage(attach(list, createFontText(position, style, align, 22)), MenuKind::Options, text);
+            };
+            // ボタンを1つ置く（中身の子にする。文字は OptionsSystem が書く）
+            auto addButton = [&](ECS::OptionsElementKind kind, const hlslpp::float2& center, const hlslpp::float2& size) {
+                Tsukino::ECS::Entity button = attach(list, createPanel(center, size, ui.optionsButtonFill, 21));
+                registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+                addPage(button, MenuKind::Options);
+                ECS::OptionsElementComponent& element = registry.AddComponent<ECS::OptionsElementComponent>(button);
+                element.kind                          = kind;
+                element.label = addPage(attach(list, createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 22)), MenuKind::Options);
+            };
+
+            //--------------------------------------------------------------
+            // 設定の行と「ゲームを終了」
+            //--------------------------------------------------------------
+            const float labelX = menuLeft + ui.optionsLabelX;
+            auto        rowY   = [&](int row) { return listTop + ui.optionsRowsTop + ui.optionsRowPitch * static_cast<float>(row); };
+            auto        label  = [&](int row, const char* key) { addText(hlslpp::float2(labelX, rowY(row)), ui.optionsLabel, kLeft, texts.Get(key)); };
+            auto volumeRow = [&](int row, const char* key, ECS::OptionsElementKind down, ECS::OptionsElementKind value, ECS::OptionsElementKind up) {
+                label(row, key);
+                addButton(down, hlslpp::float2(menuLeft + ui.optionsMinusX, rowY(row)), ui.optionsStepSize);
+                registry.AddComponent<ECS::OptionsElementComponent>(addText(hlslpp::float2(menuLeft + ui.optionsValueX, rowY(row)), ui.optionsValue, kCenter)).kind = value;
+                addButton(up, hlslpp::float2(menuLeft + ui.optionsPlusX, rowY(row)), ui.optionsStepSize);
+            };
+            volumeRow(0, "options.bgm", ECS::OptionsElementKind::BgmDown, ECS::OptionsElementKind::BgmValue, ECS::OptionsElementKind::BgmUp);
+            volumeRow(1, "options.se", ECS::OptionsElementKind::SeDown, ECS::OptionsElementKind::SeValue, ECS::OptionsElementKind::SeUp);
+            label(2, "options.mute");
+            addButton(ECS::OptionsElementKind::Mute, hlslpp::float2(menuLeft + ui.optionsValueX, rowY(2)), ui.optionsToggleSize);
+            label(3, "options.hint");
+            addButton(ECS::OptionsElementKind::Hint, hlslpp::float2(menuLeft + ui.optionsValueX, rowY(3)), ui.optionsToggleSize);
+            addButton(ECS::OptionsElementKind::Quit, hlslpp::float2(labelX + ui.optionsQuitSize.x * 0.5f, rowY(4)), ui.optionsQuitSize);
+
+            //--------------------------------------------------------------
+            // データ（スクロールした先）: 見出し・説明・「データを消して最初から」（押すと確認ウィンドウ）
+            //--------------------------------------------------------------
+            addText(hlslpp::float2(labelX, dataTitleY), ui.optionsDataTitle, kLeft, texts.Get("options.dataTitle"));
+            addText(hlslpp::float2(labelX, dataTitleY + ui.optionsDataNoteGap), ui.optionsDataNote, kLeft, texts.Get("options.dataNote"));
+            addButton(ECS::OptionsElementKind::Reset, hlslpp::float2(labelX + ui.optionsResetSize.x * 0.5f, resetY), ui.optionsResetSize);
+        }
+
+        //--------------------------------------------------------------
+        // データ消去の確認ウィンドウ（3回）。ほかのすべての画面より手前に出し、後ろは暗い板で覆ってクリックを受け止める。
+        // 出しているかどうか・文字・色は OptionsSystem が OptionsState を見て決める（最初は隠す）
+        //--------------------------------------------------------------
+        {
+            const float top    = ui.menuCenter.y - ui.confirmSize.y * 0.5f;
+            const float bottom = ui.menuCenter.y + ui.confirmSize.y * 0.5f;
+
+            // 確認ウィンドウの部品にする（スプライトは出すときのスケールを覚えて隠す）
+            auto addPart = [&](Tsukino::ECS::Entity e, ECS::OptionsDialogPart part) {
+                ECS::OptionsDialogComponent& component = registry.AddComponent<ECS::OptionsDialogComponent>(e);
+                component.part                         = part;
+                if(registry.HasComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e)) {
+                    Tsukino::BuiltIn::ECS::TransformComponent& t = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+                    component.shownScale                         = t.scale;
+                    t.scale                                      = hlslpp::float3(0.0f, 0.0f, 1.0f);
+                }
+                return e;
+            };
+
+            Tsukino::ECS::Entity dimmer = createPanel(ui.ScreenCenter(), hlslpp::float2(ui.screenWidth, ui.screenHeight), ui.confirmDimColor, 40);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(dimmer);
+            addPart(dimmer, ECS::OptionsDialogPart::Dimmer);
+            Tsukino::ECS::Entity window = createPanel(ui.menuCenter, ui.confirmSize, ui.confirmColor, 41);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(window);
+            addPart(window, ECS::OptionsDialogPart::Window);
+
+            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmStepY), ui.confirmStep, kCenter, 42), ECS::OptionsDialogPart::Step);
+            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmMessageY), ui.confirmMessage, kCenter, 42), ECS::OptionsDialogPart::Message);
+            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmNoteY), ui.confirmNote, kCenter, 42), ECS::OptionsDialogPart::Note);
+
+            auto addButton = [&](ECS::OptionsDialogPart part, float offsetX) {
+                const hlslpp::float2 center(ui.menuCenter.x + offsetX, bottom - ui.confirmButtonOffsetY);
+                Tsukino::ECS::Entity button = createPanel(center, ui.confirmButtonSize, ui.confirmNoColor, 42);
+                registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+                addPart(button, part);
+                Tsukino::ECS::Entity label = addPart(createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 43), ECS::OptionsDialogPart::ButtonLabel);
+                registry.GetComponent<ECS::OptionsDialogComponent>(button).label = label;
+            };
+            addButton(ECS::OptionsDialogPart::Yes, ui.confirmYesOffsetX);
+            addButton(ECS::OptionsDialogPart::No, ui.confirmNoOffsetX);
         }
     }
 

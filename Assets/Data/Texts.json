@@ -16,8 +16,8 @@
     "registered": "図鑑に登録！ {name}",
     "harvested": "{name} ゲット！",
     "relief": "妖精のおすそわけ待ち… あと {n} 秒",
-    "controls": "←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音",
-    "controlsDebug": "←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音   F5: コリジョン表示   F2: コイン・果実 +100・マナ満タン"
+    "controls": "←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音   Esc: オプション",
+    "controlsDebug": "←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音   Esc: オプション   F5: コリジョン表示   F2: コイン・果実 +100・マナ満タン"
   },
   "roulette": {
     "spinning": "ルーレット ▶ {name}",
@@ -55,7 +55,40 @@
     "zukanButton": "図鑑 (Tab)",
     "zukanClose": "閉じる (Tab)",
     "upgradeButton": "強化 (U)",
-    "upgradeClose": "閉じる (U)"
+    "upgradeClose": "閉じる (U)",
+    "optionsButton": "オプション (Esc)",
+    "optionsClose": "閉じる (Esc)"
+  },
+  "options": {
+    "title": "オプション",
+    "bgm": "BGM",
+    "se": "効果音",
+    "mute": "消音 (M)",
+    "hint": "画面下の操作説明",
+    "minus": "−",
+    "plus": "＋",
+    "percent": "{n}%",
+    "on": "オン",
+    "off": "オフ",
+    "show": "表示",
+    "hide": "非表示",
+    "quit": "ゲームを終了",
+    "dataTitle": "データ",
+    "dataNote": "セーブを消して最初から始めます（音量などの設定は残ります）",
+    "reset": "データを消して最初から",
+    "confirm": {
+      "step": "確認 {n} / 3",
+      "message1": "データを消して最初から始めますか？",
+      "note1": "コイン・果実・果物・マナがなくなります",
+      "yes1": "消す",
+      "message2": "本当に消しますか？",
+      "note2": "台の強化と図鑑の記録もすべて消えます",
+      "yes2": "本当に消す",
+      "message3": "最後の確認です",
+      "note3": "消したデータは元に戻せません",
+      "yes3": "完全に消す",
+      "no": "やめる (Esc)"
+    }
   },
   "zukan": {
     "title": "図鑑",

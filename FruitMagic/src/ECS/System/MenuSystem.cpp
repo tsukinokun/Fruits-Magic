@@ -6,6 +6,7 @@
 
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
+#include <FruitMagic/Game/OptionsState.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
@@ -30,6 +31,12 @@ namespace FruitMagic::ECS {
         Tsukino::EngineIntegration::EngineContext* ctx   = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
         Tsukino::Input::InputSystem*               input = ctx ? ctx->inputSystem : nullptr;
 
+        // データ消去の確認を出している間は、Esc で確認だけ閉じ、ほかの開閉とスクロールは受け付けない
+        OptionsState* options    = registry.HasContext<OptionsState>() ? &registry.GetContext<OptionsState>() : nullptr;
+        const bool    confirming = options && options->IsConfirming();
+        if(confirming && input && input->IsKeyPressed(Tsukino::Input::KeyCode::Escape))
+            options->confirmStep = 0;
+
         //--------------------------------------------------------------
         // 開閉（ボタンのクリック、またはボタンに割り当てたキー）。
         // 開いている画面のボタンなら閉じ、別の画面のボタンならそちらに切り替える
@@ -37,12 +44,17 @@ namespace FruitMagic::ECS {
         MenuKind toggled = MenuKind::None;
         registry.View<MenuButtonComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
             [&](Tsukino::ECS::Entity, MenuButtonComponent& button, Tsukino::BuiltIn::ECS::PointerTargetComponent& pointer) {
-                const bool pressed = pointer.clicked || (input && input->IsKeyPressed(button.key));
-                if(pressed && (button.canOpen || state.IsOpen(button.menu)))
+                const bool keyPressed = input && button.key != Tsukino::Input::KeyCode::None && input->IsKeyPressed(button.key);
+                const bool pressed    = pointer.clicked || keyPressed;
+                if(pressed && !confirming && (button.canOpen || state.IsOpen(button.menu)))
                     toggled = button.menu;
             });
         if(toggled != MenuKind::None)
             state.open = state.IsOpen(toggled) ? MenuKind::None : toggled;
+
+        // Esc: 何かの画面が開いていれば閉じ、何も開いていなければオプションを開く
+        if(toggled == MenuKind::None && !confirming && input && input->IsKeyPressed(Tsukino::Input::KeyCode::Escape))
+            state.open = (state.open != MenuKind::None) ? MenuKind::None : MenuKind::Options;
 
         // ボタンの文字（開いている画面のボタンは「閉じる」）
         registry.View<MenuButtonComponent>().each([&](Tsukino::ECS::Entity, MenuButtonComponent& button) {
@@ -53,12 +65,14 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         // 行のスクロールは、開いている画面のものだけ受け付ける。開いたときは一番上から見せる
         //--------------------------------------------------------------
+        const bool justOpened = state.open != m_lastOpen;
+        m_lastOpen            = state.open;
         registry.View<MenuPageComponent, Tsukino::BuiltIn::ECS::ScrollViewComponent>().each(
             [&](Tsukino::ECS::Entity, MenuPageComponent& page, Tsukino::BuiltIn::ECS::ScrollViewComponent& scroll) {
                 const bool open = state.IsOpen(page.menu);
-                if(open && !scroll.enabled)
+                if(open && justOpened)
                     scroll.ScrollToTop();
-                scroll.enabled = open;
+                scroll.enabled = open && !confirming;    // 確認中は止める（確認を閉じたら同じ位置から）
             });
 
         //--------------------------------------------------------------

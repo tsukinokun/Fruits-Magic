@@ -108,6 +108,8 @@ namespace FruitMagic {
         float          menuLabelScale   = 0.85f;
         hlslpp::float4 zukanButtonColor   = hlslpp::float4(0.95f, 0.55f, 0.65f, 1.0f);
         hlslpp::float4 upgradeButtonColor = hlslpp::float4(0.45f, 0.75f, 0.4f, 1.0f);
+        float          optionsButtonY     = 140.0f;
+        hlslpp::float4 optionsButtonColor = hlslpp::float4(0.55f, 0.6f, 0.85f, 1.0f);
 
         //--------------------------------------------------------------
         // 画面（図鑑・強化）の共通
@@ -194,6 +196,61 @@ namespace FruitMagic {
         float          welcomeLabelScale    = 0.9f;
 
         //--------------------------------------------------------------
+        // オプション画面（x は画面の左端から。中身はスクロールする領域の中に並べ、y はその上端から）
+        //--------------------------------------------------------------
+        float          optionsListTop       = 70.0f;      // スクロールする領域の上端（画面の上端から）
+        float          optionsListBottom    = 24.0f;      // スクロールする領域の下端（画面の下端から）
+        float          optionsListLeft      = 20.0f;      // スクロールする領域の左端（画面の左端から）
+        float          optionsListRight     = 44.0f;      // スクロールする領域の右端（画面の右端から。スクロールバーの分あける）
+        hlslpp::float4 optionsThumbColor    = hlslpp::float4(0.62f, 0.52f, 0.85f, 1.0f);
+        float          optionsLabelX        = 50.0f;      // 項目名の左端
+        float          optionsRowsTop       = 40.0f;      // 1行目の中心
+        float          optionsRowPitch      = 64.0f;      // 行の間隔
+        float          optionsMinusX        = 330.0f;     // 「−」ボタンの中心
+        float          optionsValueX        = 405.0f;     // 音量の％の中心（オン/オフのボタンの中心も）
+        float          optionsPlusX         = 480.0f;     // 「＋」ボタンの中心
+        hlslpp::float2 optionsStepSize      = hlslpp::float2(52.0f, 42.0f);     // −/＋ ボタンの大きさ
+        hlslpp::float2 optionsToggleSize    = hlslpp::float2(200.0f, 42.0f);    // オン/オフのボタンの大きさ
+        UiFont         optionsLabel         = {0.9f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f)};
+        UiFont         optionsValue         = {0.95f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f)};
+        float          optionsButtonLabelScale = 0.85f;
+        hlslpp::float4 optionsButtonFill    = hlslpp::float4(0.45f, 0.38f, 0.65f, 1.0f);    // ボタン
+        hlslpp::float4 optionsButtonHover   = hlslpp::float4(0.62f, 0.52f, 0.85f, 1.0f);    // ボタン（カーソルが重なっている）
+        hlslpp::float4 optionsToggleOn      = hlslpp::float4(0.35f, 0.75f, 0.45f, 1.0f);    // オン/表示
+        hlslpp::float4 optionsToggleOff     = hlslpp::float4(0.4f, 0.36f, 0.45f, 1.0f);     // オフ/非表示
+        hlslpp::float2 optionsQuitSize      = hlslpp::float2(240.0f, 46.0f);    // 「ゲームを終了」（設定の行の次の行。左端は項目名に揃える）
+        hlslpp::float4 optionsQuitColor     = hlslpp::float4(0.4f, 0.4f, 0.5f, 1.0f);
+        float          optionsDataBelowFold = 60.0f;      // 「データ」の見出しを、最初に見える範囲の下端からどれだけ下に置くか（スクロールしないと見えない）
+        float          optionsDataNoteGap   = 42.0f;      // 見出しから説明まで
+        float          optionsDataButtonGap = 100.0f;     // 見出しから「データを消して最初から」の中心まで
+        float          optionsBottomMargin  = 40.0f;      // 最後のボタンの下の余白
+        UiFont         optionsDataTitle     = {0.95f, hlslpp::float4(1.0f, 0.6f, 0.6f, 1.0f)};
+        UiFont         optionsDataNote      = {0.72f, hlslpp::float4(0.9f, 0.9f, 0.95f, 1.0f)};
+        hlslpp::float2 optionsResetSize     = hlslpp::float2(340.0f, 46.0f);
+        hlslpp::float4 optionsResetColor    = hlslpp::float4(0.75f, 0.35f, 0.4f, 1.0f);
+
+        //--------------------------------------------------------------
+        // データ消去の確認ウィンドウ（画面の中央に出す。y はウィンドウの上端から、ボタンの x は中央から）
+        //--------------------------------------------------------------
+        hlslpp::float2 confirmSize          = hlslpp::float2(640.0f, 300.0f);
+        hlslpp::float4 confirmColor         = hlslpp::float4(0.2f, 0.06f, 0.1f, 0.98f);
+        hlslpp::float4 confirmDimColor      = hlslpp::float4(0.0f, 0.0f, 0.0f, 0.55f);    // 後ろの画面を暗くする板
+        float          confirmStepY         = 40.0f;      // 「確認 n/3」
+        float          confirmMessageY      = 105.0f;     // 1行目
+        float          confirmNoteY         = 150.0f;     // 2行目
+        float          confirmButtonOffsetY = 60.0f;      // ボタンの中心（下端から）
+        float          confirmYesOffsetX    = -150.0f;    // 消すボタンの中心
+        float          confirmNoOffsetX     = 150.0f;     // やめるボタンの中心
+        hlslpp::float2 confirmButtonSize    = hlslpp::float2(240.0f, 50.0f);
+        UiFont         confirmStep          = {0.85f, hlslpp::float4(1.0f, 0.75f, 0.75f, 1.0f)};
+        UiFont         confirmMessage       = {1.0f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f)};
+        UiFont         confirmNote          = {0.75f, hlslpp::float4(0.95f, 0.85f, 0.85f, 1.0f)};
+        hlslpp::float4 confirmYesColor      = hlslpp::float4(0.85f, 0.25f, 0.25f, 1.0f);
+        hlslpp::float4 confirmYesWaitColor  = hlslpp::float4(0.4f, 0.22f, 0.24f, 1.0f);    // まだ押せない間
+        hlslpp::float4 confirmNoColor       = hlslpp::float4(0.4f, 0.4f, 0.5f, 1.0f);
+        float          confirmDelay         = 0.5f;       // 出てから消すボタンを押せるようになるまで（秒。連打で通らないように）
+
+        //--------------------------------------------------------------
         // 表示時間（秒）
         //--------------------------------------------------------------
         float payoutPopupSeconds     = 1.2f;    // 払い出し表示。続けて落ちたら延長して合算する
@@ -202,6 +259,7 @@ namespace FruitMagic {
         float magicLearnedSeconds    = 4.0f;    // 「新しい魔法を覚えた！」
         float muteNoticeSeconds      = 1.5f;    // 消音の切り替え
         float growNoticeSeconds      = 2.5f;    // おおきくなーれの結果
+        float musicRestartDelay      = 0.4f;    // BGM の音量を変えてから流し直すまで（−/＋を続けて押しても1回だけ流し直す）
 
         //--------------------------------------------------------------
         // ロード画面

@@ -41,6 +41,7 @@
 
 | `Assets/Sounds/`・`Assets/Textures/` | 効果音（WAV）と光の画像。どちらも `Tools/GenerateSounds.py`・`Tools/GenerateTextures.py` で合成したもの（作り直すときはスクリプトを直して実行） |
 | `Saves/save.json` | セーブデータ（実行時に作られる。git 管理外）。消すと最初から |
+| `Saves/settings.json` | オプションの設定（音量・消音・操作説明の表示）。セーブとは別なので「データを消して最初から」でも残る |
 
 単位はエンジン規約どおり 1unit ≒ 1cm。
 
