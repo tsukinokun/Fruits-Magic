@@ -9,6 +9,7 @@
 #include <FruitMagic/ECS/Event/MagicCastEvent.hpp>
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
 #include <FruitMagic/ECS/Event/ZukanRegisteredEvent.hpp>
+#include <FruitMagic/Game/AssetPaths.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/EffectsConfig.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
@@ -94,8 +95,8 @@ namespace FruitMagic::ECS {
         if(!m_texturesLoaded) {
             Tsukino::EngineIntegration::EngineContext* ctx = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
             if(ctx && ctx->assetManager) {
-                m_sparkleTexture = ctx->assetManager->Load(Tsukino::Core::Path("Assets/Textures/Sparkle.png"));
-                m_glowTexture    = ctx->assetManager->Load(Tsukino::Core::Path("Assets/Textures/Glow.png"));
+                m_sparkleTexture = ctx->assetManager->Load(Tsukino::Core::Path(AssetPaths::kSparkleTexture));
+                m_glowTexture    = ctx->assetManager->Load(Tsukino::Core::Path(AssetPaths::kGlowTexture));
             }
             m_texturesLoaded = true;
         }

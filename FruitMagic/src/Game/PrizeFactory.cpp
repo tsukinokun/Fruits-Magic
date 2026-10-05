@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Game/PrizeFactory.hpp>
 
+#include <FruitMagic/Game/AssetPaths.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/ECS/Component/FruitPartsComponent.hpp>
 #include <FruitMagic/ECS/Component/PrizeComponent.hpp>
@@ -31,10 +32,6 @@
 // 名前空間 : FruitMagic
 namespace FruitMagic {
     namespace {
-        //! @brief 台の部品とコインの見た目に使う箱モデル
-        constexpr const char* kBlockModelPath = "Assets/Models/Block.fbx";
-        constexpr const char* kBallModelPath  = "Assets/Models/Ball.fbx";
-
         //! @brief コインの色（金色）と、少しだけ光らせる強さ
         const hlslpp::float3 kCoinColor = hlslpp::float3(1.0f, 0.78f, 0.25f);
         constexpr float      kCoinGlow  = 0.25f;
@@ -151,7 +148,7 @@ namespace FruitMagic {
     void PrizeFactory::Initialize(Tsukino::Asset::AssetManager& assetManager) {
         m_assetManager = &assetManager;
         m_models.clear();
-        GetModel(kBlockModelPath);
+        GetModel(AssetPaths::kBlockModel);
     }
 
     //----------------------------------------------------------------------------
@@ -245,7 +242,7 @@ namespace FruitMagic {
     Tsukino::ECS::Entity PrizeFactory::CreateVisualBox(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
                                                        float opacity, const hlslpp::float3& color) {
         const bool           isWhite = (color.x >= 1.0f && color.y >= 1.0f && color.z >= 1.0f);
-        const ModelInfo&     block   = isWhite ? GetModel(kBlockModelPath) : GetTintedModel(kBlockModelPath, color);
+        const ModelInfo&     block   = isWhite ? GetModel(AssetPaths::kBlockModel) : GetTintedModel(AssetPaths::kBlockModel, color);
         Tsukino::ECS::Entity e     = registry.CreateEntity();
 
         // 見た目は箱モデルを伸縮させて合わせる
@@ -269,7 +266,7 @@ namespace FruitMagic {
         Tsukino::ECS::Entity e = CreateBox(registry, position, CoinHalfExtent(), Tsukino::BuiltIn::ECS::RigidbodyType::Dynamic);
 
         // 金色にして少し光らせる（台の上で果物と見分けやすく、ポップに）
-        registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e).modelHandle = GetTintedModel(kBlockModelPath, kCoinColor).handle;
+        registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e).modelHandle = GetTintedModel(AssetPaths::kBlockModel, kCoinColor).handle;
         Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
         rim.active                                   = true;
         rim.rimColor                                 = kCoinColor;
@@ -354,7 +351,7 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateVisualBall(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
                                                         const hlslpp::float3& color) {
-        const ModelInfo&     ball = GetTintedModel(kBallModelPath, color);
+        const ModelInfo&     ball = GetTintedModel(AssetPaths::kBallModel, color);
         Tsukino::ECS::Entity e    = registry.CreateEntity();
 
         Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
@@ -377,7 +374,7 @@ namespace FruitMagic {
 
         ECS::FruitPartsComponent& owned = registry.AddComponent<ECS::FruitPartsComponent>(fruit);
         for(const FruitPart& part : def.parts) {
-            const ModelInfo& model = GetTintedModel(part.shape == FruitPartShape::Sphere ? kBallModelPath : kBlockModelPath, part.color);
+            const ModelInfo& model = GetTintedModel(part.shape == FruitPartShape::Sphere ? AssetPaths::kBallModel : AssetPaths::kBlockModel, part.color);
             Tsukino::ECS::Entity e = registry.CreateEntity();
 
             //--------------------------------------------------------------

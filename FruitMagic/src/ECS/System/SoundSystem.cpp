@@ -67,17 +67,39 @@ namespace FruitMagic::ECS {
     //! 設定ファイルを読み込みます。
     //----------------------------------------------------------------------------
     void SoundSystem::Load(const std::string& path) {
+        if(!Parse(path, m_sounds, m_masterVolume))
+            Tsukino::Core::Log::Warn("SoundSystem: cannot read \"sounds\" from " + path + ". No sound will play.");
+    }
+
+    //----------------------------------------------------------------------------
+    //! 設定ファイルに書かれた効果音のファイルを列挙します。
+    //----------------------------------------------------------------------------
+    std::vector<std::string> SoundSystem::ListSoundFiles(const std::string& path) {
+        std::unordered_map<std::string, Sound> sounds;
+        float                                  masterVolume = 0.0f;
+        Parse(path, sounds, masterVolume);
+
+        std::vector<std::string> files;
+        for(const auto& [name, sound] : sounds) {
+            if(std::find(files.begin(), files.end(), sound.file) == files.end())
+                files.push_back(sound.file);
+        }
+        return files;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 設定ファイルを読み、効果音の設定と全体の音量を取り出します。
+    //----------------------------------------------------------------------------
+    bool SoundSystem::Parse(const std::string& path, std::unordered_map<std::string, Sound>& sounds, float& masterVolume) {
         const std::string text = ReadDataText(path);
         rj::Document      doc;
         doc.Parse(text.c_str());
-        auto sounds = (text.empty() || doc.HasParseError() || !doc.IsObject()) ? doc.MemberEnd() : doc.FindMember("sounds");
-        if(sounds == doc.MemberEnd() || !sounds->value.IsObject()) {
-            Tsukino::Core::Log::Warn("SoundSystem: cannot read \"sounds\" from " + path + ". No sound will play.");
-            return;
-        }
-        ReadFloat(doc, "masterVolume", m_masterVolume);
+        auto list = (text.empty() || doc.HasParseError() || !doc.IsObject()) ? doc.MemberEnd() : doc.FindMember("sounds");
+        if(list == doc.MemberEnd() || !list->value.IsObject())
+            return false;
+        ReadFloat(doc, "masterVolume", masterVolume);
 
-        for(auto it = sounds->value.MemberBegin(); it != sounds->value.MemberEnd(); ++it) {
+        for(auto it = list->value.MemberBegin(); it != list->value.MemberEnd(); ++it) {
             if(!it->value.IsObject())
                 continue;
             Sound sound;
@@ -87,8 +109,9 @@ namespace FruitMagic::ECS {
             sound.file = file->value.GetString();
             ReadFloat(it->value, "volume", sound.volume);
             ReadFloat(it->value, "minInterval", sound.minInterval);
-            m_sounds[it->name.GetString()] = sound;
+            sounds[it->name.GetString()] = sound;
         }
+        return true;
     }
 
     //----------------------------------------------------------------------------

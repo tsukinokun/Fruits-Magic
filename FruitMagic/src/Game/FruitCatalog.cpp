@@ -5,6 +5,8 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Game/FruitCatalog.hpp>
 
+#include <FruitMagic/Game/AssetPaths.hpp>
+
 #include <Tsukino/Core/IO/FileSystem.hpp>
 #include <Tsukino/Core/Path.hpp>
 #include <Tsukino/Core/Log.hpp>
@@ -235,7 +237,7 @@ namespace FruitMagic {
             def.color           = GetFloat3(doc, "color", "rgb", def.color);
             // 色違いの色。省略時は通常の色の RGB を回して、同じ明るさの別の色にする
             def.shinyColor      = GetFloat3(doc, "shinyColor", "rgb", hlslpp::float3(def.color.z, def.color.x, def.color.y));
-            def.modelPath       = GetString(doc, "model", def.shape == FruitShape::Box ? "Assets/Models/Block.fbx" : "Assets/Models/Ball.fbx");
+            def.modelPath       = GetString(doc, "model", def.shape == FruitShape::Box ? AssetPaths::kBlockModel : AssetPaths::kBallModel);
 
             // 飾りのパーツ（任意）。形が分からないものは読み飛ばす
             auto parts = doc.FindMember("parts");

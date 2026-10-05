@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/Scene/PusherScene.hpp>
 
+#include <FruitMagic/Game/AssetPaths.hpp>
 #include <FruitMagic/Game/CoinShowerState.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/EffectsConfig.hpp>
@@ -119,7 +120,6 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // 画面の UI の配置（画面ピクセル。画面は 1280 x 720）
         //--------------------------------------------------------------
-        constexpr float kWhiteTextureSize  = 8.0f;      // Assets/Textures/White.png の1辺のピクセル数
         constexpr float kManaGaugeLeft     = 28.0f;     // マナゲージの左端
         constexpr float kManaGaugeCenterY  = 100.0f;    // マナゲージの中心の高さ
         constexpr float kManaGaugeWidth    = 220.0f;    // マナゲージの全幅
@@ -782,13 +782,13 @@ namespace FruitMagic {
         // 画面スプライト（白い小さなテクスチャを色付けして使い回す。位置は中心）
         //--------------------------------------------------------------
         Tsukino::EngineIntegration::EngineContext* context = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
-        const Tsukino::Asset::AssetHandle          white   = context->assetManager->Load(Tsukino::Core::Path("Assets/Textures/White.png"));
+        const Tsukino::Asset::AssetHandle          white   = context->assetManager->Load(Tsukino::Core::Path(AssetPaths::kWhiteTexture));
 
         auto createPanel = [&](const hlslpp::float2& center, const hlslpp::float2& size, const hlslpp::float4& color, int sortOrder) {
             Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
             t.position                                   = hlslpp::float3(center.x, center.y, 0.0f);
-            t.scale                                      = hlslpp::float3(size.x / kWhiteTextureSize, size.y / kWhiteTextureSize, 1.0f);
+            t.scale                                      = hlslpp::float3(size.x / AssetPaths::kWhiteTextureSize, size.y / AssetPaths::kWhiteTextureSize, 1.0f);
             t.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::SpriteComponent& sprite = registry.AddComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e);
@@ -822,7 +822,7 @@ namespace FruitMagic {
             gauge.left                     = kManaGaugeLeft;
             gauge.fullWidth                = kManaGaugeWidth;
             gauge.height                   = kManaGaugeHeight;
-            gauge.textureSize              = kWhiteTextureSize;
+            gauge.textureSize              = AssetPaths::kWhiteTextureSize;
         }
 
         //--------------------------------------------------------------

@@ -2,7 +2,7 @@
 //! @file   WinMain.cpp
 //! @brief  FruitMagic のエントリポイント
 //----------------------------------------------------------------------------
-#include <FruitMagic/Scene/PusherScene.hpp>
+#include <FruitMagic/Scene/LoadingScene.hpp>
 
 #include <Tsukino/EngineIntegration/EngineAPI.hpp>
 #include <Tsukino/EngineIntegration/EngineIntegration.hpp>
@@ -38,8 +38,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
     Tsukino::EngineIntegration::EngineContext& engineContext = engineIntegration.GetContext();
     Tsukino::EngineIntegration::EngineAPI      engineAPI(engineContext);
 
-    // 最初のシーン
-    engineAPI.ChangeScene(std::make_unique<FruitMagic::PusherScene>());
+    // 最初のシーン（アセットを先読みしてから台のシーンへ進む）
+    engineAPI.ChangeScene(std::make_unique<FruitMagic::LoadingScene>());
 
     //--------------------------------------------------------------
     // メインループ

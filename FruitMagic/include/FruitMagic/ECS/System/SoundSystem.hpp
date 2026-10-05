@@ -39,6 +39,11 @@ namespace FruitMagic::ECS {
         //! @param  [in] deltaTime 前フレームからの経過時間（秒）
         void Update(Tsukino::ECS::Registry& registry, float deltaTime) override;
 
+        //! 設定ファイルに書かれた効果音のファイルを列挙します（ロード画面の先読み用）。
+        //! @param  [in] path 設定ファイル（Sounds.json）
+        //! @return 効果音のファイル（リポジトリルート相対）。読めなければ空
+        static std::vector<std::string> ListSoundFiles(const std::string& path);
+
     private:
 
         //! 効果音1つの設定です。
@@ -53,6 +58,13 @@ namespace FruitMagic::ECS {
         //! 設定ファイルを読み込みます。
         //! @param  [in] path 設定ファイル
         void Load(const std::string& path);
+
+        //! 設定ファイルを読み、効果音の設定と全体の音量を取り出します。
+        //! @param  [in]     path         設定ファイル
+        //! @param  [out]    sounds       名前ごとの効果音
+        //! @param  [in,out] masterVolume 全体の音量（項目が無ければそのまま）
+        //! @return 読めたら true
+        static bool Parse(const std::string& path, std::unordered_map<std::string, Sound>& sounds, float& masterVolume);
 
         //! 音を鳴らします（間隔が短すぎる・読み込めていない音は鳴らさない）。
         //! @param  [in] registry レジストリ
