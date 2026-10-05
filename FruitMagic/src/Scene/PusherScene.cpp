@@ -192,6 +192,13 @@ namespace FruitMagic {
         Tsukino::ECS::EventBus&                    eventBus = m_scene.GetEventBus();
         Tsukino::ECS::Registry&                    registry = m_scene.GetRegistry();
 
+        // 定義データ（Debug は作業ディレクトリ、Release は exe の隣が基準）
+        const std::string dataRoot = (Tsukino::IO::FileSystem::GetAssetRootPath() / "Assets/Data").string();
+
+        // 台の寸法と物理の設定（物理のシステムの設定に使うので、システムより先に読む）
+        TableLayout& layout = registry.SetContext<TableLayout>();
+        layout.Load(dataRoot + "/Table.json");
+
         //--------------------------------------------------------------
         // システムの生成と追加
         //--------------------------------------------------------------
@@ -258,6 +265,8 @@ namespace FruitMagic {
         auto physicsSystem = std::make_shared<Tsukino::BuiltIn::ECS::PhysicsSystem>(eventBus);
         // このゲームは 1unit=1cm。物理エンジンの重力・接触の許容値をcmに合わせる
         physicsSystem->SetUnitsPerMeter(100.0f);
+        // 上の換算でめり込みの許容値なども 2cm 相当になり、厚み 0.8cm のコインに果物が沈むので、cm 向けに小さくする
+        physicsSystem->SetContactTolerances(layout.penetrationSlop, layout.speculativeContactDistance);
 #ifdef _DEBUG
         // コリジョンのワイヤーフレームを起動時から表示する（F5 で切り替え）
         physicsSystem->SetDebugDrawEnabled(true);
@@ -302,12 +311,7 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // ゲーム全体で共有するデータをレジストリのコンテキストへ置く
         //--------------------------------------------------------------
-        // 定義データ（Debug は作業ディレクトリ、Release は exe の隣が基準）
-        const std::string dataRoot = (Tsukino::IO::FileSystem::GetAssetRootPath() / "Assets/Data").string();
-
-        // 台の寸法・見た目・UI・文言（台やほかの設定を作る前に読む）
-        TableLayout& layout = registry.SetContext<TableLayout>();
-        layout.Load(dataRoot + "/Table.json");
+        // 見た目・UI・文言（台やほかの設定を作る前に読む）
         StageConfig& stage = registry.SetContext<StageConfig>();
         stage.Load(dataRoot + "/Stage.json");
         registry.SetContext<UiConfig>().Load(dataRoot + "/Ui.json");

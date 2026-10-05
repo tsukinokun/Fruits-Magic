@@ -59,6 +59,10 @@
     "restitution": 0.2
   },
   "maxSimulationStep": 0.0333333,
+  "physics": {
+    "penetrationSlop": 0.2,
+    "speculativeContactDistance": 1.0
+  },
   "initialPrizes": {
     "coinFrontBack": 5.0,
     "coinGap": 0.3,

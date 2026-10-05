@@ -90,6 +90,10 @@ namespace FruitMagic {
             Json::Read(*fruit, "restitution", loaded.fruitRestitution);
         }
         Json::Read(doc, "maxSimulationStep", loaded.maxSimulationStep);
+        if(const Json::Value* physics = Json::FindObject(doc, "physics")) {
+            Json::Read(*physics, "penetrationSlop", loaded.penetrationSlop);
+            Json::Read(*physics, "speculativeContactDistance", loaded.speculativeContactDistance);
+        }
         if(const Json::Value* initial = Json::FindObject(doc, "initialPrizes")) {
             Json::Read(*initial, "coinFrontBack", loaded.initialCoinFrontBack);
             Json::Read(*initial, "coinGap", loaded.initialCoinGap);
@@ -144,6 +148,10 @@ namespace FruitMagic {
         if(pusherMinFrontZ + pusherMaxAmplitude * 2.0f - pusherHalfDepth * 2.0f >= BackPanelZ() - backPanelHalfThickness - 1.0f)
             return fail("the pusher is too short: its back end leaves the back panel at the maximum stroke");
 
+        if(penetrationSlop <= 0.0f || speculativeContactDistance <= 0.0f)
+            return fail("the physics contact tolerances must be positive");
+        if(penetrationSlop >= float(coinHalfExtent.y) * 2.0f)
+            return fail("penetrationSlop must be smaller than the coin thickness, or prizes sink into the coins");
         if(launchLaneHalfWidth + float(coinHalfExtent.x) > fieldHalfWidth)
             return fail("the launch lane is wider than the field");
         if(pusherMinFrontZ + pusherMaxAmplitude * 2.0f + showerBackMargin >= fieldFrontZ - showerFrontMargin || showerMaxPerFrame < 1)
