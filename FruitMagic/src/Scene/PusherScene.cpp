@@ -77,6 +77,7 @@
 #include <Tsukino/EngineIntegration/ECS/System/ModelSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/FontRendererSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/InteractionSystem.hpp>
+#include <Tsukino/EngineIntegration/ECS/System/ScrollViewSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/SpriteRendererSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/AmbientParticleSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/WorldAnchorSystem.hpp>
@@ -90,12 +91,15 @@
 #include <Tsukino/BuiltIn/ECS/Component/CameraComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/ScrollBarComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/ScrollViewComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/DirectionalLightComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointLightComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SkyAtmosphereComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/RimGlowComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/AmbientParticleComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/UIClipComponent.hpp>
 
 #include <Tsukino/Core/IO/FileSystem.hpp>
 #include <Tsukino/Core/Path.hpp>
@@ -143,8 +147,10 @@ namespace FruitMagic {
         constexpr float kMenuCenterY       = 340.0f;    // 画面の中心Y
         constexpr float kMenuWidth         = 900.0f;    // 画面の幅
         constexpr float kMenuHeight        = 540.0f;    // 画面の高さ
-        constexpr float kZukanMaxRowPitch  = 44.0f;     // 図鑑の行の高さの上限（果物が少ないとき）
-        constexpr float kUpgradeMaxRowPitch = 100.0f;   // 強化画面の行の高さの上限（強化が少ないとき）
+        constexpr float kZukanRowPitch     = 44.0f;     // 図鑑の行の高さ（行が多ければスクロールする）
+        constexpr float kUpgradeRowPitch   = 100.0f;    // 強化画面の行の高さ（行が多ければスクロールする）
+        constexpr float kScrollBarWidth    = 10.0f;     // スクロールバーの幅
+        constexpr float kScrollBarInset    = 22.0f;     // 画面の右端からスクロールバーの中心まで
         constexpr float kBuyButtonWidth    = 150.0f;    // 購入ボタンの幅
         constexpr float kBuyButtonHeight   = 46.0f;     // 購入ボタンの高さ
         constexpr float kWelcomeWidth      = 720.0f;    // 「おかえり」画面の幅
@@ -206,6 +212,7 @@ namespace FruitMagic {
 #endif
             Interaction = 0,     // マウスの下の UI（魔法ボタン・画面）を先に決め、同じフレームの入力処理が読めるようにする
             Menu,                // 画面の開閉と表示切替。中身は続く Zukan・Upgrade が書く
+            ScrollView,          // 開いている画面の行のスクロール（Menu が決めた開閉の後、Transform の前）
             Zukan,
             Upgrade,
             MagicInput,
@@ -250,6 +257,7 @@ namespace FruitMagic {
 #endif
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::InteractionSystem>(), (int)SystemPriority::Interaction);
         m_scene.AddSystem(std::make_shared<ECS::MenuSystem>(), (int)SystemPriority::Menu);
+        m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::ScrollViewSystem>(), (int)SystemPriority::ScrollView);
         m_scene.AddSystem(std::make_shared<ECS::ZukanSystem>(), (int)SystemPriority::Zukan);
         m_scene.AddSystem(std::make_shared<ECS::UpgradeSystem>(), (int)SystemPriority::Upgrade);
         m_scene.AddSystem(std::make_shared<ECS::MagicInputSystem>(eventBus), (int)SystemPriority::MagicInput);
@@ -969,6 +977,65 @@ namespace FruitMagic {
         };
 
         //--------------------------------------------------------------
+        // 画面の中のスクロールする行の領域。枠（切り取り＋スクロール）・中身・右端のスクロールバーを作る。
+        // 行は中身の子にし、位置は枠の左上から見た相対位置で置く（attach が直す）。
+        // 枠は MenuPageComponent を持ち、開いている画面の枠だけ MenuSystem がスクロールを受け付けさせる
+        //--------------------------------------------------------------
+        struct ScrollList {
+            Tsukino::ECS::Entity content = entt::null;    // 行の親
+            float                left    = 0.0f;          // 枠の左端（画面ピクセル）
+            float                top     = 0.0f;          // 枠の上端（画面ピクセル）
+        };
+        auto createScrollList = [&](MenuKind menu, float left, float top, float right, float bottom, float contentHeight, const hlslpp::float4& thumbColor) {
+            const float width  = right - left;
+            const float height = bottom - top;
+
+            Tsukino::ECS::Entity                       view          = m_scene.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& viewTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(view);
+            viewTransform.position                                   = hlslpp::float3(left + width * 0.5f, top + height * 0.5f, 0.0f);
+            viewTransform.dirty                                      = true;
+            registry.AddComponent<Tsukino::BuiltIn::ECS::UIClipComponent>(view).size = hlslpp::float2(width, height);
+            addPage(view, menu);
+
+            Tsukino::ECS::Entity                       content          = m_scene.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& contentTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(content);
+            contentTransform.parent                                     = view;
+            contentTransform.position                                   = hlslpp::float3(-width * 0.5f, -height * 0.5f, 0.0f);    // 一番上までスクロールした位置
+            contentTransform.dirty                                      = true;
+
+            // スクロールバー（溝とつまみ）。表示・大きさ・位置は ScrollViewSystem が決める（中身が収まるときは出ない）
+            const float          barX  = kMenuCenterX + kMenuWidth * 0.5f - kScrollBarInset;
+            Tsukino::ECS::Entity track = createPanel(hlslpp::float2(barX, top + height * 0.5f), hlslpp::float2(kScrollBarWidth, height),
+                                                     hlslpp::float4(0.0f, 0.0f, 0.0f, 0.35f), 21);
+            Tsukino::ECS::Entity thumb = createPanel(hlslpp::float2(barX, top), hlslpp::float2(kScrollBarWidth, kScrollBarWidth), thumbColor, 22);
+
+            // 画面のパネルと同じく、スクロールバーの上のクリックでコインが投入されないよう受け止める
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(track);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(thumb);
+
+            Tsukino::BuiltIn::ECS::ScrollBarComponent& bar = registry.AddComponent<Tsukino::BuiltIn::ECS::ScrollBarComponent>(track);
+            bar.thumb                                      = thumb;
+            bar.size                                       = hlslpp::float2(kScrollBarWidth, height);
+
+            Tsukino::BuiltIn::ECS::ScrollViewComponent& scroll = registry.AddComponent<Tsukino::BuiltIn::ECS::ScrollViewComponent>(view);
+            scroll.content                                     = content;
+            scroll.scrollBar                                   = track;
+            scroll.contentHeight                               = contentHeight;
+            scroll.enabled                                     = false;    // 画面を開いたら MenuSystem が有効にする
+
+            return ScrollList{content, left, top};
+        };
+
+        // 画面の座標で作った要素を、スクロールする行の領域の中身の子にする
+        auto attach = [&](const ScrollList& list, Tsukino::ECS::Entity e) {
+            Tsukino::BuiltIn::ECS::TransformComponent& t = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+            t.parent                                     = list.content;
+            t.position                                   = t.position - hlslpp::float3(list.left, list.top, 0.0f);
+            t.dirty                                      = true;
+            return e;
+        };
+
+        //--------------------------------------------------------------
         // 図鑑の画面（行＝果物、列＝バリエーション）。最初は閉じていて、ZukanSystem が開閉する。
         // 果物・バリエーションの数は定義データから決まるので、行の高さ・列の間隔もそれに合わせる
         //--------------------------------------------------------------
@@ -1007,25 +1074,26 @@ namespace FruitMagic {
                         MenuKind::Zukan, name.empty() ? std::wstring(L"通常") : name);
             }
 
-            // 行（果物が増えたら行の高さを詰める）
-            const float rowsTop    = headerY + 30.0f;
-            const float rowsHeight = (bottom - 56.0f) - rowsTop;
-            const float rowPitch   = std::min(kZukanMaxRowPitch, rowsHeight / static_cast<float>(std::max(1, rows)));
-            const float swatchSize = std::min(26.0f, rowPitch - 6.0f);
-            const float textScale  = std::min(0.85f, rowPitch / 46.0f);
+            // 行（果物が増えて枠に収まらなくなったらスクロールする。行の高さは変えない）
+            const float      rowsTop    = headerY + 30.0f;
+            const float      swatchSize = 26.0f;
+            const float      textScale  = 0.85f;
+            const ScrollList list       = createScrollList(MenuKind::Zukan, left + 16.0f, rowsTop, kMenuCenterX + kMenuWidth * 0.5f - 36.0f, bottom - 56.0f,
+                                                           kZukanRowPitch * static_cast<float>(rows), hlslpp::float4(0.95f, 0.6f, 0.75f, 1.0f));
             for(int f = 0; f < rows; ++f) {
-                const float y = rowsTop + rowPitch * (static_cast<float>(f) + 0.5f);
+                const float y = rowsTop + kZukanRowPitch * (static_cast<float>(f) + 0.5f);
 
-                addElement(createText(hlslpp::float2(left + 36.0f, y), textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                      hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22),
+                addElement(attach(list, createText(hlslpp::float2(left + 36.0f, y), textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                                   hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22)),
                            ECS::ZukanElementKind::RowName, f);
 
                 for(int v = 0; v < columns; ++v) {
                     const float x = columnX(v);
-                    addElement(createPanel(hlslpp::float2(x - 30.0f, y), hlslpp::float2(swatchSize, swatchSize), hlslpp::float4(0.2f, 0.2f, 0.25f, 1.0f), 21),
+                    addElement(attach(list, createPanel(hlslpp::float2(x - 30.0f, y), hlslpp::float2(swatchSize, swatchSize),
+                                                        hlslpp::float4(0.2f, 0.2f, 0.25f, 1.0f), 21)),
                                ECS::ZukanElementKind::Swatch, f, v);
-                    addElement(createText(hlslpp::float2(x - 10.0f, y), textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                          hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 22),
+                    addElement(attach(list, createText(hlslpp::float2(x - 10.0f, y), textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                                       hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 22)),
                                ECS::ZukanElementKind::Count, f, v);
                 }
             }
@@ -1063,41 +1131,40 @@ namespace FruitMagic {
                                   hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), 22),
                        ECS::UpgradeElementKind::Wallet);
 
-            // 行（強化が増えたら行の高さを詰める）
-            const float rowsTop    = top + 104.0f;
-            const float rowsHeight = (bottom - 24.0f) - rowsTop;
-            const float rowPitch   = std::min(kUpgradeMaxRowPitch, rowsHeight / static_cast<float>(std::max(1, rows)));
-            const float textScale  = std::min(1.0f, rowPitch / 90.0f);
-            const float buttonX    = right - 40.0f - kBuyButtonWidth * 0.5f;
-            const float effectX    = left + 445.0f;
+            // 行（強化が増えて枠に収まらなくなったらスクロールする。行の高さは変えない）
+            const float      rowsTop = top + 104.0f;
+            const float      buttonX = right - 40.0f - kBuyButtonWidth * 0.5f;
+            const float      effectX = left + 445.0f;
+            const ScrollList list    = createScrollList(MenuKind::Upgrade, left + 16.0f, rowsTop, right - 34.0f, bottom - 24.0f,
+                                                        kUpgradeRowPitch * static_cast<float>(rows), hlslpp::float4(0.55f, 0.85f, 0.5f, 1.0f));
             for(int u = 0; u < rows; ++u) {
                 const UpgradeDef& def = upgrades.Upgrades()[u];
-                const float       y   = rowsTop + rowPitch * (static_cast<float>(u) + 0.5f);
-                const float       dy  = rowPitch * 0.2f;    // 1行の中の上段・下段のずれ
+                const float       y   = rowsTop + kUpgradeRowPitch * (static_cast<float>(u) + 0.5f);
+                const float       dy  = kUpgradeRowPitch * 0.2f;    // 1行の中の上段・下段のずれ
 
                 // 名前とレベル（上段）・説明（下段）
-                addElement(createText(hlslpp::float2(left + 40.0f, y - dy), 0.9f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                      hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22),
+                addElement(attach(list, createText(hlslpp::float2(left + 40.0f, y - dy), 0.9f, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                                   hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22)),
                            ECS::UpgradeElementKind::Name, u);
-                addPage(createText(hlslpp::float2(left + 40.0f, y + dy), 0.62f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                   hlslpp::float4(0.8f, 0.75f, 0.9f, 1.0f), 22),
+                addPage(attach(list, createText(hlslpp::float2(left + 40.0f, y + dy), 0.62f, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                                hlslpp::float4(0.8f, 0.75f, 0.9f, 1.0f), 22)),
                         MenuKind::Upgrade, def.description);
 
                 // 効果（上段）・価格（下段）
-                addElement(createText(hlslpp::float2(effectX, y - dy), 0.75f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                      hlslpp::float4(0.7f, 1.0f, 0.75f, 1.0f), 22),
+                addElement(attach(list, createText(hlslpp::float2(effectX, y - dy), 0.75f, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                                   hlslpp::float4(0.7f, 1.0f, 0.75f, 1.0f), 22)),
                            ECS::UpgradeElementKind::Effect, u);
-                addElement(createText(hlslpp::float2(effectX, y + dy), 0.7f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
-                                      hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 22),
+                addElement(attach(list, createText(hlslpp::float2(effectX, y + dy), 0.7f, Tsukino::BuiltIn::ECS::HorizontalAlign::Left,
+                                                   hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 22)),
                            ECS::UpgradeElementKind::Cost, u);
 
                 // 購入ボタン（色は UpgradeSystem が買えるかどうかで変える）
-                Tsukino::ECS::Entity button = createPanel(hlslpp::float2(buttonX, y), hlslpp::float2(kBuyButtonWidth, std::min(kBuyButtonHeight, rowPitch - 8.0f)),
-                                                          hlslpp::float4(0.3f, 0.28f, 0.34f, 1.0f), 21);
+                Tsukino::ECS::Entity button = attach(list, createPanel(hlslpp::float2(buttonX, y), hlslpp::float2(kBuyButtonWidth, kBuyButtonHeight),
+                                                                       hlslpp::float4(0.3f, 0.28f, 0.34f, 1.0f), 21));
                 registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
                 addElement(button, ECS::UpgradeElementKind::BuyButton, u);
-                addElement(createText(hlslpp::float2(buttonX, y), 0.85f * textScale, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
-                                      hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22),
+                addElement(attach(list, createText(hlslpp::float2(buttonX, y), 0.85f, Tsukino::BuiltIn::ECS::HorizontalAlign::Center,
+                                                   hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), 22)),
                            ECS::UpgradeElementKind::BuyLabel, u);
             }
         }

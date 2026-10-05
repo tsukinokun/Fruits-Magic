@@ -10,6 +10,7 @@
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/ScrollViewComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
@@ -48,6 +49,17 @@ namespace FruitMagic::ECS {
             if(button.label != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label))
                 registry.GetComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label).text = state.IsOpen(button.menu) ? button.openText : button.closedText;
         });
+
+        //--------------------------------------------------------------
+        // 行のスクロールは、開いている画面のものだけ受け付ける。開いたときは一番上から見せる
+        //--------------------------------------------------------------
+        registry.View<MenuPageComponent, Tsukino::BuiltIn::ECS::ScrollViewComponent>().each(
+            [&](Tsukino::ECS::Entity, MenuPageComponent& page, Tsukino::BuiltIn::ECS::ScrollViewComponent& scroll) {
+                const bool open = state.IsOpen(page.menu);
+                if(open && !scroll.enabled)
+                    scroll.ScrollToTop();
+                scroll.enabled = open;
+            });
 
         //--------------------------------------------------------------
         // 画面の要素の表示・非表示
