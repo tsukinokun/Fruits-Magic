@@ -7,6 +7,7 @@
 #include <FruitMagic/Game/AssetPaths.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
+#include <FruitMagic/Game/UiFonts.hpp>
 #include <FruitMagic/Scene/PusherScene.hpp>
 
 #include <Tsukino/EngineIntegration/EngineAPI.hpp>
@@ -56,6 +57,9 @@ namespace FruitMagic {
         // この画面の配置と文言だけは先に（本体スレッドで）読む。小さなファイルなので待たされない
         m_scene.GetRegistry().SetContext<UiConfig>().Load(dataRoot + "/Ui.json");
         m_scene.GetRegistry().SetContext<Texts>().Load(dataRoot + "/Texts.json");
+
+        // フォントもここで読む（初回は ttf をキャッシュへ変換する。台のシーンではキャッシュから取るだけになる）
+        m_scene.GetRegistry().SetContext<UiFonts>().Load(*context->assetManager, GetUiConfig(m_scene.GetRegistry()));
 
         CreateScreen();
 
@@ -181,6 +185,8 @@ namespace FruitMagic {
             t.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
+            font.fontHandle                            = GetUiFont(registry, ui.loadingText.bold);
+            font.maxWidth                              = ui.screenWidth - ui.textPadding * 2.0f;
             font.text                                  = GetTexts(registry).Format("loading.progress", {{"n", L"0"}});
             font.color                                 = ui.loadingText.color;
             font.horizontalAlign                       = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;

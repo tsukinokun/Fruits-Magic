@@ -32,6 +32,7 @@
 #include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
+#include <FruitMagic/Game/UiFonts.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
@@ -327,6 +328,7 @@ namespace FruitMagic {
         stage.Load(dataRoot + "/Stage.json");
         registry.SetContext<UiConfig>().Load(dataRoot + "/Ui.json");
         registry.SetContext<Texts>().Load(dataRoot + "/Texts.json");
+        registry.SetContext<UiFonts>().Load(*context->assetManager, GetUiConfig(registry));    // ロード画面で読んであるので、ここではキャッシュから取るだけ
 
         FruitCatalog& catalog = registry.SetContext<FruitCatalog>();
         if(!catalog.Load(dataRoot)) {
@@ -821,8 +823,18 @@ namespace FruitMagic {
             t.dirty                                         = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
+            font.fontHandle                            = GetUiFont(registry, spec.bold);
             font.color                                 = spec.color;
             font.horizontalAlign                       = ToEngineAlign(spec.align);
+            // 収める幅。指定が無ければ、揃え方に合わせて画面の端まで（余白を残す）
+            if(spec.maxWidth > 0.0f)
+                font.maxWidth = spec.maxWidth;
+            else if(spec.align == UiAlign::Left)
+                font.maxWidth = ui.screenWidth - float(spec.position.x) - ui.textPadding;
+            else if(spec.align == UiAlign::Right)
+                font.maxWidth = float(spec.position.x) - ui.textPadding;
+            else
+                font.maxWidth = std::min(float(spec.position.x), ui.screenWidth - float(spec.position.x)) * 2.0f - ui.textPadding * 2.0f;
             font.outlineColor                          = ui.hudOutlineColor;
             font.outlineWidth                          = ui.outlineWidth;
 
@@ -929,6 +941,8 @@ namespace FruitMagic {
             t.dirty                                          = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(label);
+            font.fontHandle                            = GetUiFont(registry, true);    // ボタンの文字は太字
+            font.maxWidth                              = ui.magicButtonWidth - ui.textPadding * 2.0f;
             font.horizontalAlign                       = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;
             font.verticalAlign                         = Tsukino::BuiltIn::ECS::VerticalAlign::Middle;
             font.outlineColor                          = ui.magicLabelOutline;
@@ -941,9 +955,11 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
-        // 文字のエンティティを作る（図鑑とボタンで共通）
+        // 文字のエンティティを作る（図鑑とボタンで共通）。
+        // maxWidth は収める幅（置く枠から決める。超えたらエンジンが縮めて描く。0 なら制限なし）
         //--------------------------------------------------------------
-        auto createText = [&](const hlslpp::float2& position, float scale, Tsukino::BuiltIn::ECS::HorizontalAlign align, const hlslpp::float4& color, int sortOrder) {
+        auto createText = [&](const hlslpp::float2& position, float scale, Tsukino::BuiltIn::ECS::HorizontalAlign align, const hlslpp::float4& color, int sortOrder,
+                              bool bold, float maxWidth) {
             Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
             t.position                                   = hlslpp::float3(position.x, position.y, 0.0f);
@@ -951,17 +967,21 @@ namespace FruitMagic {
             t.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
+            font.fontHandle                            = GetUiFont(registry, bold);
             font.color                                 = color;
             font.horizontalAlign                       = align;
             font.verticalAlign                         = Tsukino::BuiltIn::ECS::VerticalAlign::Middle;
             font.outlineColor                          = ui.textOutlineColor;
             font.outlineWidth                          = ui.outlineWidth;
             font.sortOrder                             = sortOrder;
+            font.maxWidth                              = std::max(0.0f, maxWidth);
             return e;
         };
-        auto createFontText = [&](const hlslpp::float2& position, const UiFont& style, Tsukino::BuiltIn::ECS::HorizontalAlign align, int sortOrder) {
-            return createText(position, style.scale, align, style.color, sortOrder);
+        auto createFontText = [&](const hlslpp::float2& position, const UiFont& style, Tsukino::BuiltIn::ECS::HorizontalAlign align, int sortOrder, float maxWidth) {
+            return createText(position, style.scale, align, style.color, sortOrder, style.bold, maxWidth);
         };
+        // 幅 width の枠の中に、両側に余白を残して収める幅
+        auto inside = [&](float width) { return width - ui.textPadding * 2.0f; };
         constexpr auto kLeft   = Tsukino::BuiltIn::ECS::HorizontalAlign::Left;
         constexpr auto kCenter = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;
         const hlslpp::float4 kWhite(1.0f, 1.0f, 1.0f, 1.0f);
@@ -990,7 +1010,7 @@ namespace FruitMagic {
             ECS::MenuButtonComponent& menuButton = registry.AddComponent<ECS::MenuButtonComponent>(button);
             menuButton.menu                      = spec.menu;
             menuButton.key                       = spec.key;
-            menuButton.label      = createText(hlslpp::float2(ui.menuButtonX, spec.y), ui.menuLabelScale, kCenter, kWhite, 11);
+            menuButton.label      = createText(hlslpp::float2(ui.menuButtonX, spec.y), ui.menuLabelScale, kCenter, kWhite, 11, true, inside(ui.menuButtonWidth));
             menuButton.closedText = texts.Get(spec.closedText);
             menuButton.openText   = texts.Get(spec.openText);
         }
@@ -1019,7 +1039,7 @@ namespace FruitMagic {
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
             addPage(panel, menu);
 
-            addPage(createFontText(hlslpp::float2(ui.menuCenter.x, menuTop + ui.menuTitleOffsetY), ui.menuTitle, kCenter, 22), menu, title);
+            addPage(createFontText(hlslpp::float2(ui.menuCenter.x, menuTop + ui.menuTitleOffsetY), ui.menuTitle, kCenter, 22, inside(ui.menuSize.x)), menu, title);
         };
 
         //--------------------------------------------------------------
@@ -1110,7 +1130,7 @@ namespace FruitMagic {
             const float headerY = menuTop + ui.zukanHeaderOffsetY;
             for(int v = 0; v < columns; ++v) {
                 const std::wstring& name = collection.Variants()[v].name;
-                addPage(createFontText(hlslpp::float2(columnX(v), headerY), ui.zukanHeader, kCenter, 22), MenuKind::Zukan,
+                addPage(createFontText(hlslpp::float2(columnX(v), headerY), ui.zukanHeader, kCenter, 22, inside(columnPitch)), MenuKind::Zukan,
                         name.empty() ? texts.Get("zukan.normalVariant") : name);
             }
 
@@ -1119,23 +1139,25 @@ namespace FruitMagic {
             const float      pitch   = ui.zukanRowPitch;
             const ScrollList list    = createScrollList(MenuKind::Zukan, menuLeft + ui.zukanListLeft, rowsTop, menuRight - ui.zukanListRight, menuBottom - ui.zukanRowsBottom,
                                                         pitch * static_cast<float>(rows), ui.zukanThumbColor);
+            // 数（×3 など）は、次の列の色見本の左端まで
+            const float countWidth = columnPitch + ui.zukanSwatchOffsetX - ui.zukanSwatchSize * 0.5f - ui.zukanCountOffsetX - ui.textPadding;
             for(int f = 0; f < rows; ++f) {
                 const float y = rowsTop + pitch * (static_cast<float>(f) + 0.5f);
 
-                addElement(attach(list, createFontText(hlslpp::float2(menuLeft + ui.zukanNameX, y), ui.zukanName, kLeft, 22)), ECS::ZukanElementKind::RowName, f);
+                addElement(attach(list, createFontText(hlslpp::float2(menuLeft + ui.zukanNameX, y), ui.zukanName, kLeft, 22, ui.zukanColumnsLeft - ui.zukanNameX - ui.textPadding)), ECS::ZukanElementKind::RowName, f);
 
                 for(int v = 0; v < columns; ++v) {
                     const float x = columnX(v);
                     addElement(attach(list, createPanel(hlslpp::float2(x + ui.zukanSwatchOffsetX, y), hlslpp::float2(ui.zukanSwatchSize, ui.zukanSwatchSize),
                                                         ui.zukanSwatchColor, 21)),
                                ECS::ZukanElementKind::Swatch, f, v);
-                    addElement(attach(list, createFontText(hlslpp::float2(x + ui.zukanCountOffsetX, y), ui.zukanCount, kLeft, 22)),
+                    addElement(attach(list, createFontText(hlslpp::float2(x + ui.zukanCountOffsetX, y), ui.zukanCount, kLeft, 22, countWidth)),
                                ECS::ZukanElementKind::Count, f, v);
                 }
             }
 
             // 下部の集計
-            addElement(createFontText(hlslpp::float2(ui.menuCenter.x, menuBottom - ui.zukanFooterOffsetY), ui.zukanFooter, kCenter, 22), ECS::ZukanElementKind::Footer);
+            addElement(createFontText(hlslpp::float2(ui.menuCenter.x, menuBottom - ui.zukanFooterOffsetY), ui.zukanFooter, kCenter, 22, inside(ui.menuSize.x)), ECS::ZukanElementKind::Footer);
         }
 
         //--------------------------------------------------------------
@@ -1155,7 +1177,7 @@ namespace FruitMagic {
             createMenuPanel(MenuKind::Upgrade, texts.Get("upgrade.title"));
 
             // 手持ち（価格と見比べられるよう、タイトルのすぐ下）
-            addElement(createFontText(hlslpp::float2(ui.menuCenter.x, menuTop + ui.upgradeWalletOffsetY), ui.upgradeWallet, kCenter, 22),
+            addElement(createFontText(hlslpp::float2(ui.menuCenter.x, menuTop + ui.upgradeWalletOffsetY), ui.upgradeWallet, kCenter, 22, inside(ui.menuSize.x)),
                        ECS::UpgradeElementKind::Wallet);
 
             // 行（強化が増えて枠に収まらなくなったらスクロールする。行の高さは変えない）
@@ -1166,18 +1188,21 @@ namespace FruitMagic {
             const float      effectX = menuLeft + ui.upgradeEffectX;
             const ScrollList list    = createScrollList(MenuKind::Upgrade, menuLeft + ui.upgradeListLeft, rowsTop, menuRight - ui.upgradeListRight,
                                                         menuBottom - ui.upgradeRowsBottom, pitch * static_cast<float>(rows), ui.upgradeThumbColor);
+            // 名前と説明は効果の列まで、効果と価格は購入ボタンの左端まで
+            const float nameWidth   = effectX - nameX - ui.textPadding;
+            const float effectWidth = buttonX - ui.upgradeButtonWidth * 0.5f - effectX - ui.textPadding;
             for(int u = 0; u < rows; ++u) {
                 const UpgradeDef& def = upgrades.Upgrades()[u];
                 const float       y   = rowsTop + pitch * (static_cast<float>(u) + 0.5f);
                 const float       dy  = pitch * ui.upgradeRowSpread;    // 1行の中の上段・下段のずれ
 
                 // 名前とレベル（上段）・説明（下段）
-                addElement(attach(list, createFontText(hlslpp::float2(nameX, y - dy), ui.upgradeName, kLeft, 22)), ECS::UpgradeElementKind::Name, u);
-                addPage(attach(list, createFontText(hlslpp::float2(nameX, y + dy), ui.upgradeDescription, kLeft, 22)), MenuKind::Upgrade, def.description);
+                addElement(attach(list, createFontText(hlslpp::float2(nameX, y - dy), ui.upgradeName, kLeft, 22, nameWidth)), ECS::UpgradeElementKind::Name, u);
+                addPage(attach(list, createFontText(hlslpp::float2(nameX, y + dy), ui.upgradeDescription, kLeft, 22, nameWidth)), MenuKind::Upgrade, def.description);
 
                 // 効果（上段）・価格（下段。色は UpgradeSystem が買えるかどうかで変える）
-                addElement(attach(list, createFontText(hlslpp::float2(effectX, y - dy), ui.upgradeEffect, kLeft, 22)), ECS::UpgradeElementKind::Effect, u);
-                addElement(attach(list, createText(hlslpp::float2(effectX, y + dy), ui.upgradeCostScale, kLeft, ui.upgradeAffordableColor, 22)),
+                addElement(attach(list, createFontText(hlslpp::float2(effectX, y - dy), ui.upgradeEffect, kLeft, 22, effectWidth)), ECS::UpgradeElementKind::Effect, u);
+                addElement(attach(list, createText(hlslpp::float2(effectX, y + dy), ui.upgradeCostScale, kLeft, ui.upgradeAffordableColor, 22, false, effectWidth)),
                            ECS::UpgradeElementKind::Cost, u);
 
                 // 購入ボタン（色は UpgradeSystem が買えるかどうかで変える）
@@ -1185,7 +1210,7 @@ namespace FruitMagic {
                                                                        ui.upgradeCannotBuyColor, 21));
                 registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
                 addElement(button, ECS::UpgradeElementKind::BuyButton, u);
-                addElement(attach(list, createText(hlslpp::float2(buttonX, y), ui.upgradeLabelScale, kCenter, kWhite, 22)), ECS::UpgradeElementKind::BuyLabel, u);
+                addElement(attach(list, createText(hlslpp::float2(buttonX, y), ui.upgradeLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeButtonWidth))), ECS::UpgradeElementKind::BuyLabel, u);
             }
         }
 
@@ -1204,7 +1229,7 @@ namespace FruitMagic {
             addPage(panel, MenuKind::Welcome);
 
             auto addLine = [&](float y, const UiFont& style, const std::wstring& text) {
-                addPage(createFontText(hlslpp::float2(ui.menuCenter.x, top + y), style, kCenter, 32), MenuKind::Welcome, text);
+                addPage(createFontText(hlslpp::float2(ui.menuCenter.x, top + y), style, kCenter, 32, inside(ui.welcomeSize.x)), MenuKind::Welcome, text);
             };
 
             addLine(ui.welcomeTitleY, ui.welcomeTitle, texts.Get("welcome.title"));
@@ -1231,7 +1256,7 @@ namespace FruitMagic {
             ECS::MenuButtonComponent& close = registry.AddComponent<ECS::MenuButtonComponent>(button);
             close.menu                      = MenuKind::Welcome;
             close.key                       = Tsukino::Input::KeyCode::Enter;
-            close.label                     = addPage(createText(buttonCenter, ui.welcomeLabelScale, kCenter, kWhite, 32), MenuKind::Welcome);
+            close.label                     = addPage(createText(buttonCenter, ui.welcomeLabelScale, kCenter, kWhite, 32, true, inside(ui.welcomeButtonSize.x)), MenuKind::Welcome);
             close.openText                  = texts.Get("welcome.close");
             close.canOpen                   = false;
         }
@@ -1254,8 +1279,9 @@ namespace FruitMagic {
                                                             contentSize, ui.optionsThumbColor);
 
             // 文字を1つ置く（中身の子にする）
-            auto addText = [&](const hlslpp::float2& position, const UiFont& style, Tsukino::BuiltIn::ECS::HorizontalAlign align, const std::wstring& text = L"") {
-                return addPage(attach(list, createFontText(position, style, align, 22)), MenuKind::Options, text);
+            auto addText = [&](const hlslpp::float2& position, const UiFont& style, Tsukino::BuiltIn::ECS::HorizontalAlign align, float maxWidth,
+                               const std::wstring& text = L"") {
+                return addPage(attach(list, createFontText(position, style, align, 22, maxWidth)), MenuKind::Options, text);
             };
             // ボタンを1つ置く（中身の子にする。文字は OptionsSystem が書く）
             auto addButton = [&](ECS::OptionsElementKind kind, const hlslpp::float2& center, const hlslpp::float2& size) {
@@ -1264,19 +1290,23 @@ namespace FruitMagic {
                 addPage(button, MenuKind::Options);
                 ECS::OptionsElementComponent& element = registry.AddComponent<ECS::OptionsElementComponent>(button);
                 element.kind                          = kind;
-                element.label = addPage(attach(list, createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 22)), MenuKind::Options);
+                element.label = addPage(attach(list, createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 22, true, inside(size.x))), MenuKind::Options);
             };
 
             //--------------------------------------------------------------
             // 設定の行と「ゲームを終了」
             //--------------------------------------------------------------
             const float labelX = menuLeft + ui.optionsLabelX;
+            const float dataWidth = (menuRight - ui.optionsListRight) - labelX - ui.textPadding;    // データの見出しと説明は、スクロールする領域の右端まで
             auto        rowY   = [&](int row) { return listTop + ui.optionsRowsTop + ui.optionsRowPitch * static_cast<float>(row); };
-            auto        label  = [&](int row, const char* key) { addText(hlslpp::float2(labelX, rowY(row)), ui.optionsLabel, kLeft, texts.Get(key)); };
+            // 項目名は、右にあるボタン（「−」かオン/オフ）の左端まで
+            const float labelWidth = std::min(ui.optionsMinusX - ui.optionsStepSize.x * 0.5f, ui.optionsValueX - ui.optionsToggleSize.x * 0.5f) - ui.optionsLabelX - ui.textPadding;
+            auto        label      = [&](int row, const char* key) { addText(hlslpp::float2(labelX, rowY(row)), ui.optionsLabel, kLeft, labelWidth, texts.Get(key)); };
             auto volumeRow = [&](int row, const char* key, ECS::OptionsElementKind down, ECS::OptionsElementKind value, ECS::OptionsElementKind up) {
                 label(row, key);
                 addButton(down, hlslpp::float2(menuLeft + ui.optionsMinusX, rowY(row)), ui.optionsStepSize);
-                registry.AddComponent<ECS::OptionsElementComponent>(addText(hlslpp::float2(menuLeft + ui.optionsValueX, rowY(row)), ui.optionsValue, kCenter)).kind = value;
+                registry.AddComponent<ECS::OptionsElementComponent>(addText(hlslpp::float2(menuLeft + ui.optionsValueX, rowY(row)), ui.optionsValue, kCenter,
+                                                                            ui.optionsPlusX - ui.optionsMinusX - ui.optionsStepSize.x - ui.textPadding)).kind = value;
                 addButton(up, hlslpp::float2(menuLeft + ui.optionsPlusX, rowY(row)), ui.optionsStepSize);
             };
             volumeRow(0, "options.bgm", ECS::OptionsElementKind::BgmDown, ECS::OptionsElementKind::BgmValue, ECS::OptionsElementKind::BgmUp);
@@ -1290,8 +1320,8 @@ namespace FruitMagic {
             //--------------------------------------------------------------
             // データ（スクロールした先）: 見出し・説明・「データを消して最初から」（押すと確認ウィンドウ）
             //--------------------------------------------------------------
-            addText(hlslpp::float2(labelX, dataTitleY), ui.optionsDataTitle, kLeft, texts.Get("options.dataTitle"));
-            addText(hlslpp::float2(labelX, dataTitleY + ui.optionsDataNoteGap), ui.optionsDataNote, kLeft, texts.Get("options.dataNote"));
+            addText(hlslpp::float2(labelX, dataTitleY), ui.optionsDataTitle, kLeft, dataWidth, texts.Get("options.dataTitle"));
+            addText(hlslpp::float2(labelX, dataTitleY + ui.optionsDataNoteGap), ui.optionsDataNote, kLeft, dataWidth, texts.Get("options.dataNote"));
             addButton(ECS::OptionsElementKind::Reset, hlslpp::float2(labelX + ui.optionsResetSize.x * 0.5f, resetY), ui.optionsResetSize);
         }
 
@@ -1322,16 +1352,16 @@ namespace FruitMagic {
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(window);
             addPart(window, ECS::OptionsDialogPart::Window);
 
-            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmStepY), ui.confirmStep, kCenter, 42), ECS::OptionsDialogPart::Step);
-            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmMessageY), ui.confirmMessage, kCenter, 42), ECS::OptionsDialogPart::Message);
-            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmNoteY), ui.confirmNote, kCenter, 42), ECS::OptionsDialogPart::Note);
+            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmStepY), ui.confirmStep, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Step);
+            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmMessageY), ui.confirmMessage, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Message);
+            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmNoteY), ui.confirmNote, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Note);
 
             auto addButton = [&](ECS::OptionsDialogPart part, float offsetX) {
                 const hlslpp::float2 center(ui.menuCenter.x + offsetX, bottom - ui.confirmButtonOffsetY);
                 Tsukino::ECS::Entity button = createPanel(center, ui.confirmButtonSize, ui.confirmNoColor, 42);
                 registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
                 addPart(button, part);
-                Tsukino::ECS::Entity label = addPart(createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 43), ECS::OptionsDialogPart::ButtonLabel);
+                Tsukino::ECS::Entity label = addPart(createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 43, true, inside(ui.confirmButtonSize.x)), ECS::OptionsDialogPart::ButtonLabel);
                 registry.GetComponent<ECS::OptionsDialogComponent>(button).label = label;
             };
             addButton(ECS::OptionsDialogPart::Yes, ui.confirmYesOffsetX);

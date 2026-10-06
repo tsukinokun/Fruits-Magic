@@ -11,6 +11,7 @@
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/Texts.hpp>
+#include <FruitMagic/Game/UiFonts.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
@@ -52,6 +53,7 @@ namespace FruitMagic::ECS {
             t.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
+            font.fontHandle                            = GetUiFont(registry, true);    // ポップは太字
             font.text                                  = text;
             font.color                                 = color;
             font.horizontalAlign                       = Tsukino::BuiltIn::ECS::HorizontalAlign::Center;

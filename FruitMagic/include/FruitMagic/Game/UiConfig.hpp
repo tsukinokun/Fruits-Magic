@@ -31,12 +31,15 @@ namespace FruitMagic {
         float          scale    = 1.0f;                                 // 大きさ
         hlslpp::float4 color    = hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f);    // 色
         UiAlign        align    = UiAlign::Left;                        // 揃え方
+        bool           bold     = false;                                // 太字のフォントを使うか（UiFonts）
+        float          maxWidth = 0.0f;                                 // 収める幅（超えたら縮める）。0 なら位置と揃え方から画面に収まる幅を決める
     };
 
     //! 文字の大きさと色です（位置は配置の計算で決まるもの）。
     struct UiFont {
         float          scale = 1.0f;                                     // 大きさ
         hlslpp::float4 color = hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f);    // 色
+        bool           bold  = false;                                     // 太字のフォントを使うか（UiFonts）
     };
 
     //! 画面の UI の配置・色・表示時間です。Registry のコンテキストに置きます。
@@ -51,11 +54,18 @@ namespace FruitMagic {
         hlslpp::float2 ScreenCenter() const { return hlslpp::float2(screenWidth * 0.5f, screenHeight * 0.5f); }
 
         //--------------------------------------------------------------
+        // フォント（.dfont。空ならエンジンの標準フォント）。読み込みは UiFonts
+        //--------------------------------------------------------------
+        std::string fontRegularPath = "Assets/Fonts/Rounded-Medium.dfont";       // ふつう（説明文など読む文字）
+        std::string fontBoldPath    = "Assets/Fonts/Rounded-ExtraBold.dfont";    // 太字（数・タイトル・ボタンなど目立たせる文字）
+
+        //--------------------------------------------------------------
         // 文字の縁
         //--------------------------------------------------------------
         hlslpp::float4 hudOutlineColor  = hlslpp::float4(0.15f, 0.08f, 0.05f, 1.0f);    // HUD の文字の縁の色
         hlslpp::float4 textOutlineColor = hlslpp::float4(0.1f, 0.03f, 0.15f, 1.0f);     // 画面（図鑑・強化など）の文字の縁の色
         float          outlineWidth     = 2.0f;                                         // 文字の縁の太さ
+        float          textPadding      = 8.0f;                                         // 文字を枠（ボタン・画面・列）に収めるときの内側の余白
 
         //--------------------------------------------------------------
         // HUD の文字（"coins" "mana" などの種類ごと）
@@ -118,7 +128,7 @@ namespace FruitMagic {
         hlslpp::float2 menuSize         = hlslpp::float2(900.0f, 540.0f);
         hlslpp::float4 menuColor        = hlslpp::float4(0.08f, 0.04f, 0.12f, 0.9f);
         float          menuTitleOffsetY = 32.0f;    // 画面の上端からタイトルまで
-        UiFont         menuTitle        = {1.3f, hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f)};
+        UiFont         menuTitle        = {1.3f, hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), true};
         float          scrollBarWidth   = 10.0f;
         float          scrollBarInset   = 22.0f;    // 画面の右端からスクロールバーの中心まで
         hlslpp::float4 scrollTrackColor = hlslpp::float4(0.0f, 0.0f, 0.0f, 0.35f);
@@ -129,7 +139,7 @@ namespace FruitMagic {
         float          zukanColumnsLeft    = 330.0f;    // 画面の左端から列の始まりまで
         float          zukanColumnsRight   = 40.0f;     // 列の終わりから画面の右端まで
         float          zukanHeaderOffsetY  = 78.0f;     // 画面の上端から列の見出しまで
-        UiFont         zukanHeader         = {0.85f, hlslpp::float4(0.9f, 0.8f, 1.0f, 1.0f)};
+        UiFont         zukanHeader         = {0.85f, hlslpp::float4(0.9f, 0.8f, 1.0f, 1.0f), true};
         float          zukanRowsGap        = 30.0f;     // 列の見出しから行の始まりまで
         float          zukanRowsBottom     = 56.0f;     // 行の終わりから画面の下端まで
         float          zukanRowPitch       = 44.0f;     // 行の高さ（行が多ければスクロールする）
@@ -151,7 +161,7 @@ namespace FruitMagic {
         // 強化（行＝強化）
         //--------------------------------------------------------------
         float          upgradeWalletOffsetY = 74.0f;     // 画面の上端から手持ちまで
-        UiFont         upgradeWallet        = {0.9f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f)};
+        UiFont         upgradeWallet        = {0.9f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), true};
         float          upgradeRowsTop       = 104.0f;    // 画面の上端から行の始まりまで
         float          upgradeRowsBottom    = 24.0f;     // 行の終わりから画面の下端まで
         float          upgradeRowPitch      = 100.0f;    // 行の高さ（行が多ければスクロールする）
@@ -185,7 +195,7 @@ namespace FruitMagic {
         float          welcomeAwayY         = 92.0f;
         float          welcomeRewardY       = 132.0f;
         float          welcomeCappedY       = 170.0f;
-        UiFont         welcomeTitle         = {1.3f, hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f)};
+        UiFont         welcomeTitle         = {1.3f, hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), true};
         UiFont         welcomeAway          = {0.85f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f)};
         UiFont         welcomeReward        = {0.85f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f)};
         UiFont         welcomeNoFairy       = {0.75f, hlslpp::float4(0.85f, 0.8f, 0.95f, 1.0f)};
@@ -212,7 +222,7 @@ namespace FruitMagic {
         hlslpp::float2 optionsStepSize      = hlslpp::float2(52.0f, 42.0f);     // −/＋ ボタンの大きさ
         hlslpp::float2 optionsToggleSize    = hlslpp::float2(200.0f, 42.0f);    // オン/オフのボタンの大きさ
         UiFont         optionsLabel         = {0.9f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f)};
-        UiFont         optionsValue         = {0.95f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f)};
+        UiFont         optionsValue         = {0.95f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), true};
         float          optionsButtonLabelScale = 0.85f;
         hlslpp::float4 optionsButtonFill    = hlslpp::float4(0.45f, 0.38f, 0.65f, 1.0f);    // ボタン
         hlslpp::float4 optionsButtonHover   = hlslpp::float4(0.62f, 0.52f, 0.85f, 1.0f);    // ボタン（カーソルが重なっている）
@@ -224,7 +234,7 @@ namespace FruitMagic {
         float          optionsDataNoteGap   = 42.0f;      // 見出しから説明まで
         float          optionsDataButtonGap = 100.0f;     // 見出しから「データを消して最初から」の中心まで
         float          optionsBottomMargin  = 40.0f;      // 最後のボタンの下の余白
-        UiFont         optionsDataTitle     = {0.95f, hlslpp::float4(1.0f, 0.6f, 0.6f, 1.0f)};
+        UiFont         optionsDataTitle     = {0.95f, hlslpp::float4(1.0f, 0.6f, 0.6f, 1.0f), true};
         UiFont         optionsDataNote      = {0.72f, hlslpp::float4(0.9f, 0.9f, 0.95f, 1.0f)};
         hlslpp::float2 optionsResetSize     = hlslpp::float2(340.0f, 46.0f);
         hlslpp::float4 optionsResetColor    = hlslpp::float4(0.75f, 0.35f, 0.4f, 1.0f);
@@ -242,8 +252,8 @@ namespace FruitMagic {
         float          confirmYesOffsetX    = -150.0f;    // 消すボタンの中心
         float          confirmNoOffsetX     = 150.0f;     // やめるボタンの中心
         hlslpp::float2 confirmButtonSize    = hlslpp::float2(240.0f, 50.0f);
-        UiFont         confirmStep          = {0.85f, hlslpp::float4(1.0f, 0.75f, 0.75f, 1.0f)};
-        UiFont         confirmMessage       = {1.0f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f)};
+        UiFont         confirmStep          = {0.85f, hlslpp::float4(1.0f, 0.75f, 0.75f, 1.0f), true};
+        UiFont         confirmMessage       = {1.0f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), true};
         UiFont         confirmNote          = {0.75f, hlslpp::float4(0.95f, 0.85f, 0.85f, 1.0f)};
         hlslpp::float4 confirmYesColor      = hlslpp::float4(0.85f, 0.25f, 0.25f, 1.0f);
         hlslpp::float4 confirmYesWaitColor  = hlslpp::float4(0.4f, 0.22f, 0.24f, 1.0f);    // まだ押せない間
@@ -273,7 +283,7 @@ namespace FruitMagic {
         hlslpp::float4 loadingBackColor    = hlslpp::float4(0.12f, 0.06f, 0.18f, 1.0f);    // 屋台の夕暮れに合わせた濃い紫
         hlslpp::float4 loadingFrameColor   = hlslpp::float4(0.05f, 0.02f, 0.08f, 1.0f);
         hlslpp::float4 loadingFillColor    = hlslpp::float4(1.0f, 0.75f, 0.35f, 1.0f);
-        UiFont         loadingText         = {1.1f, hlslpp::float4(1.0f, 0.92f, 0.85f, 1.0f)};
+        UiFont         loadingText         = {1.1f, hlslpp::float4(1.0f, 0.92f, 0.85f, 1.0f), true};
 
         //! 既定の HUD の文字の置き方を入れます（コンストラクタ。JSON に無い種類はこのまま）。
         UiConfig();

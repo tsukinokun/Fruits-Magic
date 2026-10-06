@@ -24,6 +24,7 @@ namespace FruitMagic {
             if(const Json::Value* font = Json::FindObject(obj, key)) {
                 Json::Read(*font, "scale", out.scale);
                 Json::ReadColor(*font, "color", out.color);
+                Json::Read(*font, "bold", out.bold);
             }
         }
 
@@ -36,6 +37,8 @@ namespace FruitMagic {
             Json::ReadVec(value, "position", out.position);
             Json::Read(value, "scale", out.scale);
             Json::ReadColor(value, "color", out.color);
+            Json::Read(value, "bold", out.bold);
+            Json::Read(value, "maxWidth", out.maxWidth);
             std::string align;
             if(Json::Read(value, "align", align))
                 out.align = (align == "center") ? UiAlign::Center : (align == "right") ? UiAlign::Right : UiAlign::Left;
@@ -46,15 +49,15 @@ namespace FruitMagic {
     //! 既定の HUD の文字の置き方を入れます。
     //----------------------------------------------------------------------------
     UiConfig::UiConfig() {
-        hudTexts["coins"]        = {hlslpp::float2(24.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), UiAlign::Left};
+        hudTexts["coins"]        = {hlslpp::float2(24.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), UiAlign::Left, true};
         hudTexts["mana"]         = {hlslpp::float2(260.0f, 86.0f), 0.9f, hlslpp::float4(0.85f, 0.7f, 1.0f, 1.0f), UiAlign::Left};
-        hudTexts["dropPopup"]    = {hlslpp::float2(28.0f, 122.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f), UiAlign::Left};
-        hudTexts["harvestTotal"] = {hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left};
-        hudTexts["harvestPopup"] = {hlslpp::float2(28.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f), UiAlign::Left};
+        hudTexts["dropPopup"]    = {hlslpp::float2(28.0f, 122.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f), UiAlign::Left, true};
+        hudTexts["harvestTotal"] = {hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left, true};
+        hudTexts["harvestPopup"] = {hlslpp::float2(28.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f), UiAlign::Left, true};
         hudTexts["relief"]       = {hlslpp::float2(72.0f, 248.0f), 0.8f, hlslpp::float4(0.75f, 1.0f, 0.85f, 1.0f), UiAlign::Left};
-        hudTexts["roulette"]     = {hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f), UiAlign::Center};
+        hudTexts["roulette"]     = {hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f), UiAlign::Center, true, 640.0f};
         hudTexts["controlsHint"] = {hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f), UiAlign::Left};
-        hudTexts["notice"]       = {hlslpp::float2(640.0f, 250.0f), 1.15f, hlslpp::float4(1.0f, 0.75f, 0.95f, 1.0f), UiAlign::Center};
+        hudTexts["notice"]       = {hlslpp::float2(640.0f, 250.0f), 1.15f, hlslpp::float4(1.0f, 0.75f, 0.95f, 1.0f), UiAlign::Center, true};
     }
 
     //----------------------------------------------------------------------------
@@ -86,10 +89,15 @@ namespace FruitMagic {
             Json::Read(*screen, "width", screenWidth);
             Json::Read(*screen, "height", screenHeight);
         }
+        if(const Json::Value* fonts = Json::FindObject(doc, "fonts")) {
+            Json::Read(*fonts, "regular", fontRegularPath);
+            Json::Read(*fonts, "bold", fontBoldPath);
+        }
         if(const Json::Value* outline = Json::FindObject(doc, "outline")) {
             Json::ReadColor(*outline, "hud", hudOutlineColor);
             Json::ReadColor(*outline, "text", textOutlineColor);
             Json::Read(*outline, "width", outlineWidth);
+            Json::Read(*outline, "textPadding", textPadding);
         }
         if(const Json::Value* hud = Json::FindObject(doc, "hud")) {
             for(auto it = hud->MemberBegin(); it != hud->MemberEnd(); ++it) {
