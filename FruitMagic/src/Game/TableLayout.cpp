@@ -86,6 +86,7 @@ namespace FruitMagic {
             Json::Read(*coin, "value", loaded.coinValue);
             Json::Read(*coin, "model", loaded.coinModel);
             Json::ReadVec(*coin, "modelRotation", loaded.coinModelRotation);
+            Json::Read(*coin, "material", loaded.coinMaterial);
         }
         if(const Json::Value* fruit = Json::FindObject(doc, "fruit")) {
             Json::Read(*fruit, "friction", loaded.fruitFriction);

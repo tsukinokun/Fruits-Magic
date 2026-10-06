@@ -24,7 +24,10 @@
 - 投入位置は常にプッシャー上面の上（`PusherLayout.hpp` の `kLaunchZ` は背面パネルとプッシャー前面の中間から計算）
 - 背面パネルはプッシャーの中へ食い込ませて隙間を作らない。隙間があると挟まれたコインが下をくぐって奥へ消える
 - コリジョン表示: Debug ビルドは起動時からワイヤーフレーム表示、F5 で切り替え
-- 果物の見た目: エンジンのモデルには描画時に色を変える手段が無いので、`PrizeFactory::GetTintedModel` でマテリアルの基本色だけを差し替えたモデルの複製をアセットとして登録して使う（メッシュは共有）
+- マテリアル（エンジン。Unity と同じ作り）
+  - `.tmat`（Unity の `.mat`）は「キー = 値」で書くマテリアルのファイル（`ShadingModel`・`BaseColor`・`Metallic`・`Roughness`・`Specular`・`Emissive`・`AlphaCutoff`・`AlbedoMap` など。テクスチャはアセットのルートからのパス）。キャッシュは元ファイルから作り直されるので、`Cache/` を消しても残る
+  - `ModelComponent::materials`（Unity の `MeshRenderer.sharedMaterials`）: スロットごとにマテリアルを差し替える。コインは `Table.json` の `coin.material`（`Assets/Materials/CoinGold.tmat`。金属）
+  - `MaterialPropertyBlockComponent`（Unity の `MaterialPropertyBlock`）: エンティティごとに色などを上書きする。アセットは複製しない。果物・箱・球の色は `PrizeFactory::SetColor` がこれで付ける（基本色 = モデルの基本色 × 色。Block.fbx・Ball.fbx の基本色は 0.8）
 - モデルの大きさ: `MeshData::bounds` はノードの拡縮を掛けた後の値で、回転は掛かっていない（Block.fbx は Z-up）。描画時の大きさはノードの回転・移動だけを掛けて求める（`PrizeFactory.cpp` の `MeasureModelHalfExtent`）
 - 作り込んだモデル（Kenney）: 原点が底にあり大きさもまちまちなので、`PrizeFactory::AttachModelVisual` で子のエンティティに置き、外接の箱の中心を当たり判定の中心へずらし、当たり判定に収まる大きさへ拡大する（果物は縦横比を保つ。コインは軸ごと）。親（当たり判定）は拡縮しない。果物 JSON の `modelRotation`・`modelScale`・`tintBase`（false ならモデル自身の色のまま。色違い・金色は掛ける）。glb のテクスチャは `Textures/colormap.png` を指しているが、エンジンの取り込みはモデルの隣の同名ファイルを探すので、glb と同じフォルダに置く
 - コインは見た目だけ丸く（`Table.json` の `coin.model`）、当たり判定は箱のまま。円柱の当たり判定を試したところ、プッシャーの前でコインが乗り上げて重なり、押す力が手前へ伝わらなかった（自動プレイで払い出し/投入 100% → 8%）

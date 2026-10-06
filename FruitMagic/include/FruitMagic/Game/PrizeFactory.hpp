@@ -128,6 +128,7 @@ namespace FruitMagic {
             Tsukino::Asset::AssetHandle handle;                                         // モデルのハンドル
             hlslpp::float3              halfExtent = hlslpp::float3(1.0f, 1.0f, 1.0f);    // スケール1での半サイズ
             hlslpp::float3              center     = hlslpp::float3(0.0f, 0.0f, 0.0f);    // スケール1での外接の箱の中心（原点が底にあるモデルではずれる）
+            hlslpp::float3              baseColor  = hlslpp::float3(1.0f, 1.0f, 1.0f);    // マテリアルの基本色（色を付けるときに掛ける）
         };
 
         //! 作り込んだモデルを、当たり判定に合わせて子のエンティティとして付けます。
@@ -149,17 +150,17 @@ namespace FruitMagic {
         //! @return 読み込んだモデルの情報
         const ModelInfo& GetModel(const std::string& path);
 
-        //! マテリアルの基本色だけを差し替えたモデルの複製を返します（同じ組み合わせは使い回す）。
-        //! @param  [in] path  元のモデルのパス
-        //! @param  [in] color 基本色に掛ける色
-        //! @return 複製したモデルの情報（作れなかった場合は元のモデル）
-        //! @note   エンジンのモデルには描画時に色を変える手段が無いため、メッシュは共有したまま
-        //!         マテリアルだけを差し替えたモデルをアセットとして登録して使う
-        const ModelInfo& GetTintedModel(const std::string& path, const hlslpp::float3& color);
+        //! 見た目の色を付けます。MaterialPropertyBlockComponent でマテリアルの基本色を「モデルの基本色 × 色」に置き換えます
+        //! （アセットは複製しない。白なら何もしない＝モデル自身の色のまま）。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] entity   ModelComponent を持つエンティティ
+        //! @param  [in] model    エンティティが使うモデル（基本色を使う）
+        //! @param  [in] color    色
+        static void SetColor(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity, const ModelInfo& model, const hlslpp::float3& color);
 
         Tsukino::Asset::AssetManager*              m_assetManager = nullptr;    // モデルの読み込みに使う
         TableLayout                                m_layout;                    // 景品の大きさ・物理（Initialize で受け取った写し）
         StageConfig                                m_stage;                     // 景品の見た目（同上）
-        std::unordered_map<std::string, ModelInfo> m_models;                    // パスごとのモデル
+        std::unordered_map<std::string, ModelInfo> m_models;                    // パスごとのモデル（色違いも同じモデルを共有する）
     };
 }    // namespace FruitMagic

@@ -12,7 +12,6 @@
 #include <Tsukino/Engine/Asset/AssetManager.hpp>
 #include <Tsukino/Engine/Asset/Model/ModelAsset.hpp>
 #include <Tsukino/Engine/Asset/Material/MaterialAsset.hpp>
-#include <Tsukino/Engine/Asset/Util/AssetHandleGenerator.hpp>
 #include <Tsukino/GraphicsCommon/Node/NodeData.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/Path.hpp>
@@ -22,6 +21,7 @@
 #include <Tsukino/BuiltIn/ECS/Component/ModelComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/CollisionComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/RimGlowComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/MaterialPropertyBlockComponent.hpp>
 
 #include <algorithm>
 #include <cfloat>
@@ -129,6 +129,23 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
+        //! モデルの（最初の）マテリアルの基本色を返します。
+        //! @param  [in] assetManager アセットマネージャー
+        //! @param  [in] handle       モデルのハンドル
+        //! @return 基本色の RGB（マテリアルが無ければ白）
+        //--------------------------------------------------------------
+        hlslpp::float3 ModelBaseColor(Tsukino::Asset::AssetManager& assetManager, Tsukino::Asset::AssetHandle handle) {
+            auto model = std::dynamic_pointer_cast<Tsukino::Asset::ModelAsset>(assetManager.Get(handle));
+            if(!model || model->materialHandles.empty())
+                return hlslpp::float3(1.0f, 1.0f, 1.0f);
+            auto material = std::dynamic_pointer_cast<Tsukino::Asset::MaterialAsset>(assetManager.Get(model->materialHandles.front()));
+            if(!material)
+                return hlslpp::float3(1.0f, 1.0f, 1.0f);
+            const auto& c = material->data.baseColor;
+            return hlslpp::float3(c.x, c.y, c.z);
+        }
+
+        //--------------------------------------------------------------
         //! Dynamic 剛体の共通設定を行います。
         //! @param  [in,out] rb       設定する剛体
         //! @param  [in]     friction 摩擦係数
@@ -165,56 +182,19 @@ namespace FruitMagic {
         if(m_assetManager) {
             info.handle     = m_assetManager->Load(Tsukino::Core::Path(path));
             info.halfExtent = MeasureModelHalfExtent(*m_assetManager, info.handle, path, info.center);
+            info.baseColor  = ModelBaseColor(*m_assetManager, info.handle);
         }
         return m_models.emplace(path, info).first->second;
     }
 
     //----------------------------------------------------------------------------
-    //! マテリアルの基本色だけを差し替えたモデルの複製を返します（同じ組み合わせは使い回す）。
+    //! 見た目の色を付けます（モデルの基本色 × 色。白なら何もしない）。
     //----------------------------------------------------------------------------
-    const PrizeFactory::ModelInfo& PrizeFactory::GetTintedModel(const std::string& path, const hlslpp::float3& color) {
-        const std::string key = path + "|tint|" + std::to_string(float(color.x)) + "," + std::to_string(float(color.y)) + "," + std::to_string(float(color.z));
-
-        auto it = m_models.find(key);
-        if(it != m_models.end())
-            return it->second;
-
-        const ModelInfo& base = GetModel(path);
-        if(!m_assetManager)
-            return base;
-
-        auto baseModel = std::dynamic_pointer_cast<Tsukino::Asset::ModelAsset>(m_assetManager->Get(base.handle));
-        if(!baseModel)
-            return base;
-
-        //--------------------------------------------------------------
-        // モデルを複製し、各マテリアルも複製して基本色に色を掛ける。
-        // ハンドルは識別キーから作る（同じキーなら毎回同じハンドルになる）
-        //--------------------------------------------------------------
-        auto tinted = std::make_shared<Tsukino::Asset::ModelAsset>(*baseModel);
-        for(size_t i = 0; i < tinted->materialHandles.size(); ++i) {
-            auto baseMaterial = std::dynamic_pointer_cast<Tsukino::Asset::MaterialAsset>(m_assetManager->Get(tinted->materialHandles[i]));
-            if(!baseMaterial)
-                continue;
-
-            auto material            = std::make_shared<Tsukino::Asset::MaterialAsset>(*baseMaterial);
-            material->data.baseColor = hlslpp::float4(baseMaterial->data.baseColor.x * color.x, baseMaterial->data.baseColor.y * color.y,
-                                                      baseMaterial->data.baseColor.z * color.z, baseMaterial->data.baseColor.w);
-
-            const Tsukino::Asset::AssetHandle materialHandle = Tsukino::Asset::AssetHandleGenerator::GenerateFromKey(key + "|material|" + std::to_string(i));
-            material->SetHandle(materialHandle);
-            m_assetManager->RegisterAsset(materialHandle, material);
-            tinted->materialHandles[i] = materialHandle;
-        }
-
-        ModelInfo info;
-        info.handle     = Tsukino::Asset::AssetHandleGenerator::GenerateFromKey(key);
-        info.halfExtent = base.halfExtent;
-        info.center     = base.center;
-        tinted->SetHandle(info.handle);
-        m_assetManager->RegisterAsset(info.handle, tinted);
-
-        return m_models.emplace(key, info).first->second;
+    void PrizeFactory::SetColor(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity, const ModelInfo& model, const hlslpp::float3& color) {
+        if(color.x >= 1.0f && color.y >= 1.0f && color.z >= 1.0f)
+            return;
+        auto& block     = registry.AddComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(entity);
+        block.baseColor = hlslpp::float4(model.baseColor * color, 1.0f);
     }
 
     //----------------------------------------------------------------------------
@@ -244,8 +224,7 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateVisualBox(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
                                                        float opacity, const hlslpp::float3& color) {
-        const bool           isWhite = (color.x >= 1.0f && color.y >= 1.0f && color.z >= 1.0f);
-        const ModelInfo&     block   = isWhite ? GetModel(AssetPaths::kBlockModel) : GetTintedModel(AssetPaths::kBlockModel, color);
+        const ModelInfo&     block = GetModel(AssetPaths::kBlockModel);
         Tsukino::ECS::Entity e     = registry.CreateEntity();
 
         // 見た目は箱モデルを伸縮させて合わせる
@@ -258,6 +237,7 @@ namespace FruitMagic {
         model.modelHandle                            = block.handle;
         model.visible                                = true;
         model.opacity                                = opacity;
+        SetColor(registry, e, block, color);
 
         return e;
     }
@@ -272,7 +252,7 @@ namespace FruitMagic {
             // モデルの指定が無ければ、金色の箱（以前の見た目）
             //--------------------------------------------------------------
             e = CreateBox(registry, position, CoinHalfExtent(), Tsukino::BuiltIn::ECS::RigidbodyType::Dynamic);
-            registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e).modelHandle = GetTintedModel(AssetPaths::kBlockModel, m_stage.coinColor).handle;
+            SetColor(registry, e, GetModel(AssetPaths::kBlockModel), m_stage.coinColor);
             Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
             rim.active                                   = true;
             rim.rimColor                                 = m_stage.coinColor;
@@ -297,7 +277,15 @@ namespace FruitMagic {
             Tsukino::BuiltIn::ECS::RigidbodyComponent& rb = registry.AddComponent<Tsukino::BuiltIn::ECS::RigidbodyComponent>(e);
             SetupDynamicBody(rb, m_layout.coinFriction);
 
-            Tsukino::ECS::Entity visual = AttachModelVisual(registry, e, m_layout.coinModel, m_stage.coinTint, CoinHalfExtent(), m_layout.coinModelRotation, false, 1.0f);
+            Tsukino::ECS::Entity visual = AttachModelVisual(registry, e, m_layout.coinModel, hlslpp::float3(1.0f, 1.0f, 1.0f), CoinHalfExtent(),
+                                                            m_layout.coinModelRotation, false, 1.0f);
+
+            // 金属のマテリアル（Table.json の coin.material）に差し替える。モデルのマテリアルはそのまま残る
+            if(!m_layout.coinMaterial.empty() && m_assetManager) {
+                Tsukino::Asset::AssetRef material(m_assetManager->Load(Tsukino::Core::Path(m_layout.coinMaterial)));
+                material.path = m_layout.coinMaterial;
+                registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(visual).materials.assign(1, material);
+            }
             Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(visual);
             rim.active                                   = true;
             rim.rimColor                                 = m_stage.coinColor;
@@ -317,11 +305,11 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, int variantIndex,
                                                    const hlslpp::float3& color, float glow, const hlslpp::float3& position) {
-        // 見た目は、モデルのマテリアルの基本色に果物（バリエーション）の色を掛けた複製を使う。
+        // 見た目の色は果物（バリエーション）の色（MaterialPropertyBlockComponent でマテリアルの基本色を置き換える）。
         // 作り込んだモデルで通常の色のときは、モデル自身の色のまま（tintBase が false のとき）
         const bool           keepOwnColor = def.customModel && !def.tintBase && color.x == def.color.x && color.y == def.color.y && color.z == def.color.z;
         const hlslpp::float3 tint         = keepOwnColor ? hlslpp::float3(1.0f, 1.0f, 1.0f) : color;
-        const ModelInfo&     modelInfo    = GetTintedModel(def.modelPath, tint);
+        const ModelInfo&     modelInfo    = GetModel(def.modelPath);
         Tsukino::ECS::Entity e            = registry.CreateEntity();
 
         //--------------------------------------------------------------
@@ -366,6 +354,7 @@ namespace FruitMagic {
             Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
             model.modelHandle                            = modelInfo.handle;
             model.visible                                = true;
+            SetColor(registry, e, modelInfo, tint);
         }
 
         // 輪郭を果物の色で少し光らせて、台の上で目立たせる（ポップな見た目の仮演出）
@@ -397,8 +386,7 @@ namespace FruitMagic {
     Tsukino::ECS::Entity PrizeFactory::AttachModelVisual(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity parent, const std::string& path,
                                                          const hlslpp::float3& color, const hlslpp::float3& targetHalf, const hlslpp::float3& rotation,
                                                          bool uniform, float extraScale) {
-        const bool       isWhite = (color.x >= 1.0f && color.y >= 1.0f && color.z >= 1.0f);
-        const ModelInfo& info    = isWhite ? GetModel(path) : GetTintedModel(path, color);
+        const ModelInfo& info = GetModel(path);
 
         //--------------------------------------------------------------
         // 向きの補正を掛けた後の各軸が、モデルのどの軸から来たかを求める（90 度刻みの補正を想定。
@@ -438,6 +426,7 @@ namespace FruitMagic {
         Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
         model.modelHandle                            = info.handle;
         model.visible                                = true;
+        SetColor(registry, e, info, color);
 
         // 親を消すときに一緒に消す（DestroyPrize）
         ECS::FruitPartsComponent* owned = registry.try_get<ECS::FruitPartsComponent>(parent);
@@ -452,7 +441,7 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateVisualBall(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
                                                         const hlslpp::float3& color) {
-        const ModelInfo&     ball = GetTintedModel(AssetPaths::kBallModel, color);
+        const ModelInfo&     ball = GetModel(AssetPaths::kBallModel);
         Tsukino::ECS::Entity e    = registry.CreateEntity();
 
         Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
@@ -463,6 +452,7 @@ namespace FruitMagic {
         Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
         model.modelHandle                            = ball.handle;
         model.visible                                = true;
+        SetColor(registry, e, ball, color);
         return e;
     }
 
@@ -495,7 +485,7 @@ namespace FruitMagic {
 
         ECS::FruitPartsComponent& owned = registry.AddComponent<ECS::FruitPartsComponent>(fruit);
         for(const FruitPart& part : def.parts) {
-            const ModelInfo& model = GetTintedModel(part.shape == FruitPartShape::Sphere ? AssetPaths::kBallModel : AssetPaths::kBlockModel, part.color);
+            const ModelInfo& model = GetModel(part.shape == FruitPartShape::Sphere ? AssetPaths::kBallModel : AssetPaths::kBlockModel);
             Tsukino::ECS::Entity e = registry.CreateEntity();
 
             //--------------------------------------------------------------
@@ -512,6 +502,7 @@ namespace FruitMagic {
             Tsukino::BuiltIn::ECS::ModelComponent& component = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
             component.modelHandle                            = model.handle;
             component.visible                                = true;
+            SetColor(registry, e, model, part.color);
 
             if(part.glow > 0.0f) {
                 Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);

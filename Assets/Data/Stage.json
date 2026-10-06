@@ -90,7 +90,6 @@
   "prize": {
     "coinColor": { "r": 1.0, "g": 0.78, "b": 0.25 },
     "coinGlow": 0.25,
-    "coinTint": { "r": 1.0, "g": 0.92, "b": 0.6 },
     "rimPower": 3.0
   },
   "wallMagic": {

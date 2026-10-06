@@ -1,0 +1,6 @@
+# 金のコイン（Kenney の Platformer Kit のコインのテクスチャに、金属の質感を付ける）
+ShadingModel = PBR
+BaseColor    = 1.0, 0.8, 0.36, 1.0
+Metallic     = 0.85
+Roughness    = 0.4
+AlbedoMap    = Assets/Models/Kenney/PlatformerKit/colormap.png
