@@ -73,15 +73,39 @@ namespace FruitMagic {
             Json::Read(*post, "halfSize", postHalfSize);
             Json::ReadColor(*post, "color", postColor);
         }
+        if(auto it = doc.FindMember("props"); it != doc.MemberEnd() && it->value.IsArray()) {
+            props.clear();
+            for(const Json::Value& item : it->value.GetArray()) {
+                if(!item.IsObject())
+                    continue;
+                StageProp prop;
+                Json::Read(item, "model", prop.model);
+                Json::ReadVec(item, "position", prop.position);
+                Json::ReadVec(item, "rotation", prop.rotation);
+                Json::ReadVec(item, "scale", prop.scale);
+                ReadGlow(item, "glow", prop.glow);
+                if(!prop.model.empty())
+                    props.push_back(prop);
+            }
+        }
         if(const Json::Value* lantern = Json::FindObject(doc, "lantern")) {
-            Json::ReadArray(*lantern, "x", lanternX);
-            Json::Read(*lantern, "drop", lanternDrop);
-            Json::Read(*lantern, "back", lanternBack);
-            Json::ReadVec(*lantern, "halfSize", lanternHalfSize);
-            Json::ReadColor(*lantern, "color", lanternColor);
+            Json::Read(*lantern, "model", lanternModel);
+            if(auto it = lantern->FindMember("positions"); it != lantern->MemberEnd() && it->value.IsArray()) {
+                lanternPositions.clear();
+                for(const Json::Value& item : it->value.GetArray()) {
+                    if(!item.IsObject())
+                        continue;
+                    float x = 0.0f, y = 0.0f, z = 0.0f;
+                    Json::Read(item, "x", x);
+                    Json::Read(item, "y", y);
+                    Json::Read(item, "z", z);
+                    lanternPositions.push_back(hlslpp::float3(x, y, z));
+                }
+            }
+            Json::ReadVec(*lantern, "rotation", lanternRotation);
+            Json::ReadVec(*lantern, "scale", lanternScale);
             ReadGlow(*lantern, "glow", lanternGlow);
-            Json::Read(*lantern, "stringOffset", lanternStringOffset);
-            Json::ReadVec(*lantern, "stringHalfSize", lanternStringHalfSize);
+            Json::ReadVec(*lantern, "lightOffset", lanternLightOffset);
             Json::ReadColor(*lantern, "lightColor", lanternLightColor);
             Json::Read(*lantern, "lightIntensity", lanternLightIntensity);
             Json::Read(*lantern, "lightRange", lanternLightRange);
@@ -135,6 +159,7 @@ namespace FruitMagic {
         if(const Json::Value* prize = Json::FindObject(doc, "prize")) {
             Json::ReadColor(*prize, "coinColor", coinColor);
             Json::Read(*prize, "coinGlow", coinGlow);
+            Json::ReadColor(*prize, "coinTint", coinTint);
             Json::Read(*prize, "rimPower", prizeRimPower);
         }
         if(const Json::Value* wall = Json::FindObject(doc, "wallMagic")) {

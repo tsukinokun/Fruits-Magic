@@ -24,6 +24,15 @@ namespace FruitMagic {
         float          glow      = 0.0f;                                 // 全体の白い光（強くすると白く飛ぶ）
     };
 
+    //! 見た目だけのモデルを1つ置く設定です（原点の位置・向き・拡大率）。
+    struct StageProp {
+        std::string    model;                                             // モデル（リポジトリルート相対）
+        hlslpp::float3 position = hlslpp::float3(0.0f, 0.0f, 0.0f);      // モデルの原点の位置
+        hlslpp::float3 rotation = hlslpp::float3(0.0f, 0.0f, 0.0f);      // 向き（度。X → Y → Z の順に回す）
+        hlslpp::float3 scale    = hlslpp::float3(1.0f, 1.0f, 1.0f);      // 拡大率
+        RimGlowStyle   glow     = {hlslpp::float3(1.0f, 1.0f, 1.0f), 0.0f, 0.0f};    // 光り方（強さ 0 なら光らない）
+    };
+
     //! 台と屋台の見た目・光・カメラの設定です。Registry のコンテキストに置きます。
     struct StageConfig {
         //--------------------------------------------------------------
@@ -60,19 +69,22 @@ namespace FruitMagic {
         hlslpp::float3 postColor    = hlslpp::float3(0.78f, 0.56f, 0.36f);    // 木の色
 
         //--------------------------------------------------------------
-        // ちょうちん（光る球と、温かい色の点光源）
+        // 屋台の飾り（見た目だけのモデル。電飾など）
         //--------------------------------------------------------------
-        std::vector<float> lanternX              = {-20.0f, 0.0f, 20.0f};                  // 並べるX
-        float              lanternDrop           = 6.0f;                                  // 屋根の縁から下げる量
-        float              lanternBack           = 1.0f;                                  // 屋根の手前の縁から奥へ
-        hlslpp::float3     lanternHalfSize       = hlslpp::float3(2.6f, 3.2f, 2.6f);      // 大きさの半分
-        hlslpp::float3     lanternColor          = hlslpp::float3(1.0f, 0.55f, 0.3f);     // 色
-        RimGlowStyle       lanternGlow           = {hlslpp::float3(1.0f, 0.8f, 0.4f), 0.8f, 0.25f};    // 光り方（強くすると白く飛んで色が分からなくなる）
-        float              lanternStringOffset   = 4.5f;                                  // ひもの中心の高さ（球の中心から）
-        hlslpp::float3     lanternStringHalfSize = hlslpp::float3(0.15f, 1.5f, 0.15f);    // ひもの大きさの半分
-        hlslpp::float3     lanternLightColor     = hlslpp::float3(1.0f, 0.65f, 0.35f);    // 点光源の色
-        float              lanternLightIntensity = 900.0f;                                // 点光源の強さ
-        float              lanternLightRange     = 70.0f;                                 // 点光源の届く距離
+        std::vector<StageProp> props;    // 置くモデル（Stage.json の "props"）
+
+        //--------------------------------------------------------------
+        // ちょうちん（モデルと、温かい色の点光源）
+        //--------------------------------------------------------------
+        std::string                 lanternModel;                                            // モデル（空なら置かない）
+        std::vector<hlslpp::float3> lanternPositions;                                        // 置く位置（モデルの原点の位置。吊り下げ型は吊るす点）
+        hlslpp::float3              lanternRotation       = hlslpp::float3(0.0f, 0.0f, 0.0f);    // 向き（度）
+        hlslpp::float3              lanternScale          = hlslpp::float3(10.0f, 10.0f, 10.0f); // 拡大率
+        RimGlowStyle                lanternGlow           = {hlslpp::float3(1.0f, 0.8f, 0.4f), 0.8f, 0.25f};    // 光り方（強くすると白く飛んで色が分からなくなる）
+        hlslpp::float3              lanternLightOffset    = hlslpp::float3(0.0f, -4.0f, 0.0f);   // 点光源の位置（置く位置から）
+        hlslpp::float3              lanternLightColor     = hlslpp::float3(1.0f, 0.65f, 0.35f);  // 点光源の色
+        float                       lanternLightIntensity = 900.0f;                              // 点光源の強さ
+        float                       lanternLightRange     = 70.0f;                               // 点光源の届く距離
 
         //--------------------------------------------------------------
         // ライト（減衰は intensity / (d^2 + 1) なので、点光源は距離の2乗のオーダーにする）
@@ -126,6 +138,7 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         hlslpp::float3 coinColor    = hlslpp::float3(1.0f, 0.78f, 0.25f);    // コインの色（金色）
         float          coinGlow     = 0.25f;                                 // コインの輪郭の光の強さ
+        hlslpp::float3 coinTint     = hlslpp::float3(1.0f, 0.92f, 0.6f);     // コインのモデルの色に掛ける色（モデルを使うとき。白ならモデルの色のまま）
         float          prizeRimPower = 3.0f;                                 // 景品（コイン・果物・飾り）の輪郭の光の鋭さ
 
         //--------------------------------------------------------------

@@ -68,6 +68,15 @@ namespace FruitMagic {
         std::string    modelPath;                                     // 見た目のモデル（リポジトリルート相対）
         std::vector<FruitPart> parts;                                 // 飾りのパーツ（無くてもよい）
 
+        //--------------------------------------------------------------
+        // 作り込んだモデル（JSON に "model" を書いたとき）の合わせ方。
+        // モデルは当たり判定の中に収まる大きさへ縦横比を保って拡大し、中心を当たり判定の中心に合わせる
+        //--------------------------------------------------------------
+        bool           customModel   = false;                              // "model" を指定した（モデルを当たり判定に合わせて置く）
+        hlslpp::float3 modelRotation = hlslpp::float3(0.0f, 0.0f, 0.0f);    // モデルの向きの補正（度。X → Y → Z の順に回す）
+        float          modelScale    = 1.0f;                               // 当たり判定に収めた大きさに掛ける倍率（見た目の微調整）
+        bool           tintBase      = true;                               // 通常の色（color）もモデルに掛けるか。false ならモデル自身の色のまま（色違い・金色は掛ける）
+
         //! 当たり判定の外接する高さの半分を返します。
         //! @return 中心から上端（下端）までの距離（cm）
         float HalfHeightOfBounds() const;

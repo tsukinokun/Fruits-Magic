@@ -593,21 +593,34 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
-        // 屋根の下に下がるちょうちん（光る球と、温かい色の点光源）
+        // 電飾など（Stage.json の props。見た目だけで当たり判定は無い）
         //--------------------------------------------------------------
-        for(float x : stage.lanternX) {
-            const hlslpp::float3 position(x, frontEdgeY - stage.lanternDrop, frontEdgeZ - stage.lanternBack);
-            Tsukino::ECS::Entity e = factory.CreateVisualBall(registry, position, stage.lanternHalfSize, stage.lanternColor);
+        for(const StageProp& prop : stage.props) {
+            Tsukino::ECS::Entity e = factory.CreateVisualModel(registry, prop.model, prop.position, prop.rotation, prop.scale);
+            if(prop.glow.intensity > 0.0f || prop.glow.glow > 0.0f)
+                AddGlow(registry, e, prop.glow);
+        }
+
+        //--------------------------------------------------------------
+        // 屋根の下に下がるちょうちん（モデルと、温かい色の点光源）
+        //--------------------------------------------------------------
+        if(stage.lanternModel.empty())
+            return;
+        for(const hlslpp::float3& position : stage.lanternPositions) {
+            Tsukino::ECS::Entity e = factory.CreateVisualModel(registry, stage.lanternModel, position, stage.lanternRotation, stage.lanternScale);
             AddGlow(registry, e, stage.lanternGlow);
 
-            // ちょうちんを吊るすひも
-            factory.CreateVisualBox(registry, position + hlslpp::float3(0.0f, stage.lanternStringOffset, 0.0f), stage.lanternStringHalfSize, 1.0f, stage.postColor);
+            // 点光源は灯りの位置に置く（モデルの拡大の影響を受けないよう、別のエンティティにする）
+            Tsukino::ECS::Entity                       light     = m_scene.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(light);
+            transform.position                                   = position + stage.lanternLightOffset;
+            transform.dirty                                      = true;
 
-            Tsukino::BuiltIn::ECS::PointLightComponent& light = registry.AddComponent<Tsukino::BuiltIn::ECS::PointLightComponent>(e);
-            light.color                                      = stage.lanternLightColor;
-            light.intensity                                  = stage.lanternLightIntensity;
-            light.range                                      = stage.lanternLightRange;
-            light.enabled                                    = true;
+            Tsukino::BuiltIn::ECS::PointLightComponent& point = registry.AddComponent<Tsukino::BuiltIn::ECS::PointLightComponent>(light);
+            point.color                                      = stage.lanternLightColor;
+            point.intensity                                  = stage.lanternLightIntensity;
+            point.range                                      = stage.lanternLightRange;
+            point.enabled                                    = true;
         }
     }
 

@@ -26,15 +26,18 @@
     "halfSize": 1.2,
     "color": { "r": 0.78, "g": 0.56, "b": 0.36 }
   },
+  "props": [
+    { "model": "Assets/Models/Kenney/HolidayKit/lights-colored.glb",
+      "position": { "x": 0, "y": 36, "z": -30 }, "rotation": { "x": 0, "y": 0, "z": 0 }, "scale": { "x": 72, "y": 20, "z": 20 },
+      "glow": { "color": { "r": 1.0, "g": 0.9, "b": 0.6 }, "intensity": 0.6, "glow": 0.15 } }
+  ],
   "lantern": {
-    "x": [-20.0, 0.0, 20.0],
-    "drop": 6.0,
-    "back": 1.0,
-    "halfSize": { "x": 2.6, "y": 3.2, "z": 2.6 },
-    "color": { "r": 1.0, "g": 0.55, "b": 0.3 },
+    "model": "Assets/Models/Kenney/HolidayKit/lantern-hanging.glb",
+    "positions": [ { "x": -20, "y": 40, "z": -36 }, { "x": 0, "y": 40, "z": -36 }, { "x": 20, "y": 40, "z": -36 } ],
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "scale": { "x": 14, "y": 14, "z": 14 },
     "glow": { "color": { "r": 1.0, "g": 0.8, "b": 0.4 }, "intensity": 0.8, "glow": 0.25 },
-    "stringOffset": 4.5,
-    "stringHalfSize": { "x": 0.15, "y": 1.5, "z": 0.15 },
+    "lightOffset": { "x": 0, "y": -6, "z": 3 },
     "lightColor": { "r": 1.0, "g": 0.65, "b": 0.35 },
     "lightIntensity": 900.0,
     "lightRange": 70.0
@@ -87,6 +90,7 @@
   "prize": {
     "coinColor": { "r": 1.0, "g": 0.78, "b": 0.25 },
     "coinGlow": 0.25,
+    "coinTint": { "r": 1.0, "g": 0.92, "b": 0.6 },
     "rimPower": 3.0
   },
   "wallMagic": {

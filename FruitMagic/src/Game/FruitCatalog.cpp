@@ -205,6 +205,11 @@ namespace FruitMagic {
             // 色違いの色。省略時は通常の色の RGB を回して、同じ明るさの別の色にする
             def.shinyColor      = GetFloat3(doc, "shinyColor", "rgb", hlslpp::float3(def.color.z, def.color.x, def.color.y));
             def.modelPath       = GetString(doc, "model", def.shape == FruitShape::Box ? AssetPaths::kBlockModel : AssetPaths::kBallModel);
+            def.customModel     = doc.HasMember("model");
+            def.modelRotation   = GetFloat3(doc, "modelRotation", "xyz", def.modelRotation);
+            def.modelScale      = GetFloat(doc, "modelScale", def.modelScale);
+            if(auto tint = doc.FindMember("tintBase"); tint != doc.MemberEnd() && tint->value.IsBool())
+                def.tintBase = tint->value.GetBool();
 
             // 飾りのパーツ（任意）。形が分からないものは読み飛ばす
             auto parts = doc.FindMember("parts");

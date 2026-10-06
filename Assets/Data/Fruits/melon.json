@@ -1,6 +1,6 @@
 {
   "id": "melon",
-  "name": "メロン",
+  "name": "スイカ",
   "rank": "large",
   "shape": "sphere",
   "radius": 6.5,
@@ -10,82 +10,10 @@
   "spawnWeight": 3,
   "unlockTreeLevel": 2,
   "color": {
-    "r": 0.5,
-    "g": 0.95,
-    "b": 0.4
+    "r": 0.3,
+    "g": 0.7,
+    "b": 0.3
   },
-  "parts": [
-    {
-      "shape": "box",
-      "offset": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "size": {
-        "x": 1.01,
-        "y": 1.01,
-        "z": 0.03
-      },
-      "color": {
-        "r": 0.75,
-        "g": 0.9,
-        "b": 0.6
-      }
-    },
-    {
-      "shape": "box",
-      "offset": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "size": {
-        "x": 0.03,
-        "y": 1.01,
-        "z": 1.01
-      },
-      "color": {
-        "r": 0.75,
-        "g": 0.9,
-        "b": 0.6
-      }
-    },
-    {
-      "shape": "box",
-      "offset": {
-        "x": 0,
-        "y": 1.05,
-        "z": 0
-      },
-      "size": {
-        "x": 0.06,
-        "y": 0.15,
-        "z": 0.06
-      },
-      "color": {
-        "r": 0.45,
-        "g": 0.3,
-        "b": 0.15
-      }
-    },
-    {
-      "shape": "box",
-      "offset": {
-        "x": 0,
-        "y": 1.18,
-        "z": 0
-      },
-      "size": {
-        "x": 0.2,
-        "y": 0.05,
-        "z": 0.05
-      },
-      "color": {
-        "r": 0.45,
-        "g": 0.3,
-        "b": 0.15
-      }
-    }
-  ]
+  "model": "Assets/Models/Kenney/FoodKit/watermelon.glb",
+  "tintBase": false
 }

@@ -101,6 +101,8 @@ namespace FruitMagic {
         hlslpp::float3 coinHalfExtent = hlslpp::float3(2.5f, 0.4f, 2.5f);    // コインの半分の大きさ
         float          coinFriction   = 0.3f;    // コインの摩擦
         int            coinValue      = 1;       // コイン1枚の払い出し枚数
+        std::string    coinModel;                // コインの見た目のモデル（空なら金色の箱）。当たり判定はどちらも halfExtent の箱
+        hlslpp::float3 coinModelRotation = hlslpp::float3(0.0f, 0.0f, 0.0f);    // コインのモデルの向きの補正（度。平たく寝かせるため）
         float          fruitFriction  = 0.5f;    // 果物の摩擦
         float          fruitRestitution = 0.2f;  // 果物の反発
 

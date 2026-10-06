@@ -14,47 +14,6 @@
     "g": 0.5,
     "b": 0.0
   },
-  "parts": [
-    {
-      "shape": "sphere",
-      "offset": {
-        "x": 0,
-        "y": 0.95,
-        "z": 0
-      },
-      "size": {
-        "x": 0.14,
-        "y": 0.08,
-        "z": 0.14
-      },
-      "color": {
-        "r": 0.2,
-        "g": 0.55,
-        "b": 0.2
-      }
-    },
-    {
-      "shape": "box",
-      "offset": {
-        "x": 0.25,
-        "y": 1.0,
-        "z": 0
-      },
-      "size": {
-        "x": 0.25,
-        "y": 0.04,
-        "z": 0.12
-      },
-      "color": {
-        "r": 0.3,
-        "g": 0.75,
-        "b": 0.25
-      },
-      "rotation": {
-        "x": 0,
-        "y": 30,
-        "z": 15
-      }
-    }
-  ]
+  "model": "Assets/Models/Kenney/FoodKit/orange.glb",
+  "tintBase": false
 }

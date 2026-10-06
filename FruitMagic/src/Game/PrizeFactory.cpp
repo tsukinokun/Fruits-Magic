@@ -63,9 +63,12 @@ namespace FruitMagic {
         //! @param  [in] assetManager アセットマネージャー
         //! @param  [in] handle       モデルのハンドル
         //! @param  [in] path         モデルのパス（ログ用）
+        //! @param  [out] center      外接の箱の中心（取得できなかった場合は原点）
         //! @return 半サイズ。取得できなかった場合は (1,1,1)
         //--------------------------------------------------------------
-        hlslpp::float3 MeasureModelHalfExtent(Tsukino::Asset::AssetManager& assetManager, Tsukino::Asset::AssetHandle handle, const std::string& path) {
+        hlslpp::float3 MeasureModelHalfExtent(Tsukino::Asset::AssetManager& assetManager, Tsukino::Asset::AssetHandle handle, const std::string& path,
+                                              hlslpp::float3& center) {
+            center     = hlslpp::float3(0.0f, 0.0f, 0.0f);
             auto model = std::dynamic_pointer_cast<Tsukino::Asset::ModelAsset>(assetManager.Get(handle));
             if(!model || model->modelData.meshes.empty()) {
                 Tsukino::Core::Log::Warn("PrizeFactory: failed to measure model size: " + path + ". Falling back to 1.");
@@ -120,6 +123,7 @@ namespace FruitMagic {
             const float hx = std::max(0.5f * (maxPos[0] - minPos[0]), 1.0e-3f);
             const float hy = std::max(0.5f * (maxPos[1] - minPos[1]), 1.0e-3f);
             const float hz = std::max(0.5f * (maxPos[2] - minPos[2]), 1.0e-3f);
+            center         = hlslpp::float3(0.5f * (maxPos[0] + minPos[0]), 0.5f * (maxPos[1] + minPos[1]), 0.5f * (maxPos[2] + minPos[2]));
             Tsukino::Core::Log::Info("PrizeFactory: " + path + " half extent = " + std::to_string(hx) + ", " + std::to_string(hy) + ", " + std::to_string(hz));
             return hlslpp::float3(hx, hy, hz);
         }
@@ -160,7 +164,7 @@ namespace FruitMagic {
         ModelInfo info;
         if(m_assetManager) {
             info.handle     = m_assetManager->Load(Tsukino::Core::Path(path));
-            info.halfExtent = MeasureModelHalfExtent(*m_assetManager, info.handle, path);
+            info.halfExtent = MeasureModelHalfExtent(*m_assetManager, info.handle, path, info.center);
         }
         return m_models.emplace(path, info).first->second;
     }
@@ -206,6 +210,7 @@ namespace FruitMagic {
         ModelInfo info;
         info.handle     = Tsukino::Asset::AssetHandleGenerator::GenerateFromKey(key);
         info.halfExtent = base.halfExtent;
+        info.center     = base.center;
         tinted->SetHandle(info.handle);
         m_assetManager->RegisterAsset(info.handle, tinted);
 
@@ -261,15 +266,44 @@ namespace FruitMagic {
     //! 景品のコインを生成します。
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateCoin(Tsukino::ECS::Registry& registry, const hlslpp::float3& position) {
-        Tsukino::ECS::Entity e = CreateBox(registry, position, CoinHalfExtent(), Tsukino::BuiltIn::ECS::RigidbodyType::Dynamic);
+        Tsukino::ECS::Entity e = entt::null;
+        if(m_layout.coinModel.empty()) {
+            //--------------------------------------------------------------
+            // モデルの指定が無ければ、金色の箱（以前の見た目）
+            //--------------------------------------------------------------
+            e = CreateBox(registry, position, CoinHalfExtent(), Tsukino::BuiltIn::ECS::RigidbodyType::Dynamic);
+            registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e).modelHandle = GetTintedModel(AssetPaths::kBlockModel, m_stage.coinColor).handle;
+            Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
+            rim.active                                   = true;
+            rim.rimColor                                 = m_stage.coinColor;
+            rim.rimIntensity                             = m_stage.coinGlow;
+            rim.rimPower                                 = m_stage.prizeRimPower;
+        } else {
+            //--------------------------------------------------------------
+            // 丸いコイン: 見た目はモデル（子）、当たり判定は箱のまま。
+            // 円柱の当たり判定も試したが、プッシャーの前でコイン同士が乗り上げて重なり、押す力が手前へ伝わらない
+            // （払い出し/投入が 100% → 8%）。箱は平らな面で押し合うので、敷き詰めたコインを列ごと押し出せる
+            //--------------------------------------------------------------
+            e = registry.CreateEntity();
+            Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+            transform.position                                   = position;
+            transform.dirty                                      = true;
 
-        // 金色にして少し光らせる（台の上で果物と見分けやすく、ポップに）
-        registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e).modelHandle = GetTintedModel(AssetPaths::kBlockModel, m_stage.coinColor).handle;
-        Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
-        rim.active                                   = true;
-        rim.rimColor                                 = m_stage.coinColor;
-        rim.rimIntensity                             = m_stage.coinGlow;
-        rim.rimPower                                 = m_stage.prizeRimPower;
+            Tsukino::BuiltIn::ECS::CollisionComponent& collision = registry.AddComponent<Tsukino::BuiltIn::ECS::CollisionComponent>(e);
+            collision.type                                       = Tsukino::BuiltIn::ECS::ColliderType::Box;
+            collision.extent                                     = CoinHalfExtent();
+            collision.isSensor                                   = false;
+
+            Tsukino::BuiltIn::ECS::RigidbodyComponent& rb = registry.AddComponent<Tsukino::BuiltIn::ECS::RigidbodyComponent>(e);
+            SetupDynamicBody(rb, m_layout.coinFriction);
+
+            Tsukino::ECS::Entity visual = AttachModelVisual(registry, e, m_layout.coinModel, m_stage.coinTint, CoinHalfExtent(), m_layout.coinModelRotation, false, 1.0f);
+            Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(visual);
+            rim.active                                   = true;
+            rim.rimColor                                 = m_stage.coinColor;
+            rim.rimIntensity                             = m_stage.coinGlow;
+            rim.rimPower                                 = m_stage.prizeRimPower;
+        }
 
         ECS::PrizeComponent& prize = registry.AddComponent<ECS::PrizeComponent>(e);
         prize.kind                 = ECS::PrizeKind::Coin;
@@ -283,9 +317,12 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, int variantIndex,
                                                    const hlslpp::float3& color, float glow, const hlslpp::float3& position) {
-        // 見た目は、モデルのマテリアルの基本色を果物（バリエーション）の色に差し替えた複製を使う
-        const ModelInfo&     modelInfo = GetTintedModel(def.modelPath, color);
-        Tsukino::ECS::Entity e         = registry.CreateEntity();
+        // 見た目は、モデルのマテリアルの基本色に果物（バリエーション）の色を掛けた複製を使う。
+        // 作り込んだモデルで通常の色のときは、モデル自身の色のまま（tintBase が false のとき）
+        const bool           keepOwnColor = def.customModel && !def.tintBase && color.x == def.color.x && color.y == def.color.y && color.z == def.color.z;
+        const hlslpp::float3 tint         = keepOwnColor ? hlslpp::float3(1.0f, 1.0f, 1.0f) : color;
+        const ModelInfo&     modelInfo    = GetTintedModel(def.modelPath, tint);
+        Tsukino::ECS::Entity e            = registry.CreateEntity();
 
         //--------------------------------------------------------------
         // 当たり判定の外形と、それに見た目を合わせるための大きさ
@@ -315,15 +352,24 @@ namespace FruitMagic {
 
         Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
         transform.position                                   = position;
-        transform.scale                                      = visualHalfExtent / modelInfo.halfExtent;
         transform.dirty                                      = true;
 
-        Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
-        model.modelHandle                            = modelInfo.handle;
-        model.visible                                = true;
+        //--------------------------------------------------------------
+        // 見た目。作り込んだモデルは子に置いて当たり判定に合わせる（原点が底にあるなど、中心がずれているため）。
+        // 球・箱を組み合わせた見た目は、今までどおりこのエンティティを拡縮して合わせる
+        //--------------------------------------------------------------
+        Tsukino::ECS::Entity visual = e;
+        if(def.customModel) {
+            visual = AttachModelVisual(registry, e, def.modelPath, tint, visualHalfExtent, def.modelRotation, true, def.modelScale);
+        } else {
+            transform.scale = visualHalfExtent / modelInfo.halfExtent;
+            Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
+            model.modelHandle                            = modelInfo.handle;
+            model.visible                                = true;
+        }
 
         // 輪郭を果物の色で少し光らせて、台の上で目立たせる（ポップな見た目の仮演出）
-        Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
+        Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(visual);
         rim.active                                   = true;
         rim.rimColor                                  = color;
         rim.rimIntensity                              = glow;
@@ -340,7 +386,64 @@ namespace FruitMagic {
         prize.fruitIndex           = fruitIndex;
         prize.variantIndex         = variantIndex;
 
-        AttachParts(registry, e, def, modelInfo.halfExtent);
+        if(!def.customModel)
+            AttachParts(registry, e, def, modelInfo.halfExtent);
+        return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 作り込んだモデルを、当たり判定に合わせて子のエンティティとして付けます。
+    //----------------------------------------------------------------------------
+    Tsukino::ECS::Entity PrizeFactory::AttachModelVisual(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity parent, const std::string& path,
+                                                         const hlslpp::float3& color, const hlslpp::float3& targetHalf, const hlslpp::float3& rotation,
+                                                         bool uniform, float extraScale) {
+        const bool       isWhite = (color.x >= 1.0f && color.y >= 1.0f && color.z >= 1.0f);
+        const ModelInfo& info    = isWhite ? GetModel(path) : GetTintedModel(path, color);
+
+        //--------------------------------------------------------------
+        // 向きの補正を掛けた後の各軸が、モデルのどの軸から来たかを求める（90 度刻みの補正を想定。
+        // 回転行列の各成分の絶対値で、合わせる大きさをモデルの軸へ戻す）
+        //--------------------------------------------------------------
+        const hlslpp::quaternion q = EulerDegrees(rotation);
+        auto rotate = [&](const hlslpp::float3& v) {
+            const hlslpp::float3 u(q.x, q.y, q.z);
+            const hlslpp::float3 t = 2.0f * hlslpp::cross(u, v);
+            return v + q.w * t + hlslpp::cross(u, t);
+        };
+        const hlslpp::float3 axisX = hlslpp::abs(rotate(hlslpp::float3(1.0f, 0.0f, 0.0f)));
+        const hlslpp::float3 axisY = hlslpp::abs(rotate(hlslpp::float3(0.0f, 1.0f, 0.0f)));
+        const hlslpp::float3 axisZ = hlslpp::abs(rotate(hlslpp::float3(0.0f, 0.0f, 1.0f)));
+        // モデルの各軸が向く先での、合わせる大きさ
+        const hlslpp::float3 localTarget(hlslpp::dot(axisX, targetHalf), hlslpp::dot(axisY, targetHalf), hlslpp::dot(axisZ, targetHalf));
+
+        hlslpp::float3 scale = localTarget / info.halfExtent;
+        if(uniform) {
+            // 縦横比を保ち、当たり判定に収まる最大の大きさにする
+            const float s = std::min(std::min(float(scale.x), float(scale.y)), float(scale.z));
+            scale         = hlslpp::float3(s, s, s);
+        }
+        scale *= extraScale;
+
+        //--------------------------------------------------------------
+        // 子のエンティティ。モデルの外接の箱の中心が親の中心（当たり判定の中心）に来るようにずらす
+        //--------------------------------------------------------------
+        Tsukino::ECS::Entity                       e         = registry.CreateEntity();
+        Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+        transform.parent                                     = parent;
+        transform.rotation                                   = q;
+        transform.scale                                      = scale;
+        transform.position                                   = -rotate(info.center * scale);
+        transform.dirty                                      = true;
+
+        Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
+        model.modelHandle                            = info.handle;
+        model.visible                                = true;
+
+        // 親を消すときに一緒に消す（DestroyPrize）
+        ECS::FruitPartsComponent* owned = registry.try_get<ECS::FruitPartsComponent>(parent);
+        if(!owned)
+            owned = &registry.AddComponent<ECS::FruitPartsComponent>(parent);
+        owned->parts.push_back(e);
         return e;
     }
 
@@ -359,6 +462,26 @@ namespace FruitMagic {
 
         Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
         model.modelHandle                            = ball.handle;
+        model.visible                                = true;
+        return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 見た目だけのモデル（コライダー無し）を置きます。
+    //----------------------------------------------------------------------------
+    Tsukino::ECS::Entity PrizeFactory::CreateVisualModel(Tsukino::ECS::Registry& registry, const std::string& path, const hlslpp::float3& position,
+                                                         const hlslpp::float3& rotation, const hlslpp::float3& scale) {
+        const ModelInfo&     info = GetModel(path);
+        Tsukino::ECS::Entity e    = registry.CreateEntity();
+
+        Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+        transform.position                                   = position;
+        transform.rotation                                   = EulerDegrees(rotation);
+        transform.scale                                      = scale;
+        transform.dirty                                      = true;
+
+        Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
+        model.modelHandle                            = info.handle;
         model.visible                                = true;
         return e;
     }

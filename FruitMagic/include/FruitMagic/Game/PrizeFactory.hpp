@@ -90,6 +90,16 @@ namespace FruitMagic {
         Tsukino::ECS::Entity CreateVisualBall(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::float3& halfExtent,
                                               const hlslpp::float3& color);
 
+        //! 見た目だけのモデル（コライダー無し）を置きます。屋台などの飾りに使います。
+        //! @param  [in] registry 生成先のレジストリ
+        //! @param  [in] path     モデルのパス（リポジトリルート相対）
+        //! @param  [in] position モデルの原点のワールド座標
+        //! @param  [in] rotation 向き（度。X → Y → Z の順に回す）
+        //! @param  [in] scale    拡大率
+        //! @return 生成したエンティティ
+        Tsukino::ECS::Entity CreateVisualModel(Tsukino::ECS::Registry& registry, const std::string& path, const hlslpp::float3& position,
+                                               const hlslpp::float3& rotation, const hlslpp::float3& scale);
+
         //! 景品（コイン・果物）を破棄予約します。果物の飾りのパーツも一緒に破棄します。
         //! @param  [in] registry レジストリ
         //! @param  [in] entity   破棄する景品
@@ -117,7 +127,22 @@ namespace FruitMagic {
         struct ModelInfo {
             Tsukino::Asset::AssetHandle handle;                                         // モデルのハンドル
             hlslpp::float3              halfExtent = hlslpp::float3(1.0f, 1.0f, 1.0f);    // スケール1での半サイズ
+            hlslpp::float3              center     = hlslpp::float3(0.0f, 0.0f, 0.0f);    // スケール1での外接の箱の中心（原点が底にあるモデルではずれる）
         };
+
+        //! 作り込んだモデルを、当たり判定に合わせて子のエンティティとして付けます。
+        //! 親（当たり判定を持つエンティティ）は拡縮しないので、モデルの拡縮・向き・中心のずれはこの子で受け持ちます。
+        //! @param  [in] registry   レジストリ
+        //! @param  [in] parent     親のエンティティ（当たり判定を持つ）
+        //! @param  [in] path       モデルのパス
+        //! @param  [in] color      マテリアルの基本色に掛ける色（白なら元のまま）
+        //! @param  [in] targetHalf 合わせる大きさ（当たり判定の外接の半サイズ）
+        //! @param  [in] rotation   向きの補正（度）
+        //! @param  [in] uniform    縦横比を保つか（保つときは targetHalf に収まる最大の大きさ）
+        //! @param  [in] extraScale 合わせた大きさに掛ける倍率
+        //! @return 見た目の子のエンティティ
+        Tsukino::ECS::Entity AttachModelVisual(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity parent, const std::string& path, const hlslpp::float3& color,
+                                               const hlslpp::float3& targetHalf, const hlslpp::float3& rotation, bool uniform, float extraScale);
 
         //! モデルを読み込み、大きさを測ります（同じパスは2回目から使い回す）。
         //! @param  [in] path モデルのパス（リポジトリルート相対）

@@ -51,6 +51,8 @@
   },
   "coin": {
     "halfExtent": { "x": 2.5, "y": 0.4, "z": 2.5 },
+    "model": "Assets/Models/Kenney/PlatformerKit/coin-gold.glb",
+    "modelRotation": { "x": 90, "y": 0, "z": 0 },
     "friction": 0.3,
     "value": 1
   },
