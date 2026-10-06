@@ -61,11 +61,11 @@ namespace FruitMagic {
             Json::Read(*payout, "trayHalfDepth", loaded.trayHalfDepth);
             Json::Read(*payout, "gutterExtraWidth", loaded.gutterExtraWidth);
             Json::Read(*payout, "gutterDepth", loaded.gutterDepth);
-            Json::ReadVec(*payout, "dividerHalfSize", loaded.dividerHalfSize);
         }
         if(const Json::Value* wall = Json::FindObject(doc, "sideWall")) {
             Json::Read(*wall, "halfThickness", loaded.sideWallHalfThickness);
             Json::Read(*wall, "height", loaded.sideWallHeight);
+            Json::Read(*wall, "openLength", loaded.sideWallOpenLength);
         }
         if(const Json::Value* launch = Json::FindObject(doc, "launch")) {
             Json::Read(*launch, "laneHalfWidth", loaded.launchLaneHalfWidth);
@@ -152,6 +152,9 @@ namespace FruitMagic {
             return fail("the physics contact tolerances must be positive");
         if(penetrationSlop >= float(coinHalfExtent.y) * 2.0f)
             return fail("penetrationSlop must be smaller than the coin thickness, or prizes sink into the coins");
+        // プッシャーの横は側壁で囲う（押し幅が最大でも、プッシャーの前面より手前まで壁が要る）
+        if(sideWallOpenLength < 0.0f || SideWallFrontZ() < PusherMaxFrontZ())
+            return fail("the side walls must reach past the front of the pusher at the maximum stroke");
         if(launchLaneHalfWidth + float(coinHalfExtent.x) > fieldHalfWidth)
             return fail("the launch lane is wider than the field");
         if(pusherMinFrontZ + pusherMaxAmplitude * 2.0f + showerBackMargin >= fieldFrontZ - showerFrontMargin || showerMaxPerFrame < 1)

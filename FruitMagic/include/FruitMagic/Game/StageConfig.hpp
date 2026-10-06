@@ -33,9 +33,8 @@ namespace FruitMagic {
         hlslpp::float3 sideWallColor  = hlslpp::float3(1.0f, 0.74f, 0.82f);     // 側壁（ピンク）
         hlslpp::float3 backPanelColor = hlslpp::float3(0.68f, 0.93f, 0.84f);    // 背面パネル（ミント）
         hlslpp::float3 pusherColor    = hlslpp::float3(0.62f, 0.84f, 1.0f);     // プッシャー（空色。金のコインと見分けやすく）
-        hlslpp::float3 trayColor      = hlslpp::float3(0.84f, 0.78f, 1.0f);     // 払い出し口（ラベンダー）
-        hlslpp::float3 gutterColor    = hlslpp::float3(0.55f, 0.47f, 0.72f);    // 溝（濃いめ）
-        hlslpp::float3 dividerColor   = hlslpp::float3(1.0f, 1.0f, 1.0f);       // 払い出し口と溝の仕切り
+        hlslpp::float3 trayColor      = hlslpp::float3(0.84f, 0.78f, 1.0f);     // 手前の景品受け（ラベンダー）
+        hlslpp::float3 gutterColor    = hlslpp::float3(0.55f, 0.47f, 0.72f);    // 横の溝（濃いめ）
 
         //--------------------------------------------------------------
         // しましまの屋根

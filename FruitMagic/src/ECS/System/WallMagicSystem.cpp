@@ -123,25 +123,18 @@ namespace FruitMagic::ECS {
         const TableLayout& layout  = GetTableLayout(registry);
         const StageConfig& stage   = GetStageConfig(registry);
         const MagicDef&    def     = registry.GetContext<MagicCatalog>().Magics()[m_activeMagic];
-        const float        funnelDepth   = def.Param("funnelDepth", 14.0f);     // 壁の奥側の端が台の手前端からどれだけ奥か。漏斗の傾きが決まる
-        const float        payoutInset   = def.Param("payoutInset", 1.0f);      // 手前側の端を払い出し口の端からどれだけ内側にするか
-        const float        frontOverhang = def.Param("frontOverhang", 0.5f);    // 手前側の端を台の手前端からどれだけ外へ出すか
+        const float        frontOverhang = def.Param("frontOverhang", 0.5f);    // 壁の手前側の端を台の手前端からどれだけ外へ出すか
         const float        halfThickness = def.Param("halfThickness", 0.6f);    // 壁の厚みの半分
 
-        for(float side : {-1.0f, 1.0f}) {
-            //--------------------------------------------------------------
-            // 側壁の奥側から、払い出し口の端（の少し内側）の手前端まで斜めに渡す
-            //--------------------------------------------------------------
-            const float backX  = side * layout.fieldHalfWidth;
-            const float backZ  = layout.fieldFrontZ - funnelDepth;
-            const float frontX = side * (layout.payoutHalfWidth - payoutInset);
-            const float frontZ = layout.fieldFrontZ + frontOverhang;
-
-            const float dx     = frontX - backX;
-            const float dz     = frontZ - backZ;
+        //--------------------------------------------------------------
+        // (startX, startZ) から (endX, endZ) まで、床の下に壁を1枚作る
+        //--------------------------------------------------------------
+        auto addWall = [&](float startX, float startZ, float endX, float endZ) {
+            const float dx     = endX - startX;
+            const float dz     = endZ - startZ;
             const float length = std::sqrt(dx * dx + dz * dz);
 
-            const hlslpp::float3 center((backX + frontX) * 0.5f, WallCenterY(0.0f, 1.0f, m_height, m_riseSeconds), (backZ + frontZ) * 0.5f);
+            const hlslpp::float3 center((startX + endX) * 0.5f, WallCenterY(0.0f, 1.0f, m_height, m_riseSeconds), (startZ + endZ) * 0.5f);
             const hlslpp::float3 halfExtent(length * 0.5f, m_height * 0.5f, halfThickness);
 
             Tsukino::ECS::Entity wall = factory.CreateBox(registry, center, halfExtent, Tsukino::BuiltIn::ECS::RigidbodyType::Kinematic);
@@ -161,7 +154,14 @@ namespace FruitMagic::ECS {
             glow.glow                                     = stage.wallGlow;
 
             m_walls.push_back(wall);
-            m_wallLines.push_back(hlslpp::float4(backX, backZ, frontX, frontZ));
+            m_wallLines.push_back(hlslpp::float4(startX, startZ, endX, endZ));
+        };
+
+        // 左右の開いた所（側壁の手前端から台の手前端の少し外まで）に沿って立てる。
+        // 台の端のすぐ外に立て、端に載っている景品を下から突き上げないようにする
+        for(float side : {-1.0f, 1.0f}) {
+            const float edgeX = side * (layout.fieldHalfWidth + halfThickness);
+            addWall(edgeX, layout.SideWallFrontZ(), edgeX, layout.fieldFrontZ + frontOverhang);
         }
     }
 }    // namespace FruitMagic::ECS

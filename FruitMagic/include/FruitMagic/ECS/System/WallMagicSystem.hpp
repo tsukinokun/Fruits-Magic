@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------
 //! @file   WallMagicSystem.hpp
-//! @brief  魔法「かべ」（一定時間、溝の手前に斜めの壁を出して取りこぼしを防ぐ）の効果を実装するシステム
+//! @brief  魔法「かべ」（一定時間、台の左右の開いた所に壁を出して横へこぼれるのを防ぐ）の効果を実装するシステム
 //----------------------------------------------------------------------------
 #pragma once
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
@@ -21,7 +21,7 @@ namespace Tsukino::ECS {
 namespace FruitMagic::ECS {
 
     //! 魔法「かべ」の効果です。id が "wall" の魔法が撃たれると、台の手前端の左右（溝の上）に
-    //! 斜めの壁を床からせり上げ、押し出された物を中央の払い出し口へ寄せます（漏斗）。
+    //! 台の左右の開いた所（側壁の無い所）に沿って壁を床からせり上げ、横の溝へこぼれる物を止めます。
     //! 効果時間（params の duration）が過ぎると床へ沈めて消します。壁の高さは params の height。
     class WallMagicSystem : public Tsukino::ECS::ISystem {
     public:
@@ -51,7 +51,7 @@ namespace FruitMagic::ECS {
         float                             m_riseSeconds = 0.5f;    // 壁がせり上がる（沈む）のにかける時間（秒）
         float                             m_trailInterval = 0.08f; // 壁から粒を出す間隔（秒）
         std::vector<Tsukino::ECS::Entity> m_walls;                 // 出している壁
-        std::vector<hlslpp::float4>       m_wallLines;             // 壁の床の線（奥側の x, z, 手前側の x, z）。粒を出す位置に使う
+        std::vector<hlslpp::float4>       m_wallLines;             // 壁の床の線（始点の x, z, 終点の x, z）。粒を出す位置に使う
         float                             m_trailTimer  = 0.0f;    // 次に壁から粒を出すまでの時間（秒）
         std::mt19937                      m_rng;                   // 粒を出す位置の乱数
     };

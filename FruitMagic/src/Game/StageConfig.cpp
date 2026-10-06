@@ -52,7 +52,6 @@ namespace FruitMagic {
             Json::ReadColor(*cabinet, "pusher", pusherColor);
             Json::ReadColor(*cabinet, "tray", trayColor);
             Json::ReadColor(*cabinet, "gutter", gutterColor);
-            Json::ReadColor(*cabinet, "divider", dividerColor);
         }
         if(const Json::Value* awning = Json::FindObject(doc, "awning")) {
             Json::Read(*awning, "stripes", awningStripes);

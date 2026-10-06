@@ -42,8 +42,6 @@
         "minHeight": 1.0,
         "riseSeconds": 0.5,
         "halfThickness": 0.6,
-        "funnelDepth": 14.0,
-        "payoutInset": 1.0,
         "frontOverhang": 0.5,
         "trailInterval": 0.08
       }

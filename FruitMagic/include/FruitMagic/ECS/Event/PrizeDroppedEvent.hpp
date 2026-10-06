@@ -12,8 +12,8 @@ namespace FruitMagic::ECS {
 
     //! 景品が落ちた場所です。
     enum class DropZone {
-        Payout,    // 正面の払い出し口（手に入る）
-        Gutter,    // 左右の溝（失う）
+        Payout,    // 手前の端から落ちた（幅のどこでも。手に入る）
+        Gutter,    // 横の溝（側壁の無い所から横へ落ちた。失う）
     };
 
     //! 景品が台から落ちたことを知らせるイベントです。PrizeDropSystem が発行します。

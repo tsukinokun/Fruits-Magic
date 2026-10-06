@@ -497,11 +497,13 @@ namespace FruitMagic {
         factory.CreateBox(registry, hlslpp::float3(0.0f, -thick, fieldCenterZ), hlslpp::float3(layout.fieldHalfWidth, thick, fieldHalfDepth),
                           RigidbodyType::Static, stage.floorColor);
 
-        // 左右の側壁（景品が横からこぼれないように、床から少し上まで）
+        // 左右の側壁。プッシャーの横（奥側）だけを囲い、手前側は開けておく（端に寄った景品が横の溝へこぼれる）
+        const float wallHalfDepth = (layout.SideWallFrontZ() - layout.fieldBackZ) * 0.5f;
+        const float wallCenterZ   = layout.fieldBackZ + wallHalfDepth;
         for(float side : {-1.0f, 1.0f}) {
             factory.CreateBox(registry,
-                              hlslpp::float3(side * (layout.fieldHalfWidth + layout.sideWallHalfThickness), layout.sideWallHeight - thick, fieldCenterZ),
-                              hlslpp::float3(layout.sideWallHalfThickness, layout.sideWallHeight + thick, fieldHalfDepth), RigidbodyType::Static,
+                              hlslpp::float3(side * (layout.fieldHalfWidth + layout.sideWallHalfThickness), layout.sideWallHeight - thick, wallCenterZ),
+                              hlslpp::float3(layout.sideWallHalfThickness, layout.sideWallHeight + thick, wallHalfDepth), RigidbodyType::Static,
                               stage.sideWallColor);
         }
 
@@ -514,24 +516,24 @@ namespace FruitMagic {
                           stage.backPanelColor);
 
         //--------------------------------------------------------------
-        // 景品受け。中央が払い出し口、その左右が溝（一段低くして区別する）
-        // 判定は PrizeDropSystem が落ちた位置で行うので、ここは見た目と受け止め用
+        // 景品受け。手前の端から落ちた物は幅のどこでも取得なので、手前のトレイは台の幅いっぱいにする。
+        // 側壁の無い所の外側には一段低い横の溝を置く（判定は PrizeDropSystem が落ちた位置で行うので、ここは見た目と受け止め用）
         //--------------------------------------------------------------
-        const float trayCenterZ = layout.fieldFrontZ + layout.trayOffsetZ;
-        factory.CreateBox(registry, hlslpp::float3(0.0f, layout.trayTopY - thick, trayCenterZ),
-                          hlslpp::float3(layout.payoutHalfWidth, thick, layout.trayHalfDepth), RigidbodyType::Static, stage.trayColor);
+        const float trayCenterZ  = layout.fieldFrontZ + layout.trayOffsetZ;
+        const float outerHalfX   = layout.fieldHalfWidth + layout.gutterExtraWidth;
+        factory.CreateBox(registry, hlslpp::float3(0.0f, layout.trayTopY - thick, trayCenterZ), hlslpp::float3(outerHalfX, thick, layout.trayHalfDepth),
+                          RigidbodyType::Static, stage.trayColor);
 
-        const float gutterHalfWidth = (layout.fieldHalfWidth + layout.gutterExtraWidth - layout.payoutHalfWidth) * 0.5f;
-        for(float side : {-1.0f, 1.0f}) {
-            // 溝の底（払い出し口より一段低い）
-            factory.CreateBox(registry,
-                              hlslpp::float3(side * (layout.payoutHalfWidth + gutterHalfWidth), layout.trayTopY - layout.gutterDepth - thick, trayCenterZ),
-                              hlslpp::float3(gutterHalfWidth, thick, layout.trayHalfDepth), RigidbodyType::Static, stage.gutterColor);
-
-            // 払い出し口と溝の仕切り
-            factory.CreateBox(registry, hlslpp::float3(side * layout.payoutHalfWidth, layout.trayTopY + layout.dividerHalfSize.y, trayCenterZ),
-                              hlslpp::float3(layout.dividerHalfSize.x, layout.dividerHalfSize.y, layout.trayHalfDepth), RigidbodyType::Static,
-                              stage.dividerColor);
+        const float sideGutterBackZ  = layout.SideWallFrontZ();
+        const float sideGutterFrontZ = trayCenterZ - layout.trayHalfDepth;
+        if(sideGutterFrontZ > sideGutterBackZ) {
+            for(float side : {-1.0f, 1.0f}) {
+                factory.CreateBox(registry,
+                                  hlslpp::float3(side * (layout.fieldHalfWidth + layout.gutterExtraWidth * 0.5f), layout.trayTopY - layout.gutterDepth - thick,
+                                                 (sideGutterBackZ + sideGutterFrontZ) * 0.5f),
+                                  hlslpp::float3(layout.gutterExtraWidth * 0.5f, thick, (sideGutterFrontZ - sideGutterBackZ) * 0.5f), RigidbodyType::Static,
+                                  stage.gutterColor);
+            }
         }
 
         //--------------------------------------------------------------

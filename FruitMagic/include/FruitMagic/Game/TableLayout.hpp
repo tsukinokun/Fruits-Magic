@@ -62,20 +62,20 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // 落下口・景品受け
         //--------------------------------------------------------------
-        float payoutHalfWidth = 20.0f;     // 正面の払い出し口の半幅。これより外側は左右の溝
+        float payoutHalfWidth = 20.0f;     // 手前の中央の範囲の半幅（チェッカーが動く範囲・ルーレットの果物を補充する範囲）。落ちた判定には使わない
         float dropJudgeY      = -20.0f;    // これより下に落ちた物を「台から落ちた」と判定する高さ（落ちる様子が見えるようトレイの少し上）
         float trayTopY        = -30.0f;    // 景品受けトレイ上面の高さ
         float trayOffsetZ     = 15.0f;     // フィールドの手前端からトレイの中心までの距離
         float trayHalfDepth   = 18.0f;     // トレイの半分の奥行
-        float gutterExtraWidth = 5.0f;     // 溝がフィールドの外へはみ出す幅
-        float gutterDepth     = 6.0f;      // 溝の底が払い出し口より低い量
-        hlslpp::float2 dividerHalfSize = hlslpp::float2(0.5f, 2.0f);    // 払い出し口と溝の仕切りの半分の大きさ（X, Y）
+        float gutterExtraWidth = 5.0f;     // トレイと横の溝がフィールドの外へはみ出す幅
+        float gutterDepth     = 6.0f;      // 横の溝の底がトレイより低い量
 
         //--------------------------------------------------------------
         // 側壁
         //--------------------------------------------------------------
         float sideWallHalfThickness = 1.0f;     // 半分の厚み（X）
         float sideWallHeight        = 12.0f;    // 床面からの高さの半分
+        float sideWallOpenLength    = 24.0f;    // 手前の端から側壁の無い長さ（Z）。ここでは端に寄った景品が横の溝へこぼれる
 
         //--------------------------------------------------------------
         // コインの投入
@@ -143,6 +143,12 @@ namespace FruitMagic {
         //! @param  [in] amplitude 往復の振幅
         //! @return 往復の中心Z
         float PusherCenterZ(float amplitude) const { return pusherMinFrontZ - pusherHalfDepth + amplitude; }
+
+        //! プッシャーの前面が最も前に出たときのZを返します（押し幅を最大まで強化したとき）。
+        float PusherMaxFrontZ() const { return pusherMinFrontZ + pusherMaxAmplitude * 2.0f; }
+
+        //! 側壁の手前端のZを返します。ここより手前は左右が開いている。
+        float SideWallFrontZ() const { return fieldFrontZ - sideWallOpenLength; }
 
         //! 背面パネルの中心のZを返します。
         float BackPanelZ() const { return pusherMinFrontZ - backPanelDistance; }

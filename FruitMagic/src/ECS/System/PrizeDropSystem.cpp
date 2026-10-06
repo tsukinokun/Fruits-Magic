@@ -42,8 +42,11 @@ namespace FruitMagic::ECS {
             if(float(transform.position.y) >= layout.dropJudgeY)
                 return;
 
-            // 落ちた時点の左右位置で、正面の払い出し口か左右の溝かを決める
-            const bool isPayout = std::abs(float(transform.position.x)) <= layout.payoutHalfWidth;
+            // 手前の端から落ちた物は幅のどこでも取得、横（側壁の無い所）から落ちた物は溝。
+            // 落ちた時点で、手前の端と横の端のどちらをより大きく越えているかで決める（角から落ちた物もこれで決まる）
+            const float beyondFront = float(transform.position.z) - layout.fieldFrontZ;
+            const float beyondSide  = std::abs(float(transform.position.x)) - layout.fieldHalfWidth;
+            const bool  isPayout    = beyondFront >= beyondSide;
 
             PrizeDroppedEvent e;
             e.prize = entity;

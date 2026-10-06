@@ -29,12 +29,12 @@
     "trayOffsetZ": 15.0,
     "trayHalfDepth": 18.0,
     "gutterExtraWidth": 5.0,
-    "gutterDepth": 6.0,
-    "dividerHalfSize": { "x": 0.5, "y": 2.0 }
+    "gutterDepth": 6.0
   },
   "sideWall": {
     "halfThickness": 1.0,
-    "height": 12.0
+    "height": 12.0,
+    "openLength": 28.0
   },
   "launch": {
     "laneHalfWidth": 25.0,
