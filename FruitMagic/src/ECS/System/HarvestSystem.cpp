@@ -9,6 +9,7 @@
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/RecentHarvests.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
@@ -57,15 +58,20 @@ namespace FruitMagic::ECS {
             counts[variantIndex] += 1;
 
             // 価値（価値 × バリエーションの倍率 × 大きくした倍率）を、転生用の合計と強化に使う果実の両方に足す
+            long long value = 0;
             if(registry.HasContext<FruitCatalog>() && registry.HasContext<CollectionConfig>()) {
                 const auto& fruits   = registry.GetContext<FruitCatalog>().Fruits();
                 const auto& variants = registry.GetContext<CollectionConfig>().Variants();
                 if(fruitIndex < static_cast<int>(fruits.size()) && variantIndex < static_cast<int>(variants.size())) {
-                    const long long value = static_cast<long long>(fruits[fruitIndex].value) * variants[variantIndex].valueMultiplier * std::max(1, pending.valueMultiplier);
+                    value = static_cast<long long>(fruits[fruitIndex].value) * variants[variantIndex].valueMultiplier * std::max(1, pending.valueMultiplier);
                     state.harvestValue += value;
                     state.fruitPoints += value;
                 }
             }
+
+            // 最近の収穫の記録（画面の横のパネルに出す）
+            if(registry.HasContext<RecentHarvests>())
+                registry.GetContext<RecentHarvests>().Add(RecentHarvest{fruitIndex, variantIndex, value, isFirst});
 
             if(isFirst)
                 m_eventBus.Publish(ZukanRegisteredEvent{fruitIndex, variantIndex});

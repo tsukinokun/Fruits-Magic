@@ -47,6 +47,30 @@
     "growNoFruit": "台の上に果物がない…（マナは戻った）",
     "grown": "{name} が おおきくなった！"
   },
+  "side": {
+    "recentTitle": "最近とれた果物",
+    "recentEmpty": "まだ何もとれていません",
+    "recentNew": "{name}  NEW",
+    "recentValue": "+{n}",
+    "tableTitle": "台の上の果物",
+    "tableEmpty": "台の上に果物はありません",
+    "tableName": "{name} ×{n}",
+    "tableValue": "{n}",
+    "tableTotal": "全部で {n}個   果実 {value}",
+    "zukanTitle": "図鑑",
+    "zukanCount": "登録 {registered} / {total}",
+    "zukanNext": "あと {n} 種類で 魔法「{name}」",
+    "zukanAllMagic": "魔法はすべて覚えた！",
+    "upgradeTitle": "おすすめの強化",
+    "upgradeName": "{name}  Lv {level} → {next}",
+    "upgradeReady": "{cost}   買える！",
+    "upgradeShort": "{cost}",
+    "upgradeAllMax": "強化はすべて最大です",
+    "fairyTitle": "妖精とおるすばん",
+    "fairy": "妖精: {n}秒ごとに1枚",
+    "noFairy": "妖精: まだいない（強化で来る）",
+    "offline": "おるすばん: 最大 {limit}"
+  },
   "popup": {
     "fruit": "{name}！",
     "coins": "+{n}"

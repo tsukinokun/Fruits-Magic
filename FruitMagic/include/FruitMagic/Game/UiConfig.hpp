@@ -122,6 +122,35 @@ namespace FruitMagic {
         hlslpp::float4 optionsButtonColor = hlslpp::float4(0.55f, 0.6f, 0.85f, 1.0f);
 
         //--------------------------------------------------------------
+        // 画面の左右のパネル（左: 台のようす、右: 進み具合とおすすめ）。
+        // 位置は板の左上。高さは左右で同じ（中身の行の多い方に合わせる）
+        //--------------------------------------------------------------
+        hlslpp::float2 sideLeftPosition    = hlslpp::float2(16.0f, 288.0f);     // 左のパネルの左上
+        hlslpp::float2 sideRightPosition   = hlslpp::float2(964.0f, 288.0f);    // 右のパネルの左上
+        float          sideWidth           = 300.0f;    // パネルの幅
+        float          sidePadding         = 12.0f;     // 板の内側の余白
+        float          sideHeaderPitch     = 28.0f;     // 見出しの行の高さ
+        float          sideRowPitch        = 24.0f;     // ふつうの行の高さ
+        float          sideSectionGap      = 10.0f;     // まとまりの間のすき間
+        float          sideSwatchSize      = 14.0f;     // 果物の色の四角
+        float          sideSwatchGap       = 8.0f;      // 色の四角から名前まで
+        int            sideRecentRows      = 5;         // 最近とれた果物の行の数
+        int            sideTableRows       = 3;         // 台の上の果物の行の数
+        float          sideBarHeight       = 10.0f;     // 図鑑の進み具合のバーの高さ
+        float          sideButtonInset     = 4.0f;      // おすすめの強化の板の、パネルの内側の余白からのはみ出し
+        hlslpp::float4 sideColor           = hlslpp::float4(0.08f, 0.04f, 0.12f, 0.55f);    // 板
+        hlslpp::float4 sideBarBackColor    = hlslpp::float4(0.1f, 0.05f, 0.15f, 0.8f);
+        hlslpp::float4 sideBarFillColor    = hlslpp::float4(0.95f, 0.6f, 0.75f, 1.0f);
+        hlslpp::float4 sideButtonColor     = hlslpp::float4(0.3f, 0.45f, 0.3f, 0.7f);       // おすすめの強化の板（買えない）
+        hlslpp::float4 sideButtonReadyColor = hlslpp::float4(0.35f, 0.7f, 0.4f, 0.85f);     // 同じく買える
+        hlslpp::float4 sideButtonHoverColor = hlslpp::float4(0.5f, 0.85f, 0.55f, 0.95f);    // 同じくカーソルが重なっている
+        UiFont         sideHeader          = {0.72f, hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), true};
+        UiFont         sideText            = {0.6f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f)};
+        UiFont         sideValue           = {0.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), true};    // 右に揃える数
+        hlslpp::float4 sideNewColor        = hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f);    // 図鑑に初めて載った果物の名前
+        hlslpp::float4 sideDimColor        = hlslpp::float4(0.8f, 0.75f, 0.9f, 1.0f);   // 補足（まだ無い・足りない など）
+
+        //--------------------------------------------------------------
         // 画面（図鑑・強化）の共通
         //--------------------------------------------------------------
         hlslpp::float2 menuCenter       = hlslpp::float2(640.0f, 340.0f);

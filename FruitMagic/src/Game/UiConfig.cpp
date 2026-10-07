@@ -147,6 +147,34 @@ namespace FruitMagic {
             Json::Read(*buttons, "optionsY", optionsButtonY);
             Json::ReadColor(*buttons, "optionsColor", optionsButtonColor);
         }
+        if(const Json::Value* side = Json::FindObject(doc, "sidePanels")) {
+            Json::ReadVec(*side, "leftPosition", sideLeftPosition);
+            Json::ReadVec(*side, "rightPosition", sideRightPosition);
+            Json::Read(*side, "width", sideWidth);
+            Json::Read(*side, "padding", sidePadding);
+            Json::Read(*side, "headerPitch", sideHeaderPitch);
+            Json::Read(*side, "rowPitch", sideRowPitch);
+            Json::Read(*side, "sectionGap", sideSectionGap);
+            Json::Read(*side, "swatchSize", sideSwatchSize);
+            Json::Read(*side, "swatchGap", sideSwatchGap);
+            Json::Read(*side, "recentRows", sideRecentRows);
+            Json::Read(*side, "tableRows", sideTableRows);
+            Json::Read(*side, "barHeight", sideBarHeight);
+            Json::Read(*side, "buttonInset", sideButtonInset);
+            Json::ReadColor(*side, "color", sideColor);
+            Json::ReadColor(*side, "barBackColor", sideBarBackColor);
+            Json::ReadColor(*side, "barFillColor", sideBarFillColor);
+            Json::ReadColor(*side, "buttonColor", sideButtonColor);
+            Json::ReadColor(*side, "buttonReadyColor", sideButtonReadyColor);
+            Json::ReadColor(*side, "buttonHoverColor", sideButtonHoverColor);
+            ReadFont(*side, "header", sideHeader);
+            ReadFont(*side, "text", sideText);
+            ReadFont(*side, "value", sideValue);
+            Json::ReadColor(*side, "newColor", sideNewColor);
+            Json::ReadColor(*side, "dimColor", sideDimColor);
+            sideRecentRows = std::clamp(sideRecentRows, 0, 20);
+            sideTableRows  = std::clamp(sideTableRows, 0, 20);
+        }
         if(const Json::Value* menu = Json::FindObject(doc, "menu")) {
             Json::ReadVec(*menu, "center", menuCenter);
             Json::ReadVec(*menu, "size", menuSize);

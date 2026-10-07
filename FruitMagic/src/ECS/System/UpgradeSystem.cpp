@@ -24,21 +24,6 @@
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
-    namespace {
-        //--------------------------------------------------------------
-        //! 強化の次のレベルを今の手持ちで買えるかを返します。
-        //! @param  [in] def   強化の定義
-        //! @param  [in] state プレイヤーの資源
-        //! @return 買えれば true（最大レベルなら false）
-        //--------------------------------------------------------------
-        bool CanAfford(const UpgradeDef& def, const GameState& state) {
-            const int level = state.UpgradeLevelOf(def.id);
-            if(level >= def.MaxLevel())
-                return false;
-            const UpgradeLevel& next = def.levels[level];
-            return state.coins >= next.coins && state.fruitPoints >= next.fruit;
-        }
-    }    // namespace
 
     //----------------------------------------------------------------------------
     //! 購入の入力を読み、強化画面を更新します。
@@ -131,6 +116,17 @@ namespace FruitMagic::ECS {
                     break;
             }
         });
+    }
+
+    //----------------------------------------------------------------------------
+    //! 強化の次のレベルを今の手持ちで買えるかを返します。
+    //----------------------------------------------------------------------------
+    bool UpgradeSystem::CanAfford(const UpgradeDef& def, const GameState& state) {
+        const int level = state.UpgradeLevelOf(def.id);
+        if(level >= def.MaxLevel())
+            return false;
+        const UpgradeLevel& next = def.levels[level];
+        return state.coins >= next.coins && state.fruitPoints >= next.fruit;
     }
 
     //----------------------------------------------------------------------------

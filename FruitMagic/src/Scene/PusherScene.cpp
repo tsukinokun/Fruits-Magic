@@ -20,6 +20,7 @@
 #include <FruitMagic/Game/OfflineReward.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
+#include <FruitMagic/Game/RecentHarvests.hpp>
 #include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
@@ -44,6 +45,7 @@
 #include <FruitMagic/ECS/Component/OptionsDialogComponent.hpp>
 #include <FruitMagic/ECS/Component/OptionsElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ReliefGaugeComponent.hpp>
+#include <FruitMagic/ECS/Component/SidePanelElementComponent.hpp>
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
 #include <FruitMagic/ECS/System/AutoPlaySystem.hpp>
@@ -63,6 +65,7 @@
 #include <FruitMagic/ECS/System/MeteorMagicSystem.hpp>
 #include <FruitMagic/ECS/System/PopupSystem.hpp>
 #include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
+#include <FruitMagic/ECS/System/SidePanelSystem.hpp>
 #include <FruitMagic/ECS/System/SoundSystem.hpp>
 #include <FruitMagic/ECS/System/SwellMagicSystem.hpp>
 #include <FruitMagic/ECS/System/WallMagicSystem.hpp>
@@ -244,6 +247,7 @@ namespace FruitMagic {
             Popup,               // 落ちたときのポップ
             Sound,               // このフレームの出来事の効果音
             Hud,
+            SidePanel,           // 画面の左右のパネル（このフレームの収穫・強化の結果を出す）
             BalanceProbe,
             Save,
             Light,
@@ -299,6 +303,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::SoundSystem>(eventBus, (Tsukino::IO::FileSystem::GetAssetRootPath() / "Assets/Data/Sounds.json").string()),
                           (int)SystemPriority::Sound);
         m_scene.AddSystem(std::make_shared<ECS::HudSystem>(eventBus), (int)SystemPriority::Hud);
+        m_scene.AddSystem(std::make_shared<ECS::SidePanelSystem>(), (int)SystemPriority::SidePanel);
         m_scene.AddSystem(std::make_shared<ECS::SaveSystem>(), (int)SystemPriority::Save);
 
         // バランス計測用の自動プレイ（セーブは読み書きしない）
@@ -345,6 +350,7 @@ namespace FruitMagic {
         registry.SetContext<CoinShowerState>();
         registry.SetContext<JackpotConfig>().Load(dataRoot + "/Jackpot.json");
         registry.SetContext<PlayStats>();
+        registry.SetContext<RecentHarvests>().capacity = static_cast<size_t>(std::max(1, GetUiConfig(registry).sideRecentRows));
         registry.SetContext<ReliefState>();
         registry.SetContext<EffectsConfig>().Load(dataRoot + "/Effects.json");
         CollectionConfig& collection = registry.SetContext<CollectionConfig>();
@@ -550,7 +556,7 @@ namespace FruitMagic {
     }
 
     //----------------------------------------------------------------------------
-    //! 屋台の飾り（しましまの屋根・柱・ちょうちん）を生成します。見た目だけで、当たり判定は持ちません。
+    //! 屋台の飾り（しましまの屋根・柱・ちょうちん）と、周りの地面・置き物を生成します。見た目だけで、当たり判定は持ちません。
     //----------------------------------------------------------------------------
     void PusherScene::CreateStall(PrizeFactory& factory) {
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
@@ -593,7 +599,16 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
-        // 電飾など（Stage.json の props。見た目だけで当たり判定は無い）
+        // 地面（台の周りの広場。薄い大きな板で、空の地面の色を隠す）
+        //--------------------------------------------------------------
+        if(stage.groundHalfSize > 0.0f) {
+            constexpr float kGroundHalfThickness = 1.0f;
+            factory.CreateVisualBox(registry, hlslpp::float3(0.0f, stage.groundY - kGroundHalfThickness, 0.0f),
+                                    hlslpp::float3(stage.groundHalfSize, kGroundHalfThickness, stage.groundHalfSize), 1.0f, stage.groundColor);
+        }
+
+        //--------------------------------------------------------------
+        // 電飾・隣の屋台・樽・木など（Stage.json の props。見た目だけで当たり判定は無い）
         //--------------------------------------------------------------
         for(const StageProp& prop : stage.props) {
             Tsukino::ECS::Entity e = factory.CreateVisualModel(registry, prop.model, prop.position, prop.rotation, prop.scale);
@@ -1026,6 +1041,127 @@ namespace FruitMagic {
             menuButton.label      = createText(hlslpp::float2(ui.menuButtonX, spec.y), ui.menuLabelScale, kCenter, kWhite, 11, true, inside(ui.menuButtonWidth));
             menuButton.closedText = texts.Get(spec.closedText);
             menuButton.openText   = texts.Get(spec.openText);
+        }
+
+        //--------------------------------------------------------------
+        // 画面の左右のパネル（左: 台のようす、右: 進み具合とおすすめ）。中身と表示は SidePanelSystem が決める。
+        // 上から行を並べていき、最後に左右で同じ高さの板を敷く
+        //--------------------------------------------------------------
+        {
+            constexpr auto kRight     = Tsukino::BuiltIn::ECS::HorizontalAlign::Right;
+            const float    width      = ui.sideWidth;
+            const float    innerWidth = width - ui.sidePadding * 2.0f;
+            const float    valueWidth = innerWidth * 0.3f;    // 右に揃える数の幅
+
+            // パネルの要素にする（スプライトは出すときのスケールを覚える）
+            auto addElement = [&](Tsukino::ECS::Entity e, ECS::SidePanelElementKind kind, int row = -1, const std::wstring& text = L"") {
+                ECS::SidePanelElementComponent& element = registry.AddComponent<ECS::SidePanelElementComponent>(e);
+                element.kind                            = kind;
+                element.row                             = row;
+                element.text                            = text;
+                element.shownScale                      = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).scale;
+                return e;
+            };
+
+            // 並べている途中のパネル（left・top は板の左上、y は次の行の上端）
+            struct Column {
+                float left = 0.0f;
+                float top  = 0.0f;
+                float y    = 0.0f;
+            };
+            auto begin = [&](const hlslpp::float2& position) {
+                return Column{float(position.x), float(position.y), float(position.y) + ui.sidePadding};
+            };
+            // 1行ぶん進め、その行の中心の高さを返す
+            auto nextRow = [&](Column& c, float pitch) {
+                const float center = c.y + pitch * 0.5f;
+                c.y += pitch;
+                return center;
+            };
+            auto header = [&](Column& c, const char* key) {
+                addElement(createFontText(hlslpp::float2(c.left + ui.sidePadding, nextRow(c, ui.sideHeaderPitch)), ui.sideHeader, kLeft, 3, innerWidth),
+                           ECS::SidePanelElementKind::Static, -1, texts.Get(key));
+            };
+            auto line = [&](Column& c, ECS::SidePanelElementKind kind) {
+                addElement(createFontText(hlslpp::float2(c.left + ui.sidePadding, nextRow(c, ui.sideRowPitch)), ui.sideText, kLeft, 3, innerWidth), kind);
+            };
+            // 果物の行（色の四角・名前・右に揃えた数）
+            auto fruitRow = [&](Column& c, int row, ECS::SidePanelElementKind swatch, ECS::SidePanelElementKind name, ECS::SidePanelElementKind value) {
+                const float y     = nextRow(c, ui.sideRowPitch);
+                const float nameX = c.left + ui.sidePadding + ui.sideSwatchSize + ui.sideSwatchGap;
+                const float right = c.left + width - ui.sidePadding;
+                addElement(createPanel(hlslpp::float2(c.left + ui.sidePadding + ui.sideSwatchSize * 0.5f, y), hlslpp::float2(ui.sideSwatchSize, ui.sideSwatchSize), kWhite, 1),
+                           swatch, row);
+                addElement(createFontText(hlslpp::float2(nameX, y), ui.sideText, kLeft, 3, right - valueWidth - nameX - ui.textPadding), name, row);
+                addElement(createFontText(hlslpp::float2(right, y), ui.sideValue, kRight, 3, valueWidth), value, row);
+            };
+            // 板（文字や色の四角より奥）
+            auto background = [&](const Column& c, float height) {
+                addElement(createPanel(hlslpp::float2(c.left + width * 0.5f, c.top + height * 0.5f), hlslpp::float2(width, height), ui.sideColor, -5),
+                           ECS::SidePanelElementKind::Static);
+            };
+
+            //--------------------------------------------------------------
+            // 左: 最近とれた果物・台の上の果物
+            //--------------------------------------------------------------
+            Column left = begin(ui.sideLeftPosition);
+            header(left, "side.recentTitle");
+            for(int row = 0; row < ui.sideRecentRows; ++row)
+                fruitRow(left, row, ECS::SidePanelElementKind::RecentSwatch, ECS::SidePanelElementKind::RecentName, ECS::SidePanelElementKind::RecentValue);
+            left.y += ui.sideSectionGap;
+            header(left, "side.tableTitle");
+            for(int row = 0; row < ui.sideTableRows; ++row)
+                fruitRow(left, row, ECS::SidePanelElementKind::TableSwatch, ECS::SidePanelElementKind::TableName, ECS::SidePanelElementKind::TableValue);
+            line(left, ECS::SidePanelElementKind::TableTotal);
+
+            //--------------------------------------------------------------
+            // 右: 図鑑の進み具合・おすすめの強化・妖精とおるすばん
+            //--------------------------------------------------------------
+            Column right = begin(ui.sideRightPosition);
+            header(right, "side.zukanTitle");
+            line(right, ECS::SidePanelElementKind::ZukanCount);
+            {
+                // 進み具合のバー（下地と中身。中身の幅は SidePanelSystem が登録の割合で変える）
+                const float barLeft = right.left + ui.sidePadding;
+                const float y       = nextRow(right, ui.sideRowPitch);
+                addElement(createPanel(hlslpp::float2(barLeft + innerWidth * 0.5f, y), hlslpp::float2(innerWidth, ui.sideBarHeight), ui.sideBarBackColor, 1),
+                           ECS::SidePanelElementKind::Static);
+                Tsukino::ECS::Entity fill = addElement(createPanel(hlslpp::float2(barLeft + innerWidth * 0.5f, y), hlslpp::float2(innerWidth, ui.sideBarHeight),
+                                                                   ui.sideBarFillColor, 2),
+                                                       ECS::SidePanelElementKind::ZukanBar);
+                ECS::SidePanelElementComponent& bar = registry.GetComponent<ECS::SidePanelElementComponent>(fill);
+                bar.barLeft                         = barLeft;
+                bar.barWidth                        = innerWidth;
+            }
+            line(right, ECS::SidePanelElementKind::ZukanNext);
+            right.y += ui.sideSectionGap;
+
+            header(right, "side.upgradeTitle");
+            {
+                // 名前と値段の2行の後ろに、押すと強化の画面が開く板を敷く
+                const float buttonTop = right.y;
+                line(right, ECS::SidePanelElementKind::UpgradeName);
+                line(right, ECS::SidePanelElementKind::UpgradeCost);
+                const float          inset  = ui.sideButtonInset;
+                Tsukino::ECS::Entity button = createPanel(hlslpp::float2(right.left + width * 0.5f, (buttonTop + right.y) * 0.5f),
+                                                          hlslpp::float2(innerWidth + inset * 2.0f, right.y - buttonTop + inset * 2.0f), ui.sideButtonColor, 1);
+                registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+                addElement(button, ECS::SidePanelElementKind::UpgradeButton);
+
+                ECS::MenuButtonComponent& menuButton = registry.AddComponent<ECS::MenuButtonComponent>(button);
+                menuButton.menu                      = MenuKind::Upgrade;
+                menuButton.key                       = Tsukino::Input::KeyCode::None;    // キー（U）は右上のボタンが受け持つ
+            }
+            right.y += ui.sideSectionGap;
+
+            header(right, "side.fairyTitle");
+            line(right, ECS::SidePanelElementKind::Fairy);
+            line(right, ECS::SidePanelElementKind::Offline);
+
+            // 左右の板は、中身の多い方の高さに揃える（上端は Ui.json の位置で揃える）
+            const float height = std::max(left.y - left.top, right.y - right.top) + ui.sidePadding;
+            background(left, height);
+            background(right, height);
         }
 
         //--------------------------------------------------------------

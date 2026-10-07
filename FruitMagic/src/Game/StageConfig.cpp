@@ -73,6 +73,12 @@ namespace FruitMagic {
             Json::Read(*post, "halfSize", postHalfSize);
             Json::ReadColor(*post, "color", postColor);
         }
+        if(const Json::Value* ground = Json::FindObject(doc, "ground")) {
+            Json::Read(*ground, "y", groundY);
+            Json::Read(*ground, "halfSize", groundHalfSize);
+            Json::ReadColor(*ground, "color", groundColor);
+            groundHalfSize = std::max(0.0f, groundHalfSize);
+        }
         if(auto it = doc.FindMember("props"); it != doc.MemberEnd() && it->value.IsArray()) {
             props.clear();
             for(const Json::Value& item : it->value.GetArray()) {

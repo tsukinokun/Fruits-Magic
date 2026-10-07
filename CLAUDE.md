@@ -37,10 +37,10 @@
 | `FruitMagic/src/WinMain.cpp` | エントリポイント |
 | `FruitMagic/*/Scene/PusherScene.*` | プッシャー台のシーン |
 | `Assets/` | ゲームのアセット。パスはリポジトリルート相対（例 `Assets/Models/Block.fbx`） |
-| `Assets/Data/` | 果物・ランク・ルーレット・魔法・図鑑・強化・放置・ジャックポット・コインのやりくり（Economy）・演出（Effects）・効果音（Sounds）の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要）。台の寸法と景品の物理（Table）・屋台の見た目と光とカメラ（Stage）・UI の配置と色と表示時間（Ui）・画面の文言（Texts。`{n}` などを差し込む）もここ。調整値はコードに直書きせず JSON に置く（読み込みは `Game/JsonReader.hpp`）。Table.json の寸法が矛盾していると Warn を出して既定の台に戻る |
+| `Assets/Data/` | 果物・ランク・ルーレット・魔法・図鑑・強化・放置・ジャックポット・コインのやりくり（Economy）・演出（Effects）・効果音（Sounds）の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要）。台の寸法と景品の物理（Table）・屋台と周りの景色（地面・置き物）と光とカメラ（Stage）・UI の配置と色と表示時間（Ui。画面の左右のパネルも）・画面の文言（Texts。`{n}` などを差し込む）もここ。調整値はコードに直書きせず JSON に置く（読み込みは `Game/JsonReader.hpp`）。Table.json の寸法が矛盾していると Warn を出して既定の台に戻る |
 
 | `Assets/Fonts/` | 画面の文字のフォント（M PLUS Rounded 1c の Medium・ExtraBold。SIL OFL 1.1、`OFL.txt` を一緒に置く）と、それを指す `.dfont`。どの文字を太字にするかは `Ui.json` の `"bold"`。元のフォントをそのまま入れてある（使う字だけに減らすと、字が増えるたびに作り直して git の履歴が増えるため） |
-| `Assets/Models/Kenney/<キット>/` | Kenney の CC0 素材（果物・コイン・ちょうちん・電飾）。使う glb と、それが参照するテクスチャ `colormap.png`（キットごとに同じ名前なのでフォルダを分ける）、ライセンス文 `License.txt`。果物は JSON の `"model"`、コインは `Table.json` の `coin.model`、飾りは `Stage.json` の `props`・`lantern` で指定する |
+| `Assets/Models/Kenney/<キット>/` | Kenney の CC0 素材（果物・コイン・ちょうちん・電飾と、台の周りの置き物＝隣の屋台・荷車・樽・袋・木・ベンチ・街灯）。使う glb と、それが参照するテクスチャ `colormap.png`（キットごとに同じ名前なのでフォルダを分ける）、ライセンス文 `License.txt`。果物は JSON の `"model"`、コインは `Table.json` の `coin.model`、飾りと周りの置き物は `Stage.json` の `props`・`lantern` で指定する（カメラから見て画面の左が +x） |
 | `Assets/Materials/` | マテリアルのファイル `.tmat`（エンジンの形式。「キー = 値」で書く）。モデルのマテリアルを差し替えるときに使う（例: 金属のコイン `CoinGold.tmat`） |
 | `Assets/Sounds/`・`Assets/Textures/` | 効果音（WAV）と光の画像。どちらも `Tools/GenerateSounds.py`・`Tools/GenerateTextures.py` で合成したもの（作り直すときはスクリプトを直して実行） |
 | `Saves/save.json` | セーブデータ（実行時に作られる。git 管理外）。消すと最初から |

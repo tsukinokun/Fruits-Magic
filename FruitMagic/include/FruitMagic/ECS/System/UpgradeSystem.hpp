@@ -5,6 +5,12 @@
 #pragma once
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 
+// 名前空間 : FruitMagic
+namespace FruitMagic {
+    struct GameState;     // 前方宣言
+    struct UpgradeDef;    // 前方宣言
+}
+
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
@@ -23,6 +29,12 @@ namespace FruitMagic::ECS {
         //! @param  [in] registry レジストリ（UpgradeCatalog・GameState・TableStats を参照する）
         //! @note   起動時（セーブの読み込み後）と購入のたびに呼びます
         static void ApplyUpgrades(Tsukino::ECS::Registry& registry);
+
+        //! 強化の次のレベルを今の手持ちで買えるかを返します（強化画面と、画面の横のおすすめが使う）。
+        //! @param  [in] def   強化の定義
+        //! @param  [in] state プレイヤーの資源
+        //! @return 買えれば true（最大レベルなら false）
+        static bool CanAfford(const UpgradeDef& def, const GameState& state);
 
         //! 強化を1段階買います（強化画面の購入ボタンと、バランス計測の自動プレイが使う）。
         //! @param  [in] registry     レジストリ
