@@ -57,38 +57,69 @@ namespace FruitMagic::ECS {
         state.stock      = std::max(state.stock, std::min(state.stock + m_pendingEntered, config.maxStock));
         m_pendingEntered = 0;
 
+        //--------------------------------------------------------------
+        // 当たった果物がスロットから台へ飛んでいる。着いたら本物を台に出す（段階とは別に進む）
+        //--------------------------------------------------------------
+        if(state.flyFruit >= 0) {
+            state.flyTime += deltaTime;
+            if(state.flyTime >= config.flySeconds) {
+                SpawnFruit(registry, state.flyFruit, state.flyVariant, state.flyTarget);
+                state.flyFruit = -1;
+            }
+        }
+
+        // 止まった列の数を数える（リールの表示と効果音が見る）
+        auto countStopped = [&]() {
+            int stopped = 0;
+            for(float stopTime : state.reelStopTimes)
+                stopped += (state.spinTime >= stopTime) ? 1 : 0;
+            return stopped;
+        };
+
         switch(state.phase) {
-            case RoulettePhase::Idle:
+            case RoulettePhase::Idle: {
                 if(state.stock <= 0)
                     break;
 
                 state.stock -= 1;
+                state.spinId += 1;
+                state.spinTime     = 0.0f;
+                state.reelsStopped = 0;
+                state.resultHit    = false;
+                state.resultCoins  = 0;
+                state.jackpotWin   = false;
 
                 //--------------------------------------------------------------
-                // まれにジャックポットチャンス。結果は最初に抽選しておき、抽選の様子は見せるだけにする
+                // まれにジャックポットチャンス。結果は最初に抽選しておき、大きなスロットはそれに合わせて止める。
+                // いつも2列目まで当たりの絵柄をそろえてリーチにし、3列目で決まる
                 //--------------------------------------------------------------
                 if(registry.HasContext<JackpotConfig>()) {
                     std::uniform_real_distribution<float> roll(0.0f, 1.0f);
                     if(roll(m_rng) < jackpot.chanceRate) {
-                        state.phase          = RoulettePhase::JackpotSpin;
-                        state.jackpotDisplay = false;
+                        const int symbol    = catalog.FindIndex(jackpot.symbolFruit);
+                        const int winSymbol = (symbol >= 0) ? symbol : kCoinSymbol;
+                        const int loseSymbol = (winSymbol == kCoinSymbol) ? 0 : kCoinSymbol;
                         m_jackpotWin         = roll(m_rng) < jackpot.winRate;
-                        m_timer              = jackpot.spinSeconds;
-                        m_flipTimer          = 0.0f;
+
+                        state.phase         = RoulettePhase::JackpotSpin;
+                        state.jackpotReels  = true;
+                        state.reelVariant   = 0;
+                        state.reelSymbols   = {winSymbol, winSymbol, m_jackpotWin ? winSymbol : loseSymbol};
+                        state.reelStopTimes = jackpot.reelStopSeconds;
+                        state.reach         = true;
                         if(registry.HasContext<PlayStats>())
                             registry.GetContext<PlayStats>().jackpotChances += 1;
-                        m_eventBus.Publish(NoticeEvent{GetTexts(registry).Get("notice.jackpotChance"), jackpot.spinSeconds});
+                        m_eventBus.Publish(NoticeEvent{GetTexts(registry).Get("notice.jackpotChance"), jackpot.reelStopSeconds[kReelCount - 1]});
                         m_eventBus.Publish(EffectEvent{"jackpotChance", jackpot.chanceEffectPosition});
                         break;
                     }
                 }
 
                 //--------------------------------------------------------------
-                // 回転開始。結果は最初に抽選しておき、回転は見せるだけにする
+                // 回転開始。結果は最初に抽選しておき、リールはそれに合わせて止める
                 //--------------------------------------------------------------
-                state.phase = RoulettePhase::Spinning;
-                m_timer     = config.spinSeconds;
-                m_flipTimer = 0.0f;
+                state.phase        = RoulettePhase::Spinning;
+                state.jackpotReels = false;
 
                 m_resultFruit   = -1;
                 m_resultVariant = 0;
@@ -101,43 +132,65 @@ namespace FruitMagic::ECS {
                     // 果物が外れても、時々コインが当たる（手持ちが尽きにくいように）
                     m_resultCoins = config.coinAmount;
                 }
-                break;
 
-            case RoulettePhase::Spinning:
-                //--------------------------------------------------------------
-                // 回転中は、出現できる果物とハズレを交互に見せる
-                //--------------------------------------------------------------
-                m_flipTimer -= deltaTime;
-                if(m_flipTimer <= 0.0f) {
-                    m_flipTimer          = config.flipInterval;
-                    state.displayFruit   = (state.displayFruit >= 0) ? -1 : catalog.PickSpawnable(level, m_rng);
-                    state.displayVariant = 0;
+                // 各列に止める絵柄（当たりはそろえ、ハズレはそろわない並び）
+                if(m_resultFruit >= 0) {
+                    state.reelSymbols = {m_resultFruit, m_resultFruit, m_resultFruit};
+                } else if(m_resultCoins > 0) {
+                    state.reelSymbols = {kCoinSymbol, kCoinSymbol, kCoinSymbol};
+                } else {
+                    std::vector<int> symbols = catalog.SpawnableFruits(level);
+                    symbols.push_back(kCoinSymbol);
+                    state.reelSymbols = PickMissSymbols(symbols, config.reachMissChance);
                 }
 
-                m_timer -= deltaTime;
-                if(m_timer <= 0.0f) {
-                    state.phase        = RoulettePhase::Result;
-                    state.displayFruit   = m_resultFruit;
-                    state.displayVariant = m_resultVariant;
-                    state.resultHit      = (m_resultFruit >= 0);
-                    state.resultCoins    = state.resultHit ? 0 : m_resultCoins;
-                    m_timer            = config.resultSeconds;
+                state.reelVariant = (m_resultFruit >= 0) ? m_resultVariant : 0;
 
-                    if(state.resultHit) {
-                        SpawnFruit(registry, m_resultFruit, m_resultVariant);
-                    }
-                    if(state.resultCoins > 0)
-                        registry.GetContext<GameState>().coins += state.resultCoins;
-                    if(registry.HasContext<PlayStats>()) {
-                        PlayStats& stats = registry.GetContext<PlayStats>();
-                        stats.rouletteSpins += 1;
-                        stats.rouletteHits += state.resultHit ? 1 : 0;
-                    }
+                // 1・2列目がそろったらリーチ。3列目を長く回す
+                state.reelStopTimes = config.reelStopSeconds;
+                state.reach         = state.reelSymbols[0] == state.reelSymbols[1];
+                if(state.reach)
+                    state.reelStopTimes[kReelCount - 1] += config.reachExtraSeconds;
+                break;
+            }
+
+            case RoulettePhase::Spinning:
+                state.spinTime += deltaTime;
+                state.reelsStopped = countStopped();
+                if(state.reelsStopped < kReelCount)
+                    break;
+
+                //--------------------------------------------------------------
+                // 全部止まった。結果を出す（当たりの果物は、スロットから台へ飛び終わってから台に出す）
+                //--------------------------------------------------------------
+                state.phase          = RoulettePhase::Result;
+                state.displayFruit   = m_resultFruit;
+                state.displayVariant = m_resultVariant;
+                state.resultHit      = (m_resultFruit >= 0);
+                state.resultCoins    = state.resultHit ? 0 : m_resultCoins;
+                m_timer              = config.resultSeconds;
+
+                if(state.resultHit) {
+                    // 前の果物がまだ飛んでいたら、先に出してしまう（重なった分を落とさない）
+                    if(state.flyFruit >= 0)
+                        SpawnFruit(registry, state.flyFruit, state.flyVariant, state.flyTarget);
+                    state.flyFruit   = m_resultFruit;
+                    state.flyVariant = m_resultVariant;
+                    state.flyTime    = 0.0f;
+                    state.flyTarget  = SpawnPosition(registry, m_resultFruit);
+                }
+                if(state.resultCoins > 0)
+                    registry.GetContext<GameState>().coins += state.resultCoins;
+                if(registry.HasContext<PlayStats>()) {
+                    PlayStats& stats = registry.GetContext<PlayStats>();
+                    stats.rouletteSpins += 1;
+                    stats.rouletteHits += state.resultHit ? 1 : 0;
                 }
                 break;
 
             case RoulettePhase::Result:
             case RoulettePhase::JackpotResult:
+                state.spinTime += deltaTime;
                 m_timer -= deltaTime;
                 if(m_timer <= 0.0f) {
                     state.phase        = RoulettePhase::Idle;
@@ -145,45 +198,65 @@ namespace FruitMagic::ECS {
                     state.resultHit    = false;
                     state.resultCoins  = 0;
                     state.jackpotWin   = false;
+                    state.jackpotReels = false;
+                    state.reach        = false;
                 }
                 break;
 
             case RoulettePhase::JackpotSpin:
-                //--------------------------------------------------------------
-                // 「JACKPOT」と「ハズレ」を交互に見せ、時間が来たら抽選済みの結果で止める
-                //--------------------------------------------------------------
-                m_flipTimer -= deltaTime;
-                if(m_flipTimer <= 0.0f) {
-                    m_flipTimer          = jackpot.flipInterval;
-                    state.jackpotDisplay = !state.jackpotDisplay;
-                }
+                state.spinTime += deltaTime;
+                state.reelsStopped = countStopped();
+                if(state.reelsStopped < kReelCount)
+                    break;
 
-                m_timer -= deltaTime;
-                if(m_timer <= 0.0f) {
-                    const JackpotConfig jackpot = registry.HasContext<JackpotConfig>() ? registry.GetContext<JackpotConfig>() : JackpotConfig{};
-                    state.phase                 = RoulettePhase::JackpotResult;
-                    state.jackpotWin            = m_jackpotWin;
-                    state.jackpotDisplay        = m_jackpotWin;
-                    m_timer                     = jackpot.resultSeconds;
-                    GrantJackpot(registry, m_jackpotWin);
-                }
+                //--------------------------------------------------------------
+                // 大きなスロットが止まった。抽選済みの結果で景品を出す
+                //--------------------------------------------------------------
+                state.phase      = RoulettePhase::JackpotResult;
+                state.jackpotWin = m_jackpotWin;
+                m_timer          = jackpot.resultSeconds;
+                GrantJackpot(registry, m_jackpotWin);
                 break;
         }
     }
 
     //----------------------------------------------------------------------------
-    //! 当たった果物を台に補充します。
+    //! ハズレの並び（3つがそろわない）を決めます。
     //----------------------------------------------------------------------------
-    void RouletteSystem::SpawnFruit(Tsukino::ECS::Registry& registry, int fruitIndex, int variantIndex) {
-        if(!registry.HasContext<PrizeFactory>())
-            return;
+    std::array<int, kReelCount> RouletteSystem::PickMissSymbols(const std::vector<int>& symbols, float reachMissChance) {
+        std::array<int, kReelCount> result = {kCoinSymbol, kCoinSymbol, kCoinSymbol};
+        if(symbols.size() < 2)
+            return result;    // 絵柄が1種類しかなければ、そろわない並びは作れない（来ない想定）
 
+        std::uniform_int_distribution<size_t> pick(0, symbols.size() - 1);
+        auto pickOther = [&](int except) {
+            int symbol = except;
+            while(symbol == except)
+                symbol = symbols[pick(m_rng)];
+            return symbol;
+        };
+
+        const int first = symbols[pick(m_rng)];
+        if(std::uniform_real_distribution<float>(0.0f, 1.0f)(m_rng) < reachMissChance) {
+            // ハズレのリーチ: 2列そろえて、3列目だけ外す
+            result = {first, first, pickOther(first)};
+        } else {
+            // 2列目から外す（3列目は何でもよい）
+            result = {first, pickOther(first), symbols[pick(m_rng)]};
+        }
+        return result;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 当たった果物を台に置く位置を決めます。
+    //----------------------------------------------------------------------------
+    hlslpp::float3 RouletteSystem::SpawnPosition(Tsukino::ECS::Registry& registry, int fruitIndex) {
         const FruitCatalog& catalog = registry.GetContext<FruitCatalog>();
+        const TableLayout&  layout  = GetTableLayout(registry);
         if(fruitIndex < 0 || fruitIndex >= static_cast<int>(catalog.Fruits().size()))
-            return;
+            return hlslpp::float3(0.0f, layout.PusherTopY(), layout.LaunchZ());
 
         const FruitDef&      def    = catalog.Fruits()[fruitIndex];
-        const TableLayout&   layout = GetTableLayout(registry);
         const RouletteConfig config = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
 
         //--------------------------------------------------------------
@@ -199,6 +272,21 @@ namespace FruitMagic::ECS {
 
         // 大きな果物は背面パネルに重ならないよう、その分だけ手前に置く
         const float z = std::max(layout.LaunchZ(), layout.BackPanelFrontZ() + halfDepth + config.fruitSpawnBackMargin);
+        return hlslpp::float3(x, y, z);
+    }
+
+    //----------------------------------------------------------------------------
+    //! 当たった果物を台に補充します。
+    //----------------------------------------------------------------------------
+    void RouletteSystem::SpawnFruit(Tsukino::ECS::Registry& registry, int fruitIndex, int variantIndex, const hlslpp::float3& position) {
+        if(!registry.HasContext<PrizeFactory>())
+            return;
+
+        const FruitCatalog& catalog = registry.GetContext<FruitCatalog>();
+        if(fruitIndex < 0 || fruitIndex >= static_cast<int>(catalog.Fruits().size()))
+            return;
+
+        const FruitDef& def = catalog.Fruits()[fruitIndex];
 
         // バリエーションの色と光り方（設定が無ければ通常の見た目）
         hlslpp::float3 color = def.color;
@@ -211,7 +299,7 @@ namespace FruitMagic::ECS {
             }
         }
 
-        registry.GetContext<PrizeFactory>().CreateFruit(registry, def, fruitIndex, variantIndex, color, glow, hlslpp::float3(x, y, z));
+        registry.GetContext<PrizeFactory>().CreateFruit(registry, def, fruitIndex, variantIndex, color, glow, position);
     }
 
     //----------------------------------------------------------------------------

@@ -183,7 +183,9 @@ namespace FruitMagic::ECS {
                     std::wstring text;
                     switch(roulette.phase) {
                         case RoulettePhase::Spinning:
-                            text = texts.Format("roulette.spinning", {{"name", (roulette.displayFruit >= 0) ? FruitName(registry, roulette.displayFruit) : texts.Get("roulette.miss")}});
+                            // リールはスロットが見せるので、文字はリーチのときだけ
+                            if(roulette.reach && roulette.reelsStopped >= kReelCount - 1)
+                                text = texts.Get("roulette.reach");
                             break;
                         case RoulettePhase::Result:
                             if(roulette.resultHit)
@@ -194,7 +196,7 @@ namespace FruitMagic::ECS {
                                 text = texts.Get("roulette.missResult");
                             break;
                         case RoulettePhase::JackpotSpin:
-                            text = texts.Format("roulette.jackpotSpin", {{"display", roulette.jackpotDisplay ? texts.Get("roulette.jackpot") : texts.Get("roulette.miss")}});
+                            text = texts.Get("roulette.jackpotSpin");
                             break;
                         case RoulettePhase::JackpotResult:
                             text = roulette.jackpotWin ? texts.Get("roulette.jackpotWin") : texts.Get("roulette.jackpotLose");
@@ -203,8 +205,7 @@ namespace FruitMagic::ECS {
                         default:
                             break;
                     }
-                    if(roulette.stock > 0)
-                        text += texts.Format("roulette.stock", {{"n", std::to_wstring(roulette.stock)}});
+                    // ためている回数はスロットの下の玉で見せる
                     font.text = text;
 
                     // ジャックポットチャンスの間は金色に

@@ -20,16 +20,13 @@
     "controlsDebug": "←→ / マウス: 位置   Space / クリック: 投入   Tab: 図鑑   U: 強化   M: 音   Esc: オプション   F5: コリジョン表示   F2: コイン・果実 +100・マナ満タン"
   },
   "roulette": {
-    "spinning": "ルーレット ▶ {name}",
-    "miss": "ハズレ",
+    "reach": "リーチ！",
     "hit": "当たり！ {name} が出た！",
     "coins": "コイン +{n}！",
     "missResult": "ハズレ…",
-    "jackpotSpin": "ジャックポットチャンス！ ▶ {display}",
-    "jackpot": "JACKPOT",
+    "jackpotSpin": "ジャックポットチャンス！",
     "jackpotWin": "JACKPOT!!",
-    "jackpotLose": "おしい…",
-    "stock": "   (のこり {n})"
+    "jackpotLose": "おしい…"
   },
   "magicButton": {
     "empty": "{slot}  ？",

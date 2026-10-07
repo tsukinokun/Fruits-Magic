@@ -22,12 +22,12 @@ namespace FruitMagic {
 
         Json::Read(doc, "chanceRate", chanceRate);
         Json::Read(doc, "winRate", winRate);
-        Json::Read(doc, "spinSeconds", spinSeconds);
         Json::Read(doc, "resultSeconds", resultSeconds);
         Json::Read(doc, "bonusCoins", bonusCoins);
         Json::Read(doc, "consolationCoins", consolationCoins);
         Json::Read(doc, "spins", spins);
-        Json::Read(doc, "flipInterval", flipInterval);
+        Json::ReadFloats(doc, "reelStopSeconds", reelStopSeconds.data(), kReelCount);
+        Json::Read(doc, "symbolFruit", symbolFruit);
         Json::Read(doc, "winShowerSeconds", winShowerSeconds);
         Json::Read(doc, "loseShowerSeconds", loseShowerSeconds);
         Json::Read(doc, "winNoticeSeconds", winNoticeSeconds);
@@ -36,12 +36,12 @@ namespace FruitMagic {
 
         chanceRate       = std::clamp(chanceRate, 0.0f, 1.0f);
         winRate          = std::clamp(winRate, 0.0f, 1.0f);
-        spinSeconds      = std::max(0.1f, spinSeconds);
+        for(int reel = 0; reel < kReelCount; ++reel)
+            reelStopSeconds[reel] = std::max(reelStopSeconds[reel], reel > 0 ? reelStopSeconds[reel - 1] + 0.05f : 0.1f);
         resultSeconds    = std::max(0.1f, resultSeconds);
         bonusCoins       = std::max(0, bonusCoins);
         consolationCoins = std::max(0, consolationCoins);
         spins            = std::max(0, spins);
-        flipInterval     = std::max(0.02f, flipInterval);
         return true;
     }
 }    // namespace FruitMagic

@@ -87,7 +87,35 @@ namespace FruitMagic {
         icon->silhouette   = silhouette;
         icon->sizePixels   = sizePixels;
 
-        if(fruitIndex < 0 || !registry.HasContext<FruitCatalog>() || !registry.HasContext<CollectionConfig>() || !registry.HasContext<PrizeFactory>())
+        if(!registry.HasContext<PrizeFactory>())
+            return;
+
+        //--------------------------------------------------------------
+        // コイン: 台のコインと同じ見た目。外形の長い向き（直径）を sizePixels に合わせる
+        //--------------------------------------------------------------
+        if(fruitIndex == kFruitIconCoin) {
+            PrizeFactory&        factory = registry.GetContext<PrizeFactory>();
+            Tsukino::ECS::Entity visual  = factory.CreateCoinVisual(registry, hlslpp::float3(0.0f, 0.0f, 0.0f));
+            auto&                coinTransform = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(visual);
+            coinTransform.parent                = holder;
+            coinTransform.rotation              = PrizeFactory::EulerDegrees(hlslpp::float3(65.0f, 0.0f, 0.0f));    // 面をこちらへ向ける（少し上を向けて、上からの光で金色が見えるように）
+            coinTransform.dirty                 = true;
+            icon->visual                        = visual;
+
+            const hlslpp::float3 half    = factory.CoinHalfExtent();
+            const float          longest = std::max({float(half.x), float(half.y), float(half.z)}) * 2.0f;
+            if(auto* screen = registry.try_get<Tsukino::BuiltIn::ECS::ScreenModelComponent>(holder))
+                screen->pixelsPerUnit = sizePixels / std::max(longest, 0.01f);
+
+            const bool shown = icon->visible;
+            ForEachModel(registry, visual, [&](Tsukino::ECS::Entity e) {
+                if(auto* model = registry.try_get<Tsukino::BuiltIn::ECS::ModelComponent>(e))
+                    model->visible = shown;
+            });
+            return;
+        }
+
+        if(fruitIndex < 0 || !registry.HasContext<FruitCatalog>() || !registry.HasContext<CollectionConfig>())
             return;
         const auto& fruits   = registry.GetContext<FruitCatalog>().Fruits();
         const auto& variants = registry.GetContext<CollectionConfig>().Variants();

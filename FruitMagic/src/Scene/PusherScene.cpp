@@ -49,6 +49,7 @@
 #include <FruitMagic/ECS/Component/OptionsElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ReliefGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/SidePanelElementComponent.hpp>
+#include <FruitMagic/ECS/Component/SlotMachineComponents.hpp>
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
 #include <FruitMagic/ECS/System/AutoPlaySystem.hpp>
@@ -71,6 +72,7 @@
 #include <FruitMagic/ECS/System/PopupSystem.hpp>
 #include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
 #include <FruitMagic/ECS/System/SidePanelSystem.hpp>
+#include <FruitMagic/ECS/System/SlotMachineSystem.hpp>
 #include <FruitMagic/ECS/System/SoundSystem.hpp>
 #include <FruitMagic/ECS/System/SwellMagicSystem.hpp>
 #include <FruitMagic/ECS/System/WallMagicSystem.hpp>
@@ -255,6 +257,7 @@ namespace FruitMagic {
             Hud,
             SidePanel,           // 画面の左右のパネル（このフレームの収穫・強化の結果を出す）
             CutIn,               // 果物が取れたときのカットイン（このフレームの収穫・図鑑登録で出す）
+            SlotMachine,         // ルーレットのスロット（このフレームの RouletteState に合わせてリールを止める）
             FruitIcon,           // 画面に出す果物（図鑑・パネル・ゲット！）を回す
             BalanceProbe,
             Save,
@@ -313,6 +316,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::HudSystem>(eventBus), (int)SystemPriority::Hud);
         m_scene.AddSystem(std::make_shared<ECS::SidePanelSystem>(), (int)SystemPriority::SidePanel);
         m_scene.AddSystem(std::make_shared<ECS::CutInSystem>(eventBus), (int)SystemPriority::CutIn);
+        m_scene.AddSystem(std::make_shared<ECS::SlotMachineSystem>(), (int)SystemPriority::SlotMachine);
         m_scene.AddSystem(std::make_shared<ECS::FruitIconSystem>(), (int)SystemPriority::FruitIcon);
         m_scene.AddSystem(std::make_shared<ECS::SaveSystem>(), (int)SystemPriority::Save);
 
@@ -1243,6 +1247,76 @@ namespace FruitMagic {
             const float textWidth = ui.screenWidth - ui.cutInTextX - ui.textPadding;
             addPart(createFontText(hlslpp::float2(ui.cutInTextX, ui.cutInCenterY + ui.cutInTitleOffsetY), ui.cutInTitle, kLeft, kTextOrder, textWidth), ECS::CutInPart::Title);
             addPart(createFontText(hlslpp::float2(ui.cutInTextX, ui.cutInCenterY + ui.cutInNameOffsetY), ui.cutInName, kLeft, kTextOrder, textWidth), ECS::CutInPart::Name);
+        }
+
+        //--------------------------------------------------------------
+        // ルーレットのスロット（3リール）。ふだんは上の真ん中に小さく、ジャックポットチャンスは真ん中に大きく出す。
+        // 動きと表示は SlotMachineSystem が RouletteState に合わせて決める
+        //--------------------------------------------------------------
+        {
+            constexpr int kSymbolsPerReel = 8;    // 1列の絵柄の数（並びは出せる果物とコインを繰り返す）
+
+            // 板・窓・縁・玉（画面スプライト）にする
+            auto addPart = [&](Tsukino::ECS::Entity e, bool jackpot, ECS::SlotPart part, int index, const hlslpp::float4& color) {
+                ECS::SlotPartComponent& component = registry.AddComponent<ECS::SlotPartComponent>(e);
+                component.jackpot                 = jackpot;
+                component.part                    = part;
+                component.index                   = index;
+                component.shownScale              = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).scale;
+                component.color                   = color;
+                return e;
+            };
+
+            // スロットを1台組み立てる（ふだんの小さなものとジャックポットの大きなもので同じ形）
+            auto buildSlot = [&](const SlotLayout& slot, bool jackpot) {
+                const int order = slot.sortOrder;
+                addPart(createPanel(slot.center, slot.panelSize, slot.panelColor, order), jackpot, ECS::SlotPart::Panel, 0, slot.panelColor);
+
+                for(int reel = 0; reel < kReelCount; ++reel) {
+                    const hlslpp::float2 windowCenter = slot.center + hlslpp::float2(slot.windowSpacing * static_cast<float>(reel - 1), slot.windowOffsetY);
+
+                    // 光る縁（窓より少し大きい板。ふだんは透明）と窓の地
+                    const hlslpp::float4 clear(float(slot.flashColor.x), float(slot.flashColor.y), float(slot.flashColor.z), 0.0f);
+                    addPart(createPanel(windowCenter, slot.windowSize + hlslpp::float2(slot.flashBorder, slot.flashBorder) * 2.0f, clear, order + 1), jackpot,
+                            ECS::SlotPart::Flash, reel, slot.flashColor);
+                    addPart(createPanel(windowCenter, slot.windowSize, slot.windowColor, order + 2), jackpot, ECS::SlotPart::Window, reel, slot.windowColor);
+
+                    // 窓（切り取り枠）。中を流れる絵柄の位置の部品は、この子にする
+                    Tsukino::ECS::Entity                       window          = m_scene.CreateEntity();
+                    Tsukino::BuiltIn::ECS::TransformComponent& windowTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(window);
+                    windowTransform.position                                   = hlslpp::float3(windowCenter.x, windowCenter.y, 0.0f);
+                    windowTransform.dirty                                      = true;
+                    registry.AddComponent<Tsukino::BuiltIn::ECS::UIClipComponent>(window).size = slot.windowSize;
+
+                    ECS::SlotReelComponent& reelComponent = registry.AddComponent<ECS::SlotReelComponent>(window);
+                    reelComponent.jackpot                 = jackpot;
+                    reelComponent.reel                    = reel;
+                    for(int i = 0; i < kSymbolsPerReel; ++i) {
+                        Tsukino::ECS::Entity                       anchor          = m_scene.CreateEntity();
+                        Tsukino::BuiltIn::ECS::TransformComponent& anchorTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(anchor);
+                        anchorTransform.parent                                     = window;
+                        anchorTransform.dirty                                      = true;
+                        reelComponent.anchors.push_back(anchor);
+                        reelComponent.icons.push_back(CreateFruitIconHolder(registry, hlslpp::float2(0.0f, 0.0f), order + 3, anchor));
+                    }
+                }
+            };
+            buildSlot(ui.slot, false);
+            buildSlot(ui.jackpotSlot, true);
+
+            // ふだんのスロットの下の「のこり」の玉（ためている回転の数）
+            const int   lamps     = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>().maxStock : 4;
+            const float lampLeft  = float(ui.slot.center.x) - ui.slotLampGap * static_cast<float>(lamps - 1) * 0.5f;
+            for(int i = 0; i < lamps; ++i) {
+                const hlslpp::float2 center(lampLeft + ui.slotLampGap * static_cast<float>(i), float(ui.slot.center.y) + ui.slotLampOffsetY);
+                addPart(createPanel(center, hlslpp::float2(ui.slotLampSize, ui.slotLampSize), ui.slotLampOff, ui.slot.sortOrder + 1), false, ECS::SlotPart::Lamp, i,
+                        ui.slotLampOff);
+            }
+
+            // 当たりの果物を台へ飛ばす置き台（飛んでいる間だけ見える。スロットより上、画面の板より下）
+            Tsukino::ECS::Entity flyer = CreateFruitIconHolder(registry, ui.slot.center, 14);
+            registry.GetComponent<ECS::FruitIconComponent>(flyer).spinSpeed = 360.0f;
+            registry.AddComponent<ECS::SlotFlyerComponent>(flyer);
         }
 
         //--------------------------------------------------------------

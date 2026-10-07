@@ -186,6 +186,24 @@ namespace FruitMagic::Json {
     }
 
     //----------------------------------------------------------------------------
+    //! 項目があれば、数の配列を count 個まで読み込みます。
+    //----------------------------------------------------------------------------
+    bool ReadFloats(const Value& obj, const char* key, float* out, int count) {
+        auto it = obj.FindMember(key);
+        if(it == obj.MemberEnd() || !it->value.IsArray())
+            return false;
+        int index = 0;
+        for(const Value& item : it->value.GetArray()) {
+            if(index >= count)
+                break;
+            if(item.IsNumber())
+                out[index] = item.GetFloat();
+            ++index;
+        }
+        return true;
+    }
+
+    //----------------------------------------------------------------------------
     //! 項目があれば色 {r,g,b} / {r,g,b,a} を読み込みます。
     //----------------------------------------------------------------------------
     bool ReadColor(const Value& obj, const char* key, hlslpp::float3& out) {

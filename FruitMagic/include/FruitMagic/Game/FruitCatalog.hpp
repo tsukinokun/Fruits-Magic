@@ -110,6 +110,11 @@ namespace FruitMagic {
         //! @return 選んだ果物の添字。出現できる果物が無ければ -1
         int PickSpawnable(int treeLevel, std::mt19937& rng) const;
 
+        //! 指定の果樹の段階で出現できる果物の一覧を返します（PickSpawnable が選ぶ候補。スロットのリールの絵柄に使う）。
+        //! @param  [in] treeLevel 果樹の段階
+        //! @return 果物の添字の一覧（ファイルの順）
+        std::vector<int> SpawnableFruits(int treeLevel) const;
+
     private:
         std::vector<FruitRank> m_ranks;     // ランクの一覧
         std::vector<FruitDef>  m_fruits;    // 果物の一覧

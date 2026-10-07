@@ -4,8 +4,11 @@
 //! @detail Assets/Data/Jackpot.json から読み込みます。無い項目は既定値のままです。
 //----------------------------------------------------------------------------
 #pragma once
+#include <FruitMagic/Game/RouletteState.hpp>
+
 #include <hlsl++.h>
 
+#include <array>
 #include <string>
 
 // 名前空間 : FruitMagic
@@ -16,12 +19,12 @@ namespace FruitMagic {
     struct JackpotConfig {
         float chanceRate       = 0.04f;    // ルーレット1回あたりのジャックポットチャンスの確率（0〜1）
         float winRate          = 0.34f;    // チャンスでジャックポットに当たる確率（0〜1）
-        float spinSeconds      = 2.5f;     // チャンスの抽選を見せる時間（秒）
         float resultSeconds    = 2.5f;     // 結果を表示しておく時間（秒）
         int   bonusCoins       = 40;       // ジャックポットで降らせるコイン
         int   consolationCoins = 5;        // チャンスで外れたときの残念賞のコイン
         int   spins            = 3;        // ジャックポットで増えるルーレットの回数（ためておける上限を超えてよい）
-        float flipInterval     = 0.12f;    // 抽選中に「JACKPOT」「ハズレ」を切り替える間隔（秒）。通常の回転より少しゆっくり
+        std::array<float, kReelCount> reelStopSeconds = {0.8f, 1.3f, 2.5f};    // 大きなスロットの各列が止まるまで（秒。2列目までそろえていつもリーチにし、3列目を長く回す）
+        std::string                   symbolFruit     = "golden_apple";        // 大きなスロットの当たりの絵柄（果物の id。そろったらジャックポット）
         float winShowerSeconds  = 3.0f;    // ジャックポットのコインを降らせる時間（秒）
         float loseShowerSeconds = 1.0f;    // 残念賞のコインを降らせる時間（秒）
         float winNoticeSeconds  = 4.0f;    // ジャックポットのお知らせを出しておく時間（秒）

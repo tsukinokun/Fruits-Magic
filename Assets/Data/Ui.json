@@ -17,7 +17,7 @@
     "harvestTotal": { "position": { "x": 24,  "y": 162 }, "scale": 1.2,  "color": { "r": 1.0,  "g": 0.6,  "b": 0.7,  "a": 1.0 },  "align": "left", "bold": true },
     "harvestPopup": { "position": { "x": 72,  "y": 204 }, "scale": 1.2,  "color": { "r": 1.0,  "g": 0.85, "b": 0.9,  "a": 1.0 },  "align": "left", "bold": true },
     "relief":       { "position": { "x": 72,  "y": 248 }, "scale": 0.8,  "color": { "r": 0.75, "g": 1.0,  "b": 0.85, "a": 1.0 },  "align": "left" },
-    "roulette":     { "position": { "x": 640, "y": 24 },  "scale": 1.3,  "color": { "r": 1.0,  "g": 0.95, "b": 0.6,  "a": 1.0 },  "align": "center", "bold": true, "maxWidth": 640 },
+    "roulette":     { "position": { "x": 640, "y": 126 }, "scale": 0.85,  "color": { "r": 1.0,  "g": 0.95, "b": 0.6,  "a": 1.0 },  "align": "center", "bold": true, "maxWidth": 640 },
     "controlsHint": { "position": { "x": 24,  "y": 690 }, "scale": 0.65, "color": { "r": 1.0,  "g": 1.0,  "b": 1.0,  "a": 0.85 }, "align": "left" },
     "notice":       { "position": { "x": 640, "y": 250 }, "scale": 1.15, "color": { "r": 1.0,  "g": 0.75, "b": 0.95, "a": 1.0 },  "align": "center", "bold": true }
   },
@@ -245,6 +245,52 @@
     "muteNotice": 1.5,
     "growNotice": 2.5,
     "musicRestart": 0.4
+  },
+  "slot": {
+    "center": { "x": 640, "y": 66 },
+    "panelSize": { "x": 260, "y": 108 },
+    "panelColor": { "r": 0.12, "g": 0.06, "b": 0.18, "a": 0.92 },
+    "windowOffsetY": -6,
+    "windowSize": { "x": 70, "y": 74 },
+    "windowSpacing": 80,
+    "windowColor": { "r": 1.0, "g": 0.97, "b": 0.9, "a": 1.0 },
+    "flashBorder": 5,
+    "flashColor": { "r": 1.0, "g": 0.85, "b": 0.3, "a": 1.0 },
+    "symbolSize": 46,
+    "symbolPitch": 56,
+    "spinSpeed": 900,
+    "reachSpeed": 320,
+    "stopSeconds": 0.25,
+    "overshoot": 1.6
+  },
+  "jackpotSlot": {
+    "center": { "x": 640, "y": 330 },
+    "panelSize": { "x": 560, "y": 230 },
+    "panelColor": { "r": 0.35, "g": 0.22, "b": 0.04, "a": 0.95 },
+    "windowOffsetY": -12,
+    "windowSize": { "x": 150, "y": 170 },
+    "windowSpacing": 170,
+    "windowColor": { "r": 1.0, "g": 0.95, "b": 0.8, "a": 1.0 },
+    "flashBorder": 8,
+    "flashColor": { "r": 1.0, "g": 0.8, "b": 0.15, "a": 1.0 },
+    "symbolSize": 100,
+    "symbolPitch": 120,
+    "spinSpeed": 1500,
+    "reachSpeed": 420,
+    "stopSeconds": 0.3,
+    "overshoot": 1.6
+  },
+  "slotLamps": {
+    "offsetY": 43,
+    "size": 9,
+    "gap": 16,
+    "on":  { "r": 1.0, "g": 0.85, "b": 0.3,  "a": 1.0 },
+    "off": { "r": 0.3, "g": 0.25, "b": 0.35, "a": 1.0 }
+  },
+  "slotEffects": {
+    "flashSeconds": 0.35,
+    "flySize": 46,
+    "flyArc": 60
   },
   "loading": {
     "minSeconds": 0.3,

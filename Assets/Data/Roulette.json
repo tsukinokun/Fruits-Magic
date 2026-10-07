@@ -1,13 +1,15 @@
 {
   "hitChance": 0.4,
-  "spinSeconds": 1.5,
-  "resultSeconds": 1.2,
+  "resultSeconds": 0.8,
   "maxStock": 4,
   "checkerRange": 16.0,
   "checkerPeriod": 4.0,
   "coinChance": 0.3,
   "coinAmount": 5,
-  "flipInterval": 0.08,
+  "reelStopSeconds": [0.6, 0.85, 1.1],
+  "reachExtraSeconds": 0.7,
+  "reachMissChance": 0.25,
+  "flySeconds": 0.45,
   "fruitSpawnMargin": 6.0,
   "fruitSpawnLift": 0.5,
   "fruitSpawnBackMargin": 0.5

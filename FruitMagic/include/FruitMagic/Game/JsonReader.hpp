@@ -77,6 +77,14 @@ namespace FruitMagic::Json {
     //! @param  [in,out] out 読み込み先
     //! @return 読み込んだら true
     bool ReadVec(const Value& obj, const char* key, hlslpp::float2& out);
+
+    //! 項目があれば、数の配列 [a, b, c, ...] を count 個まで読み込みます。足りない要素は元の値のまま残します。
+    //! @param  [in]     obj   読み込み元のオブジェクト
+    //! @param  [in]     key   項目名
+    //! @param  [in,out] out   読み込み先（count 個）
+    //! @param  [in]     count 読み込む数
+    //! @return 配列があれば true
+    bool ReadFloats(const Value& obj, const char* key, float* out, int count);
     bool ReadVec(const Value& obj, const char* key, hlslpp::float3& out);
 
     //! 項目があれば色 {r,g,b} / {r,g,b,a} を読み込みます。足りない要素は元の値のまま残します。

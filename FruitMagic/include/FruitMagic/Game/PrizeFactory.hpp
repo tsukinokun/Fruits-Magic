@@ -72,6 +72,13 @@ namespace FruitMagic {
         Tsukino::ECS::Entity CreateCoin(Tsukino::ECS::Registry& registry, const hlslpp::float3& position,
                                         const hlslpp::quaternion& rotation = hlslpp::quaternion(0.0f, 0.0f, 0.0f, 1.0f));
 
+        //! コインの見た目だけ（当たり判定・物理・景品の情報を持たない）を生成します。台のコインと同じ見た目で、
+        //! 演出（スロットの絵柄など）に使います。破棄は DestroyPrize で、見た目の子も一緒に消えます。
+        //! @param  [in] registry 生成先のレジストリ
+        //! @param  [in] position 中心のワールド座標
+        //! @return 生成したエンティティ（見た目は CoinHalfExtent の箱に収まる）
+        Tsukino::ECS::Entity CreateCoinVisual(Tsukino::ECS::Registry& registry, const hlslpp::float3& position);
+
         //! 落とすコインの向きをばらばらに決めます。水平の向きは 0〜360 度、傾きは前後・左右それぞれ ±launch.maxTiltDegrees（Table.json）。
         //! @param  [in,out] rng 乱数生成器
         //! @return 向き
@@ -139,6 +146,11 @@ namespace FruitMagic {
         const hlslpp::float3& CoinHalfExtent() const { return m_layout.coinHalfExtent; }
 
     private:
+
+        //! 丸いコインの見た目（モデル・金属のマテリアル・輪郭の光）を子として付けます（Table.json の coin.model があるとき）。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] coin     コインのエンティティ（TransformComponent を持つ。拡縮しない）
+        void AttachCoinLook(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity coin);
 
         //! 果物の見た目（モデル・色・輪郭の光・飾りのパーツ）を付けます。
         //! @param  [in] registry レジストリ

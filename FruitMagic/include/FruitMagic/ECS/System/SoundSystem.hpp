@@ -100,7 +100,8 @@ namespace FruitMagic::ECS {
         int           m_lastUpgradeLevels = -1;                    // 強化のレベルの合計（-1 はまだ見ていない）
         MenuKind      m_lastMenu          = MenuKind::None;        // 開いている画面
         RoulettePhase m_lastPhase         = RoulettePhase::Idle;   // ルーレットの段階
-        int           m_lastDisplayFruit  = -1;                    // ルーレットが表示している果物
-        bool          m_lastJackpotDisplay = false;                // ジャックポットの抽選の表示
+        int           m_lastSpinId        = 0;                     // スロットの回転の番号（変わったら新しい回転）
+        int           m_lastReelsStopped  = 0;                     // スロットの止まった列の数
+        int           m_lastTick          = -1;                    // 回っている間のチッを鳴らした回数
     };
 }    // namespace FruitMagic::ECS

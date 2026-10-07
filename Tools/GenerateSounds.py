@@ -176,6 +176,21 @@ def main():
     # ボタン（ポチ）
     write("button", mix(0.06, (0.0, tone(1200, 0.05, sine, freq_end=900, decay=0.015))), peak=0.4)
 
+    # ここから下は乱数を使わない（上の音の乱数の並びを変えないよう、足す音は末尾に置く）
+
+    # スロットのリールが止まる（ガチャッ）: 低い打音と短い金属音
+    write("reel_stop", mix(0.12,
+                           (0.0, tone(260, 0.08, square, freq_end=140, decay=0.02, volume=0.5)),
+                           (0.0, tone(1600, 0.05, triangle, decay=0.012, volume=0.35))), peak=0.5)
+
+    # リーチ（だんだん高くなる2音の繰り返し）
+    reach = []
+    for i in range(6):
+        base = note("A5") * 2 ** (i / 12.0)
+        reach.append((i * 0.09, tone(base, 0.08, square, decay=0.04, volume=0.3)))
+        reach.append((i * 0.09 + 0.045, tone(base * 1.5, 0.08, square, decay=0.04, volume=0.25)))
+    write("reach", mix(0.7, *reach), peak=0.55)
+
 
 if __name__ == "__main__":
     main()

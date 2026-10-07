@@ -277,20 +277,7 @@ namespace FruitMagic {
             Tsukino::BuiltIn::ECS::RigidbodyComponent& rb = registry.AddComponent<Tsukino::BuiltIn::ECS::RigidbodyComponent>(e);
             SetupDynamicBody(rb, m_layout.coinFriction);
 
-            Tsukino::ECS::Entity visual = AttachModelVisual(registry, e, m_layout.coinModel, hlslpp::float3(1.0f, 1.0f, 1.0f), CoinHalfExtent(),
-                                                            m_layout.coinModelRotation, false, 1.0f);
-
-            // 金属のマテリアル（Table.json の coin.material）に差し替える。モデルのマテリアルはそのまま残る
-            if(!m_layout.coinMaterial.empty() && m_assetManager) {
-                Tsukino::Asset::AssetRef material(m_assetManager->Load(Tsukino::Core::Path(m_layout.coinMaterial)));
-                material.path = m_layout.coinMaterial;
-                registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(visual).materials.assign(1, material);
-            }
-            Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(visual);
-            rim.active                                   = true;
-            rim.rimColor                                 = m_stage.coinColor;
-            rim.rimIntensity                             = m_stage.coinGlow;
-            rim.rimPower                                 = m_stage.prizeRimPower;
+            AttachCoinLook(registry, e);
         }
 
         // 向き（剛体は最初のフレームにこの向きで作られる。見た目のモデルは子なので一緒に回る）
@@ -301,6 +288,42 @@ namespace FruitMagic {
         prize.value                = m_layout.coinValue;
 
         return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! コインの見た目だけ（当たり判定・物理・景品の情報を持たない）を生成します。
+    //----------------------------------------------------------------------------
+    Tsukino::ECS::Entity PrizeFactory::CreateCoinVisual(Tsukino::ECS::Registry& registry, const hlslpp::float3& position) {
+        if(m_layout.coinModel.empty()) {
+            // モデルの指定が無ければ、金色の箱（台のコインと同じ）
+            return CreateVisualBox(registry, position, CoinHalfExtent(), 1.0f, m_stage.coinColor);
+        }
+        Tsukino::ECS::Entity                       e         = registry.CreateEntity();
+        Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+        transform.position                                   = position;
+        transform.dirty                                      = true;
+        AttachCoinLook(registry, e);
+        return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 丸いコインの見た目（モデル・金属のマテリアル・輪郭の光）を子として付けます。
+    //----------------------------------------------------------------------------
+    void PrizeFactory::AttachCoinLook(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity coin) {
+        Tsukino::ECS::Entity visual = AttachModelVisual(registry, coin, m_layout.coinModel, hlslpp::float3(1.0f, 1.0f, 1.0f), CoinHalfExtent(),
+                                                        m_layout.coinModelRotation, false, 1.0f);
+
+        // 金属のマテリアル（Table.json の coin.material）に差し替える。モデルのマテリアルはそのまま残る
+        if(!m_layout.coinMaterial.empty() && m_assetManager) {
+            Tsukino::Asset::AssetRef material(m_assetManager->Load(Tsukino::Core::Path(m_layout.coinMaterial)));
+            material.path = m_layout.coinMaterial;
+            registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(visual).materials.assign(1, material);
+        }
+        Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(visual);
+        rim.active                                   = true;
+        rim.rimColor                                 = m_stage.coinColor;
+        rim.rimIntensity                             = m_stage.coinGlow;
+        rim.rimPower                                 = m_stage.prizeRimPower;
     }
 
     //----------------------------------------------------------------------------

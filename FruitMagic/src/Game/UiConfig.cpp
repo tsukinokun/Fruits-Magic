@@ -29,6 +29,35 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
+        //! 項目があればスロットの置き方を読み込みます。
+        //! @param  [in]     obj 読み込み元のオブジェクト
+        //! @param  [in]     key 項目名
+        //! @param  [in,out] out 読み込み先（無い要素はそのまま）
+        //--------------------------------------------------------------
+        void ReadSlot(const Json::Value& obj, const char* key, SlotLayout& out) {
+            const Json::Value* slot = Json::FindObject(obj, key);
+            if(!slot)
+                return;
+            Json::ReadVec(*slot, "center", out.center);
+            Json::ReadVec(*slot, "panelSize", out.panelSize);
+            Json::ReadColor(*slot, "panelColor", out.panelColor);
+            Json::Read(*slot, "windowOffsetY", out.windowOffsetY);
+            Json::ReadVec(*slot, "windowSize", out.windowSize);
+            Json::Read(*slot, "windowSpacing", out.windowSpacing);
+            Json::ReadColor(*slot, "windowColor", out.windowColor);
+            Json::Read(*slot, "flashBorder", out.flashBorder);
+            Json::ReadColor(*slot, "flashColor", out.flashColor);
+            Json::Read(*slot, "symbolSize", out.symbolSize);
+            Json::Read(*slot, "symbolPitch", out.symbolPitch);
+            Json::Read(*slot, "spinSpeed", out.spinSpeed);
+            Json::Read(*slot, "reachSpeed", out.reachSpeed);
+            Json::Read(*slot, "stopSeconds", out.stopSeconds);
+            Json::Read(*slot, "overshoot", out.overshoot);
+            out.symbolPitch = std::max(1.0f, out.symbolPitch);
+            out.stopSeconds = std::max(0.02f, out.stopSeconds);
+        }
+
+        //--------------------------------------------------------------
         //! 文字の置き方 {position, scale, color, align} を読み込みます。
         //! @param  [in]     value 読み込み元のオブジェクト
         //! @param  [in,out] out   読み込み先（無い要素はそのまま）
@@ -55,7 +84,7 @@ namespace FruitMagic {
         hudTexts["harvestTotal"] = {hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left, true};
         hudTexts["harvestPopup"] = {hlslpp::float2(72.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f), UiAlign::Left, true};
         hudTexts["relief"]       = {hlslpp::float2(72.0f, 248.0f), 0.8f, hlslpp::float4(0.75f, 1.0f, 0.85f, 1.0f), UiAlign::Left};
-        hudTexts["roulette"]     = {hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f), UiAlign::Center, true, 640.0f};
+        hudTexts["roulette"]     = {hlslpp::float2(640.0f, 126.0f), 0.85f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f), UiAlign::Center, true, 640.0f};
         hudTexts["controlsHint"] = {hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f), UiAlign::Left};
         hudTexts["notice"]       = {hlslpp::float2(640.0f, 250.0f), 1.15f, hlslpp::float4(1.0f, 0.75f, 0.95f, 1.0f), UiAlign::Center, true};
     }
@@ -342,6 +371,20 @@ namespace FruitMagic {
             Json::Read(*timing, "muteNotice", muteNoticeSeconds);
             Json::Read(*timing, "growNotice", growNoticeSeconds);
             Json::Read(*timing, "musicRestart", musicRestartDelay);
+        }
+        ReadSlot(doc, "slot", slot);
+        ReadSlot(doc, "jackpotSlot", jackpotSlot);
+        if(const Json::Value* lamp = Json::FindObject(doc, "slotLamps")) {
+            Json::Read(*lamp, "offsetY", slotLampOffsetY);
+            Json::Read(*lamp, "size", slotLampSize);
+            Json::Read(*lamp, "gap", slotLampGap);
+            Json::ReadColor(*lamp, "on", slotLampOn);
+            Json::ReadColor(*lamp, "off", slotLampOff);
+        }
+        if(const Json::Value* slotFx = Json::FindObject(doc, "slotEffects")) {
+            Json::Read(*slotFx, "flashSeconds", slotFlashSeconds);
+            Json::Read(*slotFx, "flySize", slotFlySize);
+            Json::Read(*slotFx, "flyArc", slotFlyArc);
         }
         if(const Json::Value* loading = Json::FindObject(doc, "loading")) {
             Json::Read(*loading, "minSeconds", loadingMinSeconds);

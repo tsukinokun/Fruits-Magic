@@ -23,12 +23,14 @@ namespace FruitMagic {
         Json::Read(doc, "hitChance", hitChance);
         Json::Read(doc, "coinChance", coinChance);
         Json::Read(doc, "coinAmount", coinAmount);
-        Json::Read(doc, "spinSeconds", spinSeconds);
         Json::Read(doc, "resultSeconds", resultSeconds);
         Json::Read(doc, "maxStock", maxStock);
         Json::Read(doc, "checkerRange", checkerRange);
         Json::Read(doc, "checkerPeriod", checkerPeriod);
-        Json::Read(doc, "flipInterval", flipInterval);
+        Json::ReadFloats(doc, "reelStopSeconds", reelStopSeconds.data(), kReelCount);
+        Json::Read(doc, "reachExtraSeconds", reachExtraSeconds);
+        Json::Read(doc, "reachMissChance", reachMissChance);
+        Json::Read(doc, "flySeconds", flySeconds);
         Json::Read(doc, "fruitSpawnMargin", fruitSpawnMargin);
         Json::Read(doc, "fruitSpawnLift", fruitSpawnLift);
         Json::Read(doc, "fruitSpawnBackMargin", fruitSpawnBackMargin);
@@ -37,7 +39,12 @@ namespace FruitMagic {
         coinChance   = std::clamp(coinChance, 0.0f, 1.0f);
         coinAmount   = std::max(0, coinAmount);
         maxStock     = std::max(1, maxStock);
-        flipInterval = std::max(0.02f, flipInterval);
+        // 左から順に止まるよう、前の列より後にする
+        for(int reel = 0; reel < kReelCount; ++reel)
+            reelStopSeconds[reel] = std::max(reelStopSeconds[reel], reel > 0 ? reelStopSeconds[reel - 1] + 0.05f : 0.1f);
+        reachExtraSeconds = std::max(0.0f, reachExtraSeconds);
+        reachMissChance   = std::clamp(reachMissChance, 0.0f, 1.0f);
+        flySeconds        = std::max(0.05f, flySeconds);
 
         Tsukino::Core::Log::Info("RouletteConfig: hitChance=" + std::to_string(hitChance) + " maxStock=" + std::to_string(maxStock));
         return true;

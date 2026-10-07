@@ -218,15 +218,32 @@ namespace FruitMagic::ECS {
                     m_pending.push_back("jackpotChance");
                 else if(roulette.phase == RoulettePhase::JackpotResult)
                     m_pending.push_back(roulette.jackpotWin ? "jackpotWin" : "rouletteMiss");
-            } else if(roulette.phase == RoulettePhase::Spinning && roulette.displayFruit != m_lastDisplayFruit) {
-                // 回転中は表示が切り替わるたびにチッ
-                m_pending.push_back("rouletteTick");
-            } else if(roulette.phase == RoulettePhase::JackpotSpin && roulette.jackpotDisplay != m_lastJackpotDisplay) {
-                m_pending.push_back("rouletteTick");
             }
-            m_lastPhase          = roulette.phase;
-            m_lastDisplayFruit   = roulette.displayFruit;
-            m_lastJackpotDisplay = roulette.jackpotDisplay;
+
+            //--------------------------------------------------------------
+            // スロットが回っている間: 一定の間隔でチッ、列が止まるたびにカチッ、2列そろったらリーチの音
+            //--------------------------------------------------------------
+            const bool spinning = roulette.phase == RoulettePhase::Spinning || roulette.phase == RoulettePhase::JackpotSpin;
+            if(roulette.spinId != m_lastSpinId) {
+                m_lastSpinId       = roulette.spinId;
+                m_lastReelsStopped = 0;
+                m_lastTick         = -1;
+            }
+            if(spinning) {
+                if(roulette.reelsStopped > m_lastReelsStopped) {
+                    m_pending.push_back("reelStop");
+                    if(roulette.reach && roulette.reelsStopped == kReelCount - 1)
+                        m_pending.push_back("reach");
+                } else if(roulette.reelsStopped < kReelCount) {
+                    constexpr float kTickInterval = 0.09f;    // 絵柄が1つ流れるくらいの間隔
+                    const int       tick          = static_cast<int>(roulette.spinTime / kTickInterval);
+                    if(tick != m_lastTick)
+                        m_pending.push_back("rouletteTick");
+                    m_lastTick = tick;
+                }
+                m_lastReelsStopped = roulette.reelsStopped;
+            }
+            m_lastPhase = roulette.phase;
         }
 
         for(const std::string& name : m_pending)

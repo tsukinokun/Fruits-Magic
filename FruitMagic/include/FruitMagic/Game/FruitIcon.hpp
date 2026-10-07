@@ -18,6 +18,9 @@ namespace Tsukino::ECS {
 // 名前空間 : FruitMagic
 namespace FruitMagic {
 
+    //! SetFruitIcon に果物の代わりに渡すと、コインを出す値です（-1 は空）。
+    inline constexpr int kFruitIconCoin = -2;
+
     //! 画面に出す果物の置き台を作ります（中身はまだ空。SetFruitIcon で果物を入れる）。
     //! @param  [in] registry       レジストリ
     //! @param  [in] screenPosition 出す位置（画面ピクセル。anchor があるときは anchor からのずらし量）
@@ -30,7 +33,7 @@ namespace FruitMagic {
     //! 置き台に出す果物を設定します。今と同じなら何もしません（毎フレーム呼んでよい）。
     //! @param  [in] registry     レジストリ
     //! @param  [in] holder       置き台
-    //! @param  [in] fruitIndex   果物の添字（-1 なら空にする）
+    //! @param  [in] fruitIndex   果物の添字（-1 なら空にする。kFruitIconCoin ならコイン）
     //! @param  [in] variantIndex バリエーションの添字
     //! @param  [in] silhouette   黒いシルエットで出すか
     //! @param  [in] sizePixels   大きさ（果物の外形のいちばん長い向きのピクセル数）

@@ -269,6 +269,18 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! 指定の果樹の段階で出現できる果物から、出現の重みで1つ選びます。
     //----------------------------------------------------------------------------
+    std::vector<int> FruitCatalog::SpawnableFruits(int treeLevel) const {
+        std::vector<int> result;
+        for(size_t i = 0; i < m_fruits.size(); ++i) {
+            if(m_fruits[i].unlockTreeLevel <= treeLevel && m_fruits[i].spawnWeight > 0.0f)
+                result.push_back(static_cast<int>(i));
+        }
+        return result;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 指定の果樹の段階で出現できる果物から、出現の重みで1つ選びます。
+    //----------------------------------------------------------------------------
     int FruitCatalog::PickSpawnable(int treeLevel, std::mt19937& rng) const {
         float total = 0.0f;
         for(const FruitDef& def : m_fruits) {

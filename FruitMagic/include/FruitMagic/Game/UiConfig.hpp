@@ -42,6 +42,26 @@ namespace FruitMagic {
         bool           bold  = false;                                     // 太字のフォントを使うか（UiFonts）
     };
 
+    //! スロット（3リール）の置き方と色です。ふだんの小さなスロットと、ジャックポットの大きなスロットで同じ形を使います。
+    struct SlotLayout {
+        hlslpp::float2 center        = hlslpp::float2(640.0f, 66.0f);                     // 板の中心
+        hlslpp::float2 panelSize     = hlslpp::float2(260.0f, 108.0f);                    // 板の大きさ
+        hlslpp::float4 panelColor    = hlslpp::float4(0.12f, 0.06f, 0.18f, 0.92f);        // 板の色
+        float          windowOffsetY = -6.0f;                                             // 板の中心からリールの窓の中心まで
+        hlslpp::float2 windowSize    = hlslpp::float2(70.0f, 74.0f);                      // リールの窓の大きさ（この外の絵柄は切れる）
+        float          windowSpacing = 80.0f;                                             // 窓の間隔（中心から中心）
+        hlslpp::float4 windowColor   = hlslpp::float4(1.0f, 0.97f, 0.9f, 1.0f);          // 窓の地の色
+        float          flashBorder   = 5.0f;                                              // 窓の周りの光る縁の太さ
+        hlslpp::float4 flashColor    = hlslpp::float4(1.0f, 0.85f, 0.3f, 1.0f);           // 止まったとき・リーチ・当たりで光る縁の色
+        float          symbolSize    = 46.0f;                                             // 絵柄（3D の果物・コイン）の大きさ
+        float          symbolPitch   = 56.0f;                                             // 絵柄の縦の間隔
+        float          spinSpeed     = 900.0f;                                            // 回っているときの絵柄の速さ（ピクセル/秒）
+        float          reachSpeed    = 320.0f;                                            // リーチの3列目の速さ（ゆっくり）
+        float          stopSeconds   = 0.25f;                                             // 止まり始めてから止まるまで（少し行き過ぎて戻る）
+        float          overshoot     = 1.6f;                                              // 止まるときの行き過ぎの強さ（0 なら行き過ぎない）
+        int            sortOrder     = 2;                                                 // 重ね順（板。窓・絵柄・縁はこれより上に順に重ねる）
+    };
+
     //! 画面の UI の配置・色・表示時間です。Registry のコンテキストに置きます。
     struct UiConfig {
         //--------------------------------------------------------------
@@ -344,6 +364,22 @@ namespace FruitMagic {
         hlslpp::float4 loadingFrameColor   = hlslpp::float4(0.05f, 0.02f, 0.08f, 1.0f);
         hlslpp::float4 loadingFillColor    = hlslpp::float4(1.0f, 0.75f, 0.35f, 1.0f);
         UiFont         loadingText         = {1.1f, hlslpp::float4(1.0f, 0.92f, 0.85f, 1.0f), true};
+
+        //--------------------------------------------------------------
+        // ルーレット（3リールのスロット）。ふだんは上の真ん中に小さく、ジャックポットチャンスは真ん中に大きく出す
+        //--------------------------------------------------------------
+        SlotLayout     slot;                                                                // ふだんのスロット
+        SlotLayout     jackpotSlot     = {hlslpp::float2(640.0f, 330.0f), hlslpp::float2(560.0f, 230.0f), hlslpp::float4(0.35f, 0.22f, 0.04f, 0.95f),
+                                          -12.0f, hlslpp::float2(150.0f, 170.0f), 170.0f, hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f), 8.0f,
+                                          hlslpp::float4(1.0f, 0.8f, 0.15f, 1.0f), 100.0f, 120.0f, 1500.0f, 420.0f, 0.3f, 1.6f, 12};    // ジャックポットの大きなスロット（金色）
+        float          slotLampOffsetY = 43.0f;                                            // ふだんのスロットの板の中心から「のこり」の玉まで
+        float          slotLampSize    = 9.0f;                                             // 玉の大きさ
+        float          slotLampGap     = 16.0f;                                            // 玉の間隔
+        hlslpp::float4 slotLampOn      = hlslpp::float4(1.0f, 0.85f, 0.3f, 1.0f);          // ためている回転の玉
+        hlslpp::float4 slotLampOff     = hlslpp::float4(0.3f, 0.25f, 0.35f, 1.0f);         // 空の玉
+        float          slotFlashSeconds = 0.35f;                                           // 列が止まったときに縁が光っている時間
+        float          slotFlySize      = 46.0f;                                           // 当たりの果物が飛び始めるときの大きさ（着くときは台の上の大きさ）
+        float          slotFlyArc       = 60.0f;                                           // 飛ぶときに上へふくらむ高さ
 
         //! 既定の HUD の文字の置き方を入れます（コンストラクタ。JSON に無い種類はこのまま）。
         UiConfig();
