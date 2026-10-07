@@ -305,36 +305,27 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     Tsukino::ECS::Entity PrizeFactory::CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, int variantIndex,
                                                    const hlslpp::float3& color, float glow, const hlslpp::float3& position) {
-        // 見た目の色は果物（バリエーション）の色（MaterialPropertyBlockComponent でマテリアルの基本色を置き換える）。
-        // 作り込んだモデルで通常の色のときは、モデル自身の色のまま（tintBase が false のとき）
-        const bool           keepOwnColor = def.customModel && !def.tintBase && color.x == def.color.x && color.y == def.color.y && color.z == def.color.z;
-        const hlslpp::float3 tint         = keepOwnColor ? hlslpp::float3(1.0f, 1.0f, 1.0f) : color;
-        const ModelInfo&     modelInfo    = GetModel(def.modelPath);
-        Tsukino::ECS::Entity e            = registry.CreateEntity();
+        Tsukino::ECS::Entity e = registry.CreateEntity();
 
         //--------------------------------------------------------------
-        // 当たり判定の外形と、それに見た目を合わせるための大きさ
+        // 当たり判定の外形（見た目は AttachFruitLook が同じ外形に合わせる）
         //--------------------------------------------------------------
         Tsukino::BuiltIn::ECS::CollisionComponent& collision = registry.AddComponent<Tsukino::BuiltIn::ECS::CollisionComponent>(e);
         collision.isSensor                                   = false;
 
-        hlslpp::float3 visualHalfExtent;
         switch(def.shape) {
             case FruitShape::Box:
                 collision.type   = Tsukino::BuiltIn::ECS::ColliderType::Box;
                 collision.extent = def.halfExtent;
-                visualHalfExtent = def.halfExtent;
                 break;
             case FruitShape::Capsule:
                 collision.type   = Tsukino::BuiltIn::ECS::ColliderType::Capsule;
                 collision.extent = hlslpp::float3(def.radius, def.halfHeight, 0.0f);    // Capsule は x が半径、y が円柱部分の半分の高さ
-                visualHalfExtent = hlslpp::float3(def.radius, def.halfHeight + def.radius, def.radius);
                 break;
             case FruitShape::Sphere:
             default:
                 collision.type   = Tsukino::BuiltIn::ECS::ColliderType::Sphere;
                 collision.extent = hlslpp::float3(def.radius, 0.0f, 0.0f);    // Sphere は x が半径
-                visualHalfExtent = hlslpp::float3(def.radius, def.radius, def.radius);
                 break;
         }
 
@@ -342,27 +333,7 @@ namespace FruitMagic {
         transform.position                                   = position;
         transform.dirty                                      = true;
 
-        //--------------------------------------------------------------
-        // 見た目。作り込んだモデルは子に置いて当たり判定に合わせる（原点が底にあるなど、中心がずれているため）。
-        // 球・箱を組み合わせた見た目は、今までどおりこのエンティティを拡縮して合わせる
-        //--------------------------------------------------------------
-        Tsukino::ECS::Entity visual = e;
-        if(def.customModel) {
-            visual = AttachModelVisual(registry, e, def.modelPath, tint, visualHalfExtent, def.modelRotation, true, def.modelScale);
-        } else {
-            transform.scale = visualHalfExtent / modelInfo.halfExtent;
-            Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
-            model.modelHandle                            = modelInfo.handle;
-            model.visible                                = true;
-            SetColor(registry, e, modelInfo, tint);
-        }
-
-        // 輪郭を果物の色で少し光らせて、台の上で目立たせる（ポップな見た目の仮演出）
-        Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(visual);
-        rim.active                                   = true;
-        rim.rimColor                                  = color;
-        rim.rimIntensity                              = glow;
-        rim.rimPower                                  = m_stage.prizeRimPower;
+        AttachFruitLook(registry, e, def, color, glow);
 
         Tsukino::BuiltIn::ECS::RigidbodyComponent& rb = registry.AddComponent<Tsukino::BuiltIn::ECS::RigidbodyComponent>(e);
         SetupDynamicBody(rb, m_layout.fruitFriction);
@@ -374,10 +345,74 @@ namespace FruitMagic {
         prize.value                = def.value;
         prize.fruitIndex           = fruitIndex;
         prize.variantIndex         = variantIndex;
+        return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 果物の見た目だけ（当たり判定・物理・景品の情報を持たない）を生成します。
+    //----------------------------------------------------------------------------
+    Tsukino::ECS::Entity PrizeFactory::CreateFruitVisual(Tsukino::ECS::Registry& registry, const FruitDef& def, const hlslpp::float3& color, float glow,
+                                                         const hlslpp::float3& position) {
+        Tsukino::ECS::Entity                       e         = registry.CreateEntity();
+        Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+        transform.position                                   = position;
+        transform.dirty                                      = true;
+
+        AttachFruitLook(registry, e, def, color, glow);
+        return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 果物の見た目の大きさ（当たり判定の外接の半サイズ）を返します。
+    //----------------------------------------------------------------------------
+    hlslpp::float3 PrizeFactory::FruitHalfExtent(const FruitDef& def) {
+        switch(def.shape) {
+            case FruitShape::Box: return def.halfExtent;
+            case FruitShape::Capsule: return hlslpp::float3(def.radius, def.halfHeight + def.radius, def.radius);
+            case FruitShape::Sphere:
+            default: return hlslpp::float3(def.radius, def.radius, def.radius);
+        }
+    }
+
+    //----------------------------------------------------------------------------
+    //! 果物の見た目（モデル・色・輪郭の光・飾りのパーツ）を付けます。
+    //----------------------------------------------------------------------------
+    void PrizeFactory::AttachFruitLook(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity fruit, const FruitDef& def, const hlslpp::float3& color,
+                                       float glow) {
+        // 見た目の色は果物（バリエーション）の色（MaterialPropertyBlockComponent でマテリアルの基本色を置き換える）。
+        // 作り込んだモデルで通常の色のときは、モデル自身の色のまま（tintBase が false のとき）
+        const bool           keepOwnColor = def.customModel && !def.tintBase && color.x == def.color.x && color.y == def.color.y && color.z == def.color.z;
+        const hlslpp::float3 tint         = keepOwnColor ? hlslpp::float3(1.0f, 1.0f, 1.0f) : color;
+        const ModelInfo&     modelInfo    = GetModel(def.modelPath);
+        const hlslpp::float3 halfExtent   = FruitHalfExtent(def);
+
+        //--------------------------------------------------------------
+        // 作り込んだモデルは子に置いて外形に合わせる（原点が底にあるなど、中心がずれているため）。
+        // 球・箱を組み合わせた見た目は、今までどおりこのエンティティを拡縮して合わせる
+        //--------------------------------------------------------------
+        Tsukino::ECS::Entity visual = fruit;
+        if(def.customModel) {
+            visual = AttachModelVisual(registry, fruit, def.modelPath, tint, halfExtent, def.modelRotation, true, def.modelScale);
+        } else {
+            Tsukino::BuiltIn::ECS::TransformComponent& transform = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(fruit);
+            transform.scale                                      = halfExtent / modelInfo.halfExtent;
+            transform.dirty                                      = true;
+
+            Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(fruit);
+            model.modelHandle                            = modelInfo.handle;
+            model.visible                                = true;
+            SetColor(registry, fruit, modelInfo, tint);
+        }
+
+        // 輪郭を果物の色で少し光らせて、台の上で目立たせる（ポップな見た目の仮演出）
+        Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(visual);
+        rim.active                                   = true;
+        rim.rimColor                                 = color;
+        rim.rimIntensity                             = glow;
+        rim.rimPower                                 = m_stage.prizeRimPower;
 
         if(!def.customModel)
-            AttachParts(registry, e, def, modelInfo.halfExtent);
-        return e;
+            AttachParts(registry, fruit, def, modelInfo.halfExtent);
     }
 
     //----------------------------------------------------------------------------

@@ -71,6 +71,10 @@
     "noFairy": "妖精: まだいない（強化で来る）",
     "offline": "おるすばん: 最大 {limit}"
   },
+  "cutin": {
+    "registered": "図鑑に登録！",
+    "variant": "{variant}が出た！"
+  },
   "popup": {
     "fruit": "{name}！",
     "coins": "+{n}"
@@ -89,6 +93,7 @@
     "se": "効果音",
     "mute": "消音 (M)",
     "hint": "画面下の操作説明",
+    "cutin": "果物のカットイン",
     "minus": "−",
     "plus": "＋",
     "percent": "{n}%",

@@ -37,6 +37,7 @@
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
+#include <FruitMagic/ECS/Component/CutInElementComponent.hpp>
 #include <FruitMagic/ECS/Component/EffectComponents.hpp>
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
@@ -53,6 +54,7 @@
 #include <FruitMagic/ECS/System/CheckerSystem.hpp>
 #include <FruitMagic/ECS/System/CoinShowerSystem.hpp>
 #include <FruitMagic/ECS/System/CoinLauncherSystem.hpp>
+#include <FruitMagic/ECS/System/CutInSystem.hpp>
 #include <FruitMagic/ECS/System/FairySystem.hpp>
 #include <FruitMagic/ECS/System/HarvestSystem.hpp>
 #include <FruitMagic/ECS/System/EffectsSystem.hpp>
@@ -113,6 +115,7 @@
 #include <Tsukino/BuiltIn/ECS/Component/PointLightComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SkyAtmosphereComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/RimGlowComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/ScreenModelComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/AmbientParticleComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/UIClipComponent.hpp>
 
@@ -248,6 +251,7 @@ namespace FruitMagic {
             Sound,               // このフレームの出来事の効果音
             Hud,
             SidePanel,           // 画面の左右のパネル（このフレームの収穫・強化の結果を出す）
+            CutIn,               // 果物が取れたときのカットイン（このフレームの収穫・図鑑登録で出す）
             BalanceProbe,
             Save,
             Light,
@@ -304,6 +308,7 @@ namespace FruitMagic {
                           (int)SystemPriority::Sound);
         m_scene.AddSystem(std::make_shared<ECS::HudSystem>(eventBus), (int)SystemPriority::Hud);
         m_scene.AddSystem(std::make_shared<ECS::SidePanelSystem>(), (int)SystemPriority::SidePanel);
+        m_scene.AddSystem(std::make_shared<ECS::CutInSystem>(eventBus), (int)SystemPriority::CutIn);
         m_scene.AddSystem(std::make_shared<ECS::SaveSystem>(), (int)SystemPriority::Save);
 
         // バランス計測用の自動プレイ（セーブは読み書きしない）
@@ -1165,6 +1170,72 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
+        // 果物が取れたときのカットイン（画面の中ほどの帯・縁の線・果物・見出し・名前）。最初は隠しておき、CutInSystem が出す。
+        // 重ね順は HUD・ボタン（〜11）より上、図鑑などの画面（20〜）より下で、帯 → 果物 → 文字の順
+        //--------------------------------------------------------------
+        {
+            constexpr int kBandOrder  = 15;
+            constexpr int kFruitOrder = 16;
+            constexpr int kTextOrder  = 17;
+
+            // 部品にする（出すときのスケールと止まる位置を覚えて隠す）
+            auto addPart = [&](Tsukino::ECS::Entity e, ECS::CutInPart part) {
+                Tsukino::BuiltIn::ECS::TransformComponent& t = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+                ECS::CutInElementComponent& element         = registry.AddComponent<ECS::CutInElementComponent>(e);
+                element.part                                = part;
+                element.shownScale                          = t.scale;
+                element.basePosition                        = hlslpp::float2(t.position.xy);
+                if(registry.HasComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e))
+                    t.scale = hlslpp::float3(0.0f, 0.0f, 1.0f);
+                return e;
+            };
+
+            //--------------------------------------------------------------
+            // 帯と上下の縁の線。帯は傾けるので、画面の端まで届くよう横に長くとり、
+            // 縁の線は帯の中心から傾きに沿った位置に置く
+            //--------------------------------------------------------------
+            const float              bandWidth = ui.screenWidth * 1.3f;
+            const float              tilt      = ui.cutInBandTilt * kPi / 180.0f;
+            const hlslpp::quaternion rotation  = PrizeFactory::EulerDegrees(hlslpp::float3(0.0f, 0.0f, ui.cutInBandTilt));
+            const hlslpp::float2     center(ui.ScreenCenter().x, ui.cutInCenterY);
+
+            Tsukino::ECS::Entity band = createPanel(center, hlslpp::float2(bandWidth, ui.cutInBandHeight), ui.cutInBandColor, kBandOrder);
+            registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(band).rotation = rotation;
+            addPart(band, ECS::CutInPart::Band);
+            for(float side : {-1.0f, 1.0f}) {
+                const float          offset = side * (ui.cutInBandHeight + ui.cutInEdgeHeight) * 0.5f;
+                const hlslpp::float2 edgeCenter(float(center.x) - std::sin(tilt) * offset, float(center.y) + std::cos(tilt) * offset);
+                Tsukino::ECS::Entity edge = createPanel(edgeCenter, hlslpp::float2(bandWidth, ui.cutInEdgeHeight), kWhite, kBandOrder);
+                registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(edge).rotation = rotation;
+                addPart(edge, ECS::CutInPart::Edge);
+            }
+
+            //--------------------------------------------------------------
+            // 果物の置き台。ScreenModelComponent で、子に付けた果物の見た目を UI の層に描く。
+            // ワールドには描かれないので、置き台の位置は台から離しておくだけでよい
+            //--------------------------------------------------------------
+            {
+                Tsukino::ECS::Entity                       holder = m_scene.CreateEntity();
+                Tsukino::BuiltIn::ECS::TransformComponent& t      = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(holder);
+                t.position                                        = hlslpp::float3(0.0f, -1000.0f, 0.0f);
+                t.scale                                           = hlslpp::float3(0.0f, 0.0f, 0.0f);
+                t.dirty                                           = true;
+
+                Tsukino::BuiltIn::ECS::ScreenModelComponent& screen = registry.AddComponent<Tsukino::BuiltIn::ECS::ScreenModelComponent>(holder);
+                screen.screenPosition                               = hlslpp::float2(ui.cutInFruitX, ui.cutInCenterY);
+                screen.sortOrder                                    = kFruitOrder;
+
+                ECS::CutInElementComponent& element = registry.AddComponent<ECS::CutInElementComponent>(holder);
+                element.part                        = ECS::CutInPart::Fruit;
+            }
+
+            // 見出しと名前（果物の右。文字の濃さは CutInSystem が出し入れに合わせて変える）
+            const float textWidth = ui.screenWidth - ui.cutInTextX - ui.textPadding;
+            addPart(createFontText(hlslpp::float2(ui.cutInTextX, ui.cutInCenterY + ui.cutInTitleOffsetY), ui.cutInTitle, kLeft, kTextOrder, textWidth), ECS::CutInPart::Title);
+            addPart(createFontText(hlslpp::float2(ui.cutInTextX, ui.cutInCenterY + ui.cutInNameOffsetY), ui.cutInName, kLeft, kTextOrder, textWidth), ECS::CutInPart::Name);
+        }
+
+        //--------------------------------------------------------------
         // 画面の要素にする（開閉に合わせて MenuSystem が表示を切り替える）。
         // text は決まった文字（タイトル・見出し・説明）。空なら画面ごとのシステムが書く
         //--------------------------------------------------------------
@@ -1411,7 +1482,7 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
-        // オプション画面。タイトルの下をスクロールする領域にし、上から設定（音量・消音・操作説明の表示）と
+        // オプション画面。タイトルの下をスクロールする領域にし、上から設定（音量・消音・操作説明の表示・カットイン）と
         // 「ゲームを終了」を並べる。「データを消して最初から」は最初に見える範囲より下に置き、スクロールしないと見えない。
         // ボタンの文字と色、音量の表示は OptionsSystem が書く
         //--------------------------------------------------------------
@@ -1464,7 +1535,9 @@ namespace FruitMagic {
             addButton(ECS::OptionsElementKind::Mute, hlslpp::float2(menuLeft + ui.optionsValueX, rowY(2)), ui.optionsToggleSize);
             label(3, "options.hint");
             addButton(ECS::OptionsElementKind::Hint, hlslpp::float2(menuLeft + ui.optionsValueX, rowY(3)), ui.optionsToggleSize);
-            addButton(ECS::OptionsElementKind::Quit, hlslpp::float2(labelX + ui.optionsQuitSize.x * 0.5f, rowY(4)), ui.optionsQuitSize);
+            label(4, "options.cutin");
+            addButton(ECS::OptionsElementKind::CutIn, hlslpp::float2(menuLeft + ui.optionsValueX, rowY(4)), ui.optionsToggleSize);
+            addButton(ECS::OptionsElementKind::Quit, hlslpp::float2(labelX + ui.optionsQuitSize.x * 0.5f, rowY(5)), ui.optionsQuitSize);
 
             //--------------------------------------------------------------
             // データ（スクロールした先）: 見出し・説明・「データを消して最初から」（押すと確認ウィンドウ）

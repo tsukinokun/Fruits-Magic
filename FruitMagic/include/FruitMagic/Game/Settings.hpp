@@ -16,6 +16,7 @@ namespace FruitMagic {
         float       seVolume         = 0.8f;     // 効果音の音量（0〜1、10% 刻み）
         bool        muted            = false;    // 消音中か（M キーでも切り替わる）
         bool        showControlsHint = true;     // 画面下に操作説明を出すか
+        bool        showCutIn        = true;     // 果物が取れたときのカットイン（図鑑に初めて載った・色違い）を出すか
         std::string path;                        // 保存先（空なら保存しない。バランス計測の自動プレイなど）
 
         //! 既定の保存先を返します（アセットルートの Saves/settings.json）。

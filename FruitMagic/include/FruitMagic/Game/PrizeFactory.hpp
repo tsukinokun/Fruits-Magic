@@ -81,6 +81,22 @@ namespace FruitMagic {
         Tsukino::ECS::Entity CreateFruit(Tsukino::ECS::Registry& registry, const FruitDef& def, int fruitIndex, int variantIndex, const hlslpp::float3& color,
                                          float glow, const hlslpp::float3& position);
 
+        //! 果物の見た目だけ（当たり判定・物理・景品の情報を持たない）を生成します。台の上の果物と同じ見た目で、
+        //! 演出（カットインなど）に使います。破棄は DestroyPrize で、飾りのパーツも一緒に消えます。
+        //! @param  [in] registry 生成先のレジストリ
+        //! @param  [in] def      果物の定義
+        //! @param  [in] color    見た目の色（バリエーションで決まる）
+        //! @param  [in] glow     輪郭の光の強さ（バリエーションで決まる）
+        //! @param  [in] position 中心のワールド座標
+        //! @return 生成したエンティティ（見た目は当たり判定の外接の箱 FruitHalfExtent に収まる）
+        Tsukino::ECS::Entity CreateFruitVisual(Tsukino::ECS::Registry& registry, const FruitDef& def, const hlslpp::float3& color, float glow,
+                                               const hlslpp::float3& position);
+
+        //! 果物の見た目の大きさ（当たり判定の外接の半サイズ）を返します。
+        //! @param  [in] def 果物の定義
+        //! @return 半サイズ
+        static hlslpp::float3 FruitHalfExtent(const FruitDef& def);
+
         //! 見た目だけの球（コライダー無し）を生成します。ちょうちんなどの飾りに使います。
         //! @param  [in] registry   生成先のレジストリ
         //! @param  [in] position   中心のワールド座標
@@ -115,6 +131,14 @@ namespace FruitMagic {
         const hlslpp::float3& CoinHalfExtent() const { return m_layout.coinHalfExtent; }
 
     private:
+
+        //! 果物の見た目（モデル・色・輪郭の光・飾りのパーツ）を付けます。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] fruit    果物のエンティティ（TransformComponent を持つ）
+        //! @param  [in] def      果物の定義
+        //! @param  [in] color    見た目の色
+        //! @param  [in] glow     輪郭の光の強さ
+        void AttachFruitLook(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity fruit, const FruitDef& def, const hlslpp::float3& color, float glow);
 
         //! 果物に飾りのパーツを付けます。
         //! @param  [in] registry         レジストリ

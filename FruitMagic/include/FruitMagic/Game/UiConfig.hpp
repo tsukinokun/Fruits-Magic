@@ -151,6 +151,30 @@ namespace FruitMagic {
         hlslpp::float4 sideDimColor        = hlslpp::float4(0.8f, 0.75f, 0.9f, 1.0f);   // 補足（まだ無い・足りない など）
 
         //--------------------------------------------------------------
+        // 果物が取れたときのカットイン（画面の中ほどの帯に、果物の 3D モデルと名前を出す）。
+        // 帯は横から伸びて入り、果物はぽんと出て回り、最後に縮んで消える
+        //--------------------------------------------------------------
+        float          cutInCenterY       = 330.0f;     // 帯の中心の高さ
+        float          cutInBandHeight    = 150.0f;     // 帯の高さ
+        float          cutInBandTilt      = -4.0f;      // 帯の傾き（度）
+        float          cutInEdgeHeight    = 6.0f;       // 帯の上下の縁の線の太さ（色は果物の色）
+        hlslpp::float4 cutInBandColor     = hlslpp::float4(0.12f, 0.05f, 0.18f, 0.95f);
+        float          cutInFruitX        = 500.0f;     // 果物の中心
+        float          cutInFruitSize     = 150.0f;     // 果物のいちばん長い向きの大きさ（ピクセル）
+        float          cutInFruitTilt     = 15.0f;      // 果物を手前へ傾ける角度（度。上から少し見下ろす）
+        float          cutInSpinSpeed     = 120.0f;     // 果物の回る速さ（度/秒）
+        float          cutInPopScale      = 1.2f;       // 出てくるときに一瞬大きくなる倍率
+        float          cutInTextX         = 600.0f;     // 文字の左端
+        float          cutInTitleOffsetY  = -26.0f;     // 帯の中心から見出しまで
+        float          cutInNameOffsetY   = 28.0f;      // 帯の中心から名前まで
+        UiFont         cutInTitle         = {1.25f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), true};
+        UiFont         cutInName          = {0.95f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f), true};
+        float          cutInInSeconds     = 0.25f;      // 入ってくる時間
+        float          cutInHoldSeconds   = 1.3f;       // 止まって見せる時間
+        float          cutInOutSeconds    = 0.25f;      // 消える時間
+        int            cutInMaxQueue      = 3;          // 続けて取れたときに順番待ちにする数（超えた分は出さない）
+
+        //--------------------------------------------------------------
         // 画面（図鑑・強化）の共通
         //--------------------------------------------------------------
         hlslpp::float2 menuCenter       = hlslpp::float2(640.0f, 340.0f);

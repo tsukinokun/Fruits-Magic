@@ -175,6 +175,31 @@ namespace FruitMagic {
             sideRecentRows = std::clamp(sideRecentRows, 0, 20);
             sideTableRows  = std::clamp(sideTableRows, 0, 20);
         }
+        if(const Json::Value* cutIn = Json::FindObject(doc, "cutIn")) {
+            Json::Read(*cutIn, "centerY", cutInCenterY);
+            Json::Read(*cutIn, "bandHeight", cutInBandHeight);
+            Json::Read(*cutIn, "bandTilt", cutInBandTilt);
+            Json::Read(*cutIn, "edgeHeight", cutInEdgeHeight);
+            Json::ReadColor(*cutIn, "bandColor", cutInBandColor);
+            Json::Read(*cutIn, "fruitX", cutInFruitX);
+            Json::Read(*cutIn, "fruitSize", cutInFruitSize);
+            Json::Read(*cutIn, "fruitTilt", cutInFruitTilt);
+            Json::Read(*cutIn, "spinSpeed", cutInSpinSpeed);
+            Json::Read(*cutIn, "popScale", cutInPopScale);
+            Json::Read(*cutIn, "textX", cutInTextX);
+            Json::Read(*cutIn, "titleOffsetY", cutInTitleOffsetY);
+            Json::Read(*cutIn, "nameOffsetY", cutInNameOffsetY);
+            ReadFont(*cutIn, "title", cutInTitle);
+            ReadFont(*cutIn, "name", cutInName);
+            Json::Read(*cutIn, "inSeconds", cutInInSeconds);
+            Json::Read(*cutIn, "holdSeconds", cutInHoldSeconds);
+            Json::Read(*cutIn, "outSeconds", cutInOutSeconds);
+            Json::Read(*cutIn, "maxQueue", cutInMaxQueue);
+            cutInInSeconds   = std::max(0.01f, cutInInSeconds);
+            cutInHoldSeconds = std::max(0.0f, cutInHoldSeconds);
+            cutInOutSeconds  = std::max(0.01f, cutInOutSeconds);
+            cutInMaxQueue    = std::max(0, cutInMaxQueue);
+        }
         if(const Json::Value* menu = Json::FindObject(doc, "menu")) {
             Json::ReadVec(*menu, "center", menuCenter);
             Json::ReadVec(*menu, "size", menuSize);

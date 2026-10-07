@@ -48,6 +48,7 @@ namespace FruitMagic {
         Json::Read(doc, "seVolume", seVolume);
         Json::Read(doc, "muted", muted);
         Json::Read(doc, "showControlsHint", showControlsHint);
+        Json::Read(doc, "showCutIn", showCutIn);
         StepVolume(bgmVolume, 0);
         StepVolume(seVolume, 0);
         return true;
@@ -73,6 +74,8 @@ namespace FruitMagic {
         writer.Bool(muted);
         writer.Key("showControlsHint");
         writer.Bool(showControlsHint);
+        writer.Key("showCutIn");
+        writer.Bool(showCutIn);
         writer.EndObject();
 
         //--------------------------------------------------------------

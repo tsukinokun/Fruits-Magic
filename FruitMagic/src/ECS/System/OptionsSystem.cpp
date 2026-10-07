@@ -82,6 +82,7 @@ namespace FruitMagic::ECS {
                     case OptionsElementKind::SeUp: Settings::StepVolume(settings.seVolume, 1); changed = true; break;
                     case OptionsElementKind::Mute: settings.muted = !settings.muted; changed = true; break;
                     case OptionsElementKind::Hint: settings.showControlsHint = !settings.showControlsHint; changed = true; break;
+                    case OptionsElementKind::CutIn: settings.showCutIn = !settings.showCutIn; changed = true; break;
                     case OptionsElementKind::Reset: registry.GetContext<OptionsState>().confirmStep = 1; break;    // 確認ウィンドウを出す
                     case OptionsElementKind::Quit:
                         if(registry.HasContext<SceneRequest>())
@@ -127,6 +128,11 @@ namespace FruitMagic::ECS {
                 case OptionsElementKind::Hint:
                     text   = texts.Get(settings.showControlsHint ? "options.show" : "options.hide");
                     color  = settings.showControlsHint ? ui.optionsToggleOn : ui.optionsToggleOff;
+                    tinted = true;
+                    break;
+                case OptionsElementKind::CutIn:
+                    text   = texts.Get(settings.showCutIn ? "options.on" : "options.off");
+                    color  = settings.showCutIn ? ui.optionsToggleOn : ui.optionsToggleOff;
                     tinted = true;
                     break;
                 case OptionsElementKind::Reset:
