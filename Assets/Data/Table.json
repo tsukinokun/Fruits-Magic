@@ -38,8 +38,9 @@
   },
   "launch": {
     "laneHalfWidth": 25.0,
-    "dropHeight": 1.5,
+    "dropHeight": 8.0,
     "markerHeight": 4.0,
+    "maxTiltDegrees": 35.0,
     "minClearance": 8.0
   },
   "coinShower": {

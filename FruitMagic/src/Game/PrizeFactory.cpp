@@ -245,7 +245,7 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! 景品のコインを生成します。
     //----------------------------------------------------------------------------
-    Tsukino::ECS::Entity PrizeFactory::CreateCoin(Tsukino::ECS::Registry& registry, const hlslpp::float3& position) {
+    Tsukino::ECS::Entity PrizeFactory::CreateCoin(Tsukino::ECS::Registry& registry, const hlslpp::float3& position, const hlslpp::quaternion& rotation) {
         Tsukino::ECS::Entity e = entt::null;
         if(m_layout.coinModel.empty()) {
             //--------------------------------------------------------------
@@ -293,11 +293,28 @@ namespace FruitMagic {
             rim.rimPower                                 = m_stage.prizeRimPower;
         }
 
+        // 向き（剛体は最初のフレームにこの向きで作られる。見た目のモデルは子なので一緒に回る）
+        registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).rotation = rotation;
+
         ECS::PrizeComponent& prize = registry.AddComponent<ECS::PrizeComponent>(e);
         prize.kind                 = ECS::PrizeKind::Coin;
         prize.value                = m_layout.coinValue;
 
         return e;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 落とすコインの向きをばらばらに決めます。
+    //----------------------------------------------------------------------------
+    hlslpp::quaternion PrizeFactory::RandomCoinRotation(std::mt19937& rng) const {
+        const float                           tilt = std::max(0.0f, m_layout.launchMaxTilt);
+        std::uniform_real_distribution<float> yaw(0.0f, 360.0f);
+        std::uniform_real_distribution<float> lean(-tilt, tilt);
+        // X → Y → Z の順に回すので、先に傾け、水平の向きで回す（傾いたまま向きがばらける）
+        const float x = lean(rng);
+        const float z = lean(rng);
+        const float y = yaw(rng);
+        return EulerDegrees(hlslpp::float3(x, y, z));
     }
 
     //----------------------------------------------------------------------------

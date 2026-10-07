@@ -80,7 +80,7 @@ namespace FruitMagic::ECS {
         std::uniform_real_distribution<float> randomZ(minZ, maxZ);
         for(int i = 0; i < count; ++i) {
             const hlslpp::float3 position(randomX(m_rng), layout.showerDropY, randomZ(m_rng));
-            factory.CreateCoin(registry, position);
+            factory.CreateCoin(registry, position, factory.RandomCoinRotation(m_rng));
             m_eventBus.Publish(EffectEvent{"showerCoin", position});
         }
         if(registry.HasContext<PlayStats>())

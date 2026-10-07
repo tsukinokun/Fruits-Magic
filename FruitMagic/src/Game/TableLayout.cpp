@@ -71,6 +71,7 @@ namespace FruitMagic {
             Json::Read(*launch, "laneHalfWidth", loaded.launchLaneHalfWidth);
             Json::Read(*launch, "dropHeight", loaded.launchDropHeight);
             Json::Read(*launch, "markerHeight", loaded.launchMarkerHeight);
+            Json::Read(*launch, "maxTiltDegrees", loaded.launchMaxTilt);
             Json::Read(*launch, "minClearance", loaded.minLaunchClearance);
         }
         if(const Json::Value* shower = Json::FindObject(doc, "coinShower")) {

@@ -81,7 +81,8 @@ namespace FruitMagic {
         // コインの投入
         //--------------------------------------------------------------
         float launchLaneHalfWidth = 25.0f;    // 投入位置を動かせる左右の範囲
-        float launchDropHeight    = 1.5f;     // プッシャー上面から投入位置までの高さ。高いとプッシャーにめり込んで背面パネルの下へ運ばれる
+        float launchDropHeight    = 8.0f;     // プッシャー上面から投入位置までの高さ（コインはここから落ちる）
+        float launchMaxTilt       = 35.0f;    // 落とすコイン（投入・妖精・シャワー）の傾きの最大（度。前後・左右それぞれ ±。水平の向きは 0〜360 度でばらばら）
         float launchMarkerHeight  = 4.0f;     // 投入位置から目印までの高さ（積もったコインに埋もれないよう）
         float minLaunchClearance  = 8.0f;     // 背面パネルの前面とプッシャーの前面の間に要る隙間（コインが落ちる場所）
 

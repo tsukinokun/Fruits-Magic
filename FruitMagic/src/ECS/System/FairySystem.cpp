@@ -71,7 +71,8 @@ namespace FruitMagic::ECS {
         const TableLayout& layout = GetTableLayout(registry);
         // プレイヤーと同じ投入位置の列（プッシャー上面の上）に入れる
         const float x = std::uniform_real_distribution<float>(-layout.launchLaneHalfWidth, layout.launchLaneHalfWidth)(m_rng);
-        registry.GetContext<PrizeFactory>().CreateCoin(registry, hlslpp::float3(x, layout.LaunchY(), layout.LaunchZ()));
+        PrizeFactory& factory = registry.GetContext<PrizeFactory>();
+        factory.CreateCoin(registry, hlslpp::float3(x, layout.LaunchY(), layout.LaunchZ()), factory.RandomCoinRotation(m_rng));
         if(registry.HasContext<PlayStats>())
             registry.GetContext<PlayStats>().fairyCoins += 1;
     }

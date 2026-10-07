@@ -100,7 +100,7 @@ namespace FruitMagic::ECS {
         // （反復中に TransformComponent を持つエンティティを増やすと反復が壊れるため）
         //--------------------------------------------------------------
         for(const hlslpp::float3& position : launchPositions) {
-            factory.CreateCoin(registry, position);
+            factory.CreateCoin(registry, position, factory.RandomCoinRotation(m_rng));    // 向きはばらばら（毎回違う落ち方になる）
         }
         if(registry.HasContext<PlayStats>())
             registry.GetContext<PlayStats>().coinsLaunched += static_cast<int>(launchPositions.size());

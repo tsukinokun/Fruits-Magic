@@ -15,6 +15,7 @@
 
 #include <hlsl++.h>
 
+#include <random>
 #include <string>
 #include <unordered_map>
 
@@ -66,8 +67,15 @@ namespace FruitMagic {
         //! 景品のコインを生成します。
         //! @param  [in] registry 生成先のレジストリ
         //! @param  [in] position 中心のワールド座標
+        //! @param  [in] rotation 向き（既定は水平。落とすコインは RandomCoinRotation でばらばらにする）
         //! @return 生成したエンティティ
-        Tsukino::ECS::Entity CreateCoin(Tsukino::ECS::Registry& registry, const hlslpp::float3& position);
+        Tsukino::ECS::Entity CreateCoin(Tsukino::ECS::Registry& registry, const hlslpp::float3& position,
+                                        const hlslpp::quaternion& rotation = hlslpp::quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+
+        //! 落とすコインの向きをばらばらに決めます。水平の向きは 0〜360 度、傾きは前後・左右それぞれ ±launch.maxTiltDegrees（Table.json）。
+        //! @param  [in,out] rng 乱数生成器
+        //! @return 向き
+        hlslpp::quaternion RandomCoinRotation(std::mt19937& rng) const;
 
         //! 果物を定義データから生成します。
         //! @param  [in] registry     生成先のレジストリ

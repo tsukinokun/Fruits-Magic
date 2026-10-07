@@ -6,6 +6,8 @@
 #pragma once
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 
+#include <random>
+
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
@@ -19,6 +21,7 @@ namespace FruitMagic::ECS {
         void Update(Tsukino::ECS::Registry& registry, float deltaTime) override;
 
     private:
-        int m_lastMouseX = -1;    // 前フレームのマウスX（動いたときだけマウスに追従させる）
+        int          m_lastMouseX = -1;                          // 前フレームのマウスX（動いたときだけマウスに追従させる）
+        std::mt19937 m_rng{std::random_device{}()};               // 投入するコインの向きの乱数
     };
 }    // namespace FruitMagic::ECS
