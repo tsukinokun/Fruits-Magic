@@ -40,6 +40,7 @@ project "FruitMagic"
 
     tsukino_link()             -- エンジンの include・lib・NuGet
     tsukino_release_payload()  -- 組み込みアセット・ツール・ライセンス条文、実行時の作業ディレクトリ
+    tsukino_icon("Assets/Icon/App.ico")  -- exe とウィンドウのアイコン（Tools/GenerateIcon.py で作ったもの）
 
     -- ゲーム自身のアセット。Debug はリポジトリルートを作業ディレクトリにして直接参照し、
     -- Release は exe の隣へコピーする
