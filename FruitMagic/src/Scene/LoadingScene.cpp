@@ -144,6 +144,8 @@ namespace FruitMagic {
             camera.projectionType                          = Tsukino::BuiltIn::ECS::CameraComponent::ProjectionType::Orthographic;
             camera.orthoSize                               = ui.screenHeight;
             camera.isPrimary                               = false;
+            // UI は 1280x720 の座標で作る。ウィンドウを広げたら縦横比を保って拡大し、真ん中に寄せる（エンジンの UICanvas）
+            camera.referenceResolution = hlslpp::float2(ui.screenWidth, ui.screenHeight);
         }
 
         //--------------------------------------------------------------
@@ -167,7 +169,8 @@ namespace FruitMagic {
         };
 
         // 背景（屋台の夕暮れに合わせた濃い紫）
-        createPanel(ui.ScreenCenter(), hlslpp::float2(ui.screenWidth, ui.screenHeight), ui.loadingBackColor, 0);
+        // ウィンドウの縦横比が違うと UI の左右（上下）に余白ができるので、そこまで覆うよう画面より大きくとる
+        createPanel(ui.ScreenCenter(), ui.FullScreenCover(), ui.loadingBackColor, 0);
 
         // バーの枠と中身（中身の幅は OnUpdate が進み具合に合わせて変える）
         createPanel(hlslpp::float2(ui.ScreenCenter().x, ui.loadingBarCenterY),

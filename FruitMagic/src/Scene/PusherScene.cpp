@@ -784,6 +784,8 @@ namespace FruitMagic {
             camera.projectionType                          = Tsukino::BuiltIn::ECS::CameraComponent::ProjectionType::Orthographic;
             camera.orthoSize                               = ui.screenHeight;
             camera.isPrimary                               = false;
+            // UI は 1280x720 の座標で作る。ウィンドウを広げたら縦横比を保って拡大し、真ん中に寄せる（エンジンの UICanvas）
+            camera.referenceResolution = hlslpp::float2(ui.screenWidth, ui.screenHeight);
         }
 
 #ifdef _DEBUG
@@ -914,7 +916,7 @@ namespace FruitMagic {
         // HUD の文字やボタンより奥に置き、文字が読めなくならないようにする
         //--------------------------------------------------------------
         {
-            Tsukino::ECS::Entity flash = createPanel(ui.ScreenCenter(), hlslpp::float2(ui.screenWidth, ui.screenHeight), hlslpp::float4(0.0f, 0.0f, 0.0f, 0.0f), -10);
+            Tsukino::ECS::Entity flash = createPanel(ui.ScreenCenter(), ui.FullScreenCover(), hlslpp::float4(0.0f, 0.0f, 0.0f, 0.0f), -10);
             registry.GetComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(flash).blendMode = Tsukino::BuiltIn::ECS::SpriteBlendMode::Additive;
             ECS::ScreenFlashComponent& component = registry.AddComponent<ECS::ScreenFlashComponent>(flash);
             component.fullScale                  = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(flash).scale;
@@ -1582,7 +1584,7 @@ namespace FruitMagic {
                 return e;
             };
 
-            Tsukino::ECS::Entity dimmer = createPanel(ui.ScreenCenter(), hlslpp::float2(ui.screenWidth, ui.screenHeight), ui.confirmDimColor, 40);
+            Tsukino::ECS::Entity dimmer = createPanel(ui.ScreenCenter(), ui.FullScreenCover(), ui.confirmDimColor, 40);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(dimmer);
             addPart(dimmer, ECS::OptionsDialogPart::Dimmer);
             Tsukino::ECS::Entity window = createPanel(ui.menuCenter, ui.confirmSize, ui.confirmColor, 41);

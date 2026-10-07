@@ -53,6 +53,10 @@ namespace FruitMagic {
         //! 画面の中心を返します。
         hlslpp::float2 ScreenCenter() const { return hlslpp::float2(screenWidth * 0.5f, screenHeight * 0.5f); }
 
+        //! 画面全体を覆う板の大きさを返します。ウィンドウの縦横比が UI と違うと、UI は真ん中に寄って
+        //! 左右（または上下）に余白ができるので、その余白まで覆えるよう画面の3倍にとります。
+        hlslpp::float2 FullScreenCover() const { return hlslpp::float2(screenWidth, screenHeight) * 3.0f; }
+
         //--------------------------------------------------------------
         // フォント（.dfont。空ならエンジンの標準フォント）。読み込みは UiFonts
         //--------------------------------------------------------------
