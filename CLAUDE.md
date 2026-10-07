@@ -36,6 +36,7 @@
 | `premake5.lua` | ワークスペース定義。エンジンの `tsukino_link()` 等を呼ぶだけ |
 | `FruitMagic/src/WinMain.cpp` | エントリポイント |
 | `FruitMagic/*/Scene/PusherScene.*` | プッシャー台のシーン |
+| `FruitMagic/*/Game/FruitIcon.*` | 画面に出す 3D の果物（図鑑・左のパネル・「ゲット！」・カットイン）。置き台を `CreateFruitIconHolder` で作り、`SetFruitIcon` で中身を入れる（エンジンの `ScreenModelComponent` で UI の層に描く） |
 | `Assets/` | ゲームのアセット。パスはリポジトリルート相対（例 `Assets/Models/Block.fbx`） |
 | `Assets/Data/` | 果物・ランク・ルーレット・魔法・図鑑・強化・放置・ジャックポット・コインのやりくり（Economy）・演出（Effects）・効果音（Sounds）の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要）。台の寸法と景品の物理（Table）・屋台と周りの景色（地面・置き物）と光とカメラ（Stage）・UI の配置と色と表示時間（Ui。画面の左右のパネルも）・画面の文言（Texts。`{n}` などを差し込む）もここ。調整値はコードに直書きせず JSON に置く（読み込みは `Game/JsonReader.hpp`）。Table.json の寸法が矛盾していると Warn を出して既定の台に戻る |
 

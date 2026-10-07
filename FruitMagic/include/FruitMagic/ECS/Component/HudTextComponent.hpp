@@ -24,4 +24,9 @@ namespace FruitMagic::ECS {
     struct HudTextComponent {
         HudTextKind kind = HudTextKind::Coins;    // 表示する内容
     };
+
+    //! 「〇〇 ゲット！」の左に出す果物の置き台です。FruitIconComponent と一緒に付け、HudSystem が中身と表示を決めます。
+    struct HarvestIconComponent {
+        float sizePixels = 36.0f;    // 出す大きさ（果物の外形のいちばん長い向きのピクセル数）
+    };
 }    // namespace FruitMagic::ECS

@@ -9,6 +9,7 @@
 #include <FruitMagic/ECS/Event/ZukanRegisteredEvent.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/FruitIcon.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/Settings.hpp>
 #include <FruitMagic/Game/Texts.hpp>
@@ -169,25 +170,15 @@ namespace FruitMagic::ECS {
         const hlslpp::float3 color = variant.ColorOf(def);
 
         //--------------------------------------------------------------
-        // 果物の見た目を置き台の子にする（置き台の ScreenModelComponent で UI の層に描かれる）。
-        // 大きさは、果物の外形のいちばん長い向きが cutInFruitSize ピクセルになるようにする
+        // 果物の置き台に果物を入れる（UI の層に描かれる。大きさは外形のいちばん長い向きが cutInFruitSize ピクセル）
         //--------------------------------------------------------------
-        Tsukino::ECS::Entity holder = entt::null;
+        m_fruit = entt::null;
         registry.View<CutInElementComponent>().each([&](Tsukino::ECS::Entity entity, CutInElementComponent& element) {
             if(element.part == CutInPart::Fruit)
-                holder = entity;
+                m_fruit = entity;
         });
-        if(holder != entt::null) {
-            m_fruit = registry.GetContext<PrizeFactory>().CreateFruitVisual(registry, def, color, variant.glow, hlslpp::float3(0.0f, 0.0f, 0.0f));
-            auto& transform  = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_fruit);
-            transform.parent = holder;
-            transform.dirty  = true;
-
-            const hlslpp::float3 half    = PrizeFactory::FruitHalfExtent(def);
-            const float          longest = std::max({float(half.x), float(half.y), float(half.z)}) * 2.0f;
-            if(auto* screen = registry.try_get<Tsukino::BuiltIn::ECS::ScreenModelComponent>(holder))
-                screen->pixelsPerUnit = ui.cutInFruitSize / std::max(longest, 0.01f);
-        }
+        if(m_fruit != entt::null)
+            SetFruitIcon(registry, m_fruit, request.fruitIndex, request.variantIndex, false, ui.cutInFruitSize);
 
         //--------------------------------------------------------------
         // 文字と、帯の縁の色（果物の色）
@@ -214,8 +205,9 @@ namespace FruitMagic::ECS {
     //! 今のカットインを終えます。
     //----------------------------------------------------------------------------
     void CutInSystem::Finish(Tsukino::ECS::Registry& registry) {
+        // 置き台は残し、果物だけを消す
         if(m_fruit != entt::null && registry.IsValid(m_fruit))
-            PrizeFactory::DestroyPrize(registry, m_fruit);
+            SetFruitIcon(registry, m_fruit, -1, 0, false, 0.0f);
         m_fruit   = entt::null;
         m_playing = false;
     }

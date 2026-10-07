@@ -72,6 +72,9 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         std::unordered_map<std::string, UiText> hudTexts;
         hlslpp::float4 rouletteJackpotColor = hlslpp::float4(1.0f, 0.65f, 0.1f, 1.0f);    // ジャックポットチャンスの間のルーレットの文字の色
+        hlslpp::float2 harvestIconPosition  = hlslpp::float2(46.0f, 224.0f);              // 「〇〇 ゲット！」の左の果物（3D）の中心
+        float          harvestIconSize      = 36.0f;                                      // その大きさ
+        float          harvestIconSpinSpeed = 120.0f;                                     // その回る速さ（度/秒）
 
         //--------------------------------------------------------------
         // マナゲージ
@@ -132,8 +135,9 @@ namespace FruitMagic {
         float          sideHeaderPitch     = 28.0f;     // 見出しの行の高さ
         float          sideRowPitch        = 24.0f;     // ふつうの行の高さ
         float          sideSectionGap      = 10.0f;     // まとまりの間のすき間
-        float          sideSwatchSize      = 14.0f;     // 果物の色の四角
-        float          sideSwatchGap       = 8.0f;      // 色の四角から名前まで
+        float          sideIconSize        = 22.0f;     // 行頭の果物（3D）の大きさ
+        float          sideIconGap         = 6.0f;      // 果物から名前まで
+        float          sideIconSpinSpeed   = 40.0f;     // 行頭の果物の回る速さ（度/秒）
         int            sideRecentRows      = 5;         // 最近とれた果物の行の数
         int            sideTableRows       = 3;         // 台の上の果物の行の数
         float          sideBarHeight       = 10.0f;     // 図鑑の進み具合のバーの高さ
@@ -201,11 +205,10 @@ namespace FruitMagic {
         hlslpp::float4 zukanThumbColor     = hlslpp::float4(0.95f, 0.6f, 0.75f, 1.0f);
         float          zukanNameX          = 36.0f;     // 画面の左端から果物の名前まで
         UiFont         zukanName           = {0.85f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f)};
-        float          zukanSwatchOffsetX  = -30.0f;    // 列の中心から色見本まで
-        float          zukanSwatchSize     = 26.0f;
-        hlslpp::float4 zukanSwatchColor    = hlslpp::float4(0.2f, 0.2f, 0.25f, 1.0f);    // 作ったときの色（ZukanSystem が書き換える）
-        hlslpp::float4 zukanUnknownColor   = hlslpp::float4(0.22f, 0.2f, 0.26f, 1.0f);   // 未登録の色見本の色
-        float          zukanCountOffsetX   = -10.0f;    // 列の中心から個数まで
+        float          zukanFruitSize      = 72.0f;     // 枠の果物（3D）の大きさ（未登録は黒いシルエット）
+        float          zukanFruitOffsetY   = -14.0f;    // 行の中心から果物の中心まで
+        float          zukanFruitSpinSpeed = 40.0f;     // 枠の果物の回る速さ（度/秒。シルエットも回す）
+        float          zukanCountOffsetY   = 40.0f;     // 行の中心から個数まで（列の中心に揃える）
         UiFont         zukanCount          = {0.85f, hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f)};
         float          zukanFooterOffsetY  = 28.0f;     // 画面の下端から集計まで
         UiFont         zukanFooter         = {0.9f, hlslpp::float4(0.85f, 1.0f, 0.85f, 1.0f)};

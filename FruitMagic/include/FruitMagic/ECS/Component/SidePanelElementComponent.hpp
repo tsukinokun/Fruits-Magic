@@ -13,10 +13,10 @@ namespace FruitMagic::ECS {
     //! パネルの要素の種類です。
     enum class SidePanelElementKind {
         Static,           // 板・見出しなど、中身が変わらないもの（文字は text）
-        RecentSwatch,     // 最近とれた果物の色（row 行目）
+        RecentFruit,      // 最近とれた果物（row 行目。FruitIcon の置き台）
         RecentName,       // 最近とれた果物の名前
         RecentValue,      // 最近とれた果物で増えた果実
-        TableSwatch,      // 台の上の果物の色（値の高い順に row 行目）
+        TableFruit,       // 台の上の果物（値の高い順に row 行目。FruitIcon の置き台）
         TableName,        // 台の上の果物の名前と数
         TableValue,       // 台の上の果物の価値
         TableTotal,       // 台の上の果物の合計

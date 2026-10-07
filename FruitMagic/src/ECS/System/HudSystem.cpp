@@ -13,6 +13,7 @@
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/EconomyConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/FruitIcon.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
@@ -131,6 +132,15 @@ namespace FruitMagic::ECS {
         const int           harvestTotal = state.HarvestTotal();
 
         CheckMagicUnlocks(registry, state);
+
+        //--------------------------------------------------------------
+        // 「〇〇 ゲット！」の左の果物（3D）。収穫の表示が出ている間だけ見せる
+        //--------------------------------------------------------------
+        registry.View<HarvestIconComponent>().each([&](Tsukino::ECS::Entity entity, HarvestIconComponent& icon) {
+            if(m_harvestFruit >= 0)
+                SetFruitIcon(registry, entity, m_harvestFruit, m_harvestVariant, false, icon.sizePixels);
+            SetFruitIconVisible(registry, entity, m_harvestFruit >= 0);
+        });
 
         //--------------------------------------------------------------
         // 各テキストの更新

@@ -9,6 +9,7 @@
 #include <FruitMagic/ECS/System/UpgradeSystem.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/FruitIcon.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
@@ -201,30 +202,32 @@ namespace FruitMagic::ECS {
         registry.View<SidePanelElementComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
             [&](Tsukino::ECS::Entity entity, SidePanelElementComponent& element, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
                 //--------------------------------------------------------------
-                // スプライト（板・色の四角・バー）
+                // 行頭の果物（3D）。行の中身が変わったときだけ作り直し、行が空のときとパネルを隠している間は隠す
+                //--------------------------------------------------------------
+                if(element.kind == SidePanelElementKind::RecentFruit || element.kind == SidePanelElementKind::TableFruit) {
+                    int fruitIndex   = -1;
+                    int variantIndex = 0;
+                    if(element.kind == SidePanelElementKind::RecentFruit && hasRecent(element.row)) {
+                        fruitIndex   = recent.entries[element.row].fruitIndex;
+                        variantIndex = recent.entries[element.row].variantIndex;
+                    } else if(element.kind == SidePanelElementKind::TableFruit && hasTable(element.row)) {
+                        fruitIndex   = table[element.row].fruitIndex;
+                        variantIndex = table[element.row].variantIndex;
+                    }
+                    // 隠している間は台の上を数えていないので、中身はそのままにして隠すだけ
+                    if(visible)
+                        SetFruitIcon(registry, entity, fruitIndex, variantIndex, false, ui.sideIconSize);
+                    SetFruitIconVisible(registry, entity, visible && fruitIndex >= 0);
+                    return;
+                }
+
+                //--------------------------------------------------------------
+                // スプライト（板・バー・おすすめの強化の板）
                 //--------------------------------------------------------------
                 if(auto* sprite = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(entity)) {
                     bool           shown = visible;
                     hlslpp::float3 scale = element.shownScale;
-                    hlslpp::float3 color;
                     switch(element.kind) {
-                        case SidePanelElementKind::RecentSwatch:
-                            shown = shown && hasRecent(element.row);
-                            if(shown) {
-                                const RecentHarvest& harvest = recent.entries[element.row];
-                                FruitLabel(registry, harvest.fruitIndex, harvest.variantIndex, color);
-                                sprite->tintColor = hlslpp::float4(color, 1.0f);
-                            }
-                            break;
-
-                        case SidePanelElementKind::TableSwatch:
-                            shown = shown && hasTable(element.row);
-                            if(shown) {
-                                FruitLabel(registry, table[element.row].fruitIndex, table[element.row].variantIndex, color);
-                                sprite->tintColor = hlslpp::float4(color, 1.0f);
-                            }
-                            break;
-
                         case SidePanelElementKind::ZukanBar: {
                             // 左端を固定したまま、登録した割合だけ伸ばす
                             const float ratio  = total > 0 ? std::clamp(static_cast<float>(registered) / static_cast<float>(total), 0.0f, 1.0f) : 0.0f;

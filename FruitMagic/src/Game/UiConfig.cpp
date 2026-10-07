@@ -53,7 +53,7 @@ namespace FruitMagic {
         hudTexts["mana"]         = {hlslpp::float2(260.0f, 86.0f), 0.9f, hlslpp::float4(0.85f, 0.7f, 1.0f, 1.0f), UiAlign::Left};
         hudTexts["dropPopup"]    = {hlslpp::float2(28.0f, 122.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f), UiAlign::Left, true};
         hudTexts["harvestTotal"] = {hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left, true};
-        hudTexts["harvestPopup"] = {hlslpp::float2(28.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f), UiAlign::Left, true};
+        hudTexts["harvestPopup"] = {hlslpp::float2(72.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f), UiAlign::Left, true};
         hudTexts["relief"]       = {hlslpp::float2(72.0f, 248.0f), 0.8f, hlslpp::float4(0.75f, 1.0f, 0.85f, 1.0f), UiAlign::Left};
         hudTexts["roulette"]     = {hlslpp::float2(640.0f, 24.0f), 1.3f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f), UiAlign::Center, true, 640.0f};
         hudTexts["controlsHint"] = {hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f), UiAlign::Left};
@@ -106,6 +106,11 @@ namespace FruitMagic {
             }
         }
         Json::ReadColor(doc, "rouletteJackpotColor", rouletteJackpotColor);
+        if(const Json::Value* icon = Json::FindObject(doc, "harvestIcon")) {
+            Json::ReadVec(*icon, "position", harvestIconPosition);
+            Json::Read(*icon, "size", harvestIconSize);
+            Json::Read(*icon, "spinSpeed", harvestIconSpinSpeed);
+        }
 
         if(const Json::Value* mana = Json::FindObject(doc, "manaGauge")) {
             Json::Read(*mana, "left", manaGaugeLeft);
@@ -155,8 +160,9 @@ namespace FruitMagic {
             Json::Read(*side, "headerPitch", sideHeaderPitch);
             Json::Read(*side, "rowPitch", sideRowPitch);
             Json::Read(*side, "sectionGap", sideSectionGap);
-            Json::Read(*side, "swatchSize", sideSwatchSize);
-            Json::Read(*side, "swatchGap", sideSwatchGap);
+            Json::Read(*side, "iconSize", sideIconSize);
+            Json::Read(*side, "iconGap", sideIconGap);
+            Json::Read(*side, "iconSpinSpeed", sideIconSpinSpeed);
             Json::Read(*side, "recentRows", sideRecentRows);
             Json::Read(*side, "tableRows", sideTableRows);
             Json::Read(*side, "barHeight", sideBarHeight);
@@ -223,11 +229,10 @@ namespace FruitMagic {
             Json::ReadColor(*zukan, "thumbColor", zukanThumbColor);
             Json::Read(*zukan, "nameX", zukanNameX);
             ReadFont(*zukan, "name", zukanName);
-            Json::Read(*zukan, "swatchOffsetX", zukanSwatchOffsetX);
-            Json::Read(*zukan, "swatchSize", zukanSwatchSize);
-            Json::ReadColor(*zukan, "swatchColor", zukanSwatchColor);
-            Json::ReadColor(*zukan, "unknownColor", zukanUnknownColor);
-            Json::Read(*zukan, "countOffsetX", zukanCountOffsetX);
+            Json::Read(*zukan, "fruitSize", zukanFruitSize);
+            Json::Read(*zukan, "fruitOffsetY", zukanFruitOffsetY);
+            Json::Read(*zukan, "fruitSpinSpeed", zukanFruitSpinSpeed);
+            Json::Read(*zukan, "countOffsetY", zukanCountOffsetY);
             ReadFont(*zukan, "count", zukanCount);
             Json::Read(*zukan, "footerOffsetY", zukanFooterOffsetY);
             ReadFont(*zukan, "footer", zukanFooter);

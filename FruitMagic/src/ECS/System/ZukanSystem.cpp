@@ -4,16 +4,17 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/ZukanSystem.hpp>
 
+#include <FruitMagic/ECS/Component/FruitIconComponent.hpp>
 #include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/FruitIcon.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
-#include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 
 #include <cmath>
@@ -60,8 +61,16 @@ namespace FruitMagic::ECS {
         if(!registry.HasContext<MenuState>() || !registry.HasContext<GameState>() || !registry.HasContext<FruitCatalog>() ||
            !registry.HasContext<CollectionConfig>())
             return;
-        if(!registry.GetContext<MenuState>().IsOpen(MenuKind::Zukan))
+        //--------------------------------------------------------------
+        // 閉じている間は、枠の果物（3D）を隠すだけ（画面スプライトと違い、MenuSystem はモデルを隠さない）
+        //--------------------------------------------------------------
+        if(!registry.GetContext<MenuState>().IsOpen(MenuKind::Zukan)) {
+            registry.View<ZukanElementComponent>().each([&](Tsukino::ECS::Entity entity, ZukanElementComponent& element) {
+                if(element.kind == ZukanElementKind::Fruit)
+                    SetFruitIconVisible(registry, entity, false);
+            });
             return;
+        }
 
         const GameState&        state      = registry.GetContext<GameState>();
         const UiConfig&         ui         = GetUiConfig(registry);
@@ -72,19 +81,15 @@ namespace FruitMagic::ECS {
 
         registry.View<ZukanElementComponent>().each([&](Tsukino::ECS::Entity entity, ZukanElementComponent& element) {
             //--------------------------------------------------------------
-            // 色見本: 登録済みならその枠の色
+            // 枠の果物（3D）: 登録済みなら色付き、未登録なら黒いシルエットで、どちらもゆっくり回す。
+            // 登録したかどうかが変わったときだけ作り直す（SetFruitIcon は同じ中身なら何もしない）
             //--------------------------------------------------------------
-            if(auto* sprite = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(entity)) {
-                if(element.kind != ZukanElementKind::Swatch)
-                    return;
+            if(element.kind == ZukanElementKind::Fruit) {
                 const bool registered = CountOf(state, element.fruitIndex, element.variantIndex) > 0;
-                if(registered && element.fruitIndex < static_cast<int>(catalog.Fruits().size()) &&
-                   element.variantIndex < static_cast<int>(collection.Variants().size())) {
-                    const hlslpp::float3 c = collection.Variants()[element.variantIndex].ColorOf(catalog.Fruits()[element.fruitIndex]);
-                    sprite->tintColor      = hlslpp::float4(c.x, c.y, c.z, 1.0f);
-                } else {
-                    sprite->tintColor = ui.zukanUnknownColor;
-                }
+                SetFruitIcon(registry, entity, element.fruitIndex, element.variantIndex, !registered, ui.zukanFruitSize);
+                SetFruitIconVisible(registry, entity, true);
+                if(auto* icon = registry.try_get<FruitIconComponent>(entity))
+                    icon->spinSpeed = ui.zukanFruitSpinSpeed;
                 return;
             }
 

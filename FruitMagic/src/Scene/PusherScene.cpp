@@ -10,6 +10,7 @@
 #include <FruitMagic/Game/EffectsConfig.hpp>
 #include <FruitMagic/Game/EconomyConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
+#include <FruitMagic/Game/FruitIcon.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/JackpotConfig.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
@@ -39,6 +40,7 @@
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
 #include <FruitMagic/ECS/Component/CutInElementComponent.hpp>
 #include <FruitMagic/ECS/Component/EffectComponents.hpp>
+#include <FruitMagic/ECS/Component/FruitIconComponent.hpp>
 #include <FruitMagic/ECS/Component/HudTextComponent.hpp>
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
@@ -58,6 +60,7 @@
 #include <FruitMagic/ECS/System/FairySystem.hpp>
 #include <FruitMagic/ECS/System/HarvestSystem.hpp>
 #include <FruitMagic/ECS/System/EffectsSystem.hpp>
+#include <FruitMagic/ECS/System/FruitIconSystem.hpp>
 #include <FruitMagic/ECS/System/GrowMagicSystem.hpp>
 #include <FruitMagic/ECS/System/HudSystem.hpp>
 #include <FruitMagic/ECS/System/MagicInputSystem.hpp>
@@ -252,6 +255,7 @@ namespace FruitMagic {
             Hud,
             SidePanel,           // 画面の左右のパネル（このフレームの収穫・強化の結果を出す）
             CutIn,               // 果物が取れたときのカットイン（このフレームの収穫・図鑑登録で出す）
+            FruitIcon,           // 画面に出す果物（図鑑・パネル・ゲット！）を回す
             BalanceProbe,
             Save,
             Light,
@@ -309,6 +313,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::HudSystem>(eventBus), (int)SystemPriority::Hud);
         m_scene.AddSystem(std::make_shared<ECS::SidePanelSystem>(), (int)SystemPriority::SidePanel);
         m_scene.AddSystem(std::make_shared<ECS::CutInSystem>(eventBus), (int)SystemPriority::CutIn);
+        m_scene.AddSystem(std::make_shared<ECS::FruitIconSystem>(), (int)SystemPriority::FruitIcon);
         m_scene.AddSystem(std::make_shared<ECS::SaveSystem>(), (int)SystemPriority::Save);
 
         // バランス計測用の自動プレイ（セーブは読み書きしない）
@@ -876,6 +881,15 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
+        // 「〇〇 ゲット！」の左に出す果物（3D。中身と表示は HudSystem が決める）
+        //--------------------------------------------------------------
+        {
+            Tsukino::ECS::Entity icon = CreateFruitIconHolder(registry, ui.harvestIconPosition, 1);
+            registry.GetComponent<ECS::FruitIconComponent>(icon).spinSpeed = ui.harvestIconSpinSpeed;
+            registry.AddComponent<ECS::HarvestIconComponent>(icon).sizePixels = ui.harvestIconSize;
+        }
+
+        //--------------------------------------------------------------
         // 画面スプライト（白い小さなテクスチャを色付けして使い回す。位置は中心）
         //--------------------------------------------------------------
         Tsukino::EngineIntegration::EngineContext* context = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
@@ -1090,13 +1104,14 @@ namespace FruitMagic {
             auto line = [&](Column& c, ECS::SidePanelElementKind kind) {
                 addElement(createFontText(hlslpp::float2(c.left + ui.sidePadding, nextRow(c, ui.sideRowPitch)), ui.sideText, kLeft, 3, innerWidth), kind);
             };
-            // 果物の行（色の四角・名前・右に揃えた数）
-            auto fruitRow = [&](Column& c, int row, ECS::SidePanelElementKind swatch, ECS::SidePanelElementKind name, ECS::SidePanelElementKind value) {
+            // 果物の行（行頭の果物・名前・右に揃えた数）。行頭の果物は 3D（FruitIcon）で、中身は SidePanelSystem が入れる
+            auto fruitRow = [&](Column& c, int row, ECS::SidePanelElementKind fruit, ECS::SidePanelElementKind name, ECS::SidePanelElementKind value) {
                 const float y     = nextRow(c, ui.sideRowPitch);
-                const float nameX = c.left + ui.sidePadding + ui.sideSwatchSize + ui.sideSwatchGap;
+                const float nameX = c.left + ui.sidePadding + ui.sideIconSize + ui.sideIconGap;
                 const float right = c.left + width - ui.sidePadding;
-                addElement(createPanel(hlslpp::float2(c.left + ui.sidePadding + ui.sideSwatchSize * 0.5f, y), hlslpp::float2(ui.sideSwatchSize, ui.sideSwatchSize), kWhite, 1),
-                           swatch, row);
+                Tsukino::ECS::Entity icon = CreateFruitIconHolder(registry, hlslpp::float2(c.left + ui.sidePadding + ui.sideIconSize * 0.5f, y), 1);
+                registry.GetComponent<ECS::FruitIconComponent>(icon).spinSpeed = ui.sideIconSpinSpeed;
+                addElement(icon, fruit, row);
                 addElement(createFontText(hlslpp::float2(nameX, y), ui.sideText, kLeft, 3, right - valueWidth - nameX - ui.textPadding), name, row);
                 addElement(createFontText(hlslpp::float2(right, y), ui.sideValue, kRight, 3, valueWidth), value, row);
             };
@@ -1112,11 +1127,11 @@ namespace FruitMagic {
             Column left = begin(ui.sideLeftPosition);
             header(left, "side.recentTitle");
             for(int row = 0; row < ui.sideRecentRows; ++row)
-                fruitRow(left, row, ECS::SidePanelElementKind::RecentSwatch, ECS::SidePanelElementKind::RecentName, ECS::SidePanelElementKind::RecentValue);
+                fruitRow(left, row, ECS::SidePanelElementKind::RecentFruit, ECS::SidePanelElementKind::RecentName, ECS::SidePanelElementKind::RecentValue);
             left.y += ui.sideSectionGap;
             header(left, "side.tableTitle");
             for(int row = 0; row < ui.sideTableRows; ++row)
-                fruitRow(left, row, ECS::SidePanelElementKind::TableSwatch, ECS::SidePanelElementKind::TableName, ECS::SidePanelElementKind::TableValue);
+                fruitRow(left, row, ECS::SidePanelElementKind::TableFruit, ECS::SidePanelElementKind::TableName, ECS::SidePanelElementKind::TableValue);
             line(left, ECS::SidePanelElementKind::TableTotal);
 
             //--------------------------------------------------------------
@@ -1211,19 +1226,12 @@ namespace FruitMagic {
             }
 
             //--------------------------------------------------------------
-            // 果物の置き台。ScreenModelComponent で、子に付けた果物の見た目を UI の層に描く。
-            // ワールドには描かれないので、置き台の位置は台から離しておくだけでよい
+            // 果物の置き台（FruitIcon。子に付けた果物の見た目を UI の層に描く）
             //--------------------------------------------------------------
             {
-                Tsukino::ECS::Entity                       holder = m_scene.CreateEntity();
-                Tsukino::BuiltIn::ECS::TransformComponent& t      = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(holder);
-                t.position                                        = hlslpp::float3(0.0f, -1000.0f, 0.0f);
-                t.scale                                           = hlslpp::float3(0.0f, 0.0f, 0.0f);
-                t.dirty                                           = true;
-
-                Tsukino::BuiltIn::ECS::ScreenModelComponent& screen = registry.AddComponent<Tsukino::BuiltIn::ECS::ScreenModelComponent>(holder);
-                screen.screenPosition                               = hlslpp::float2(ui.cutInFruitX, ui.cutInCenterY);
-                screen.sortOrder                                    = kFruitOrder;
+                // 向きと大きさは CutInSystem が動かす（FruitIconSystem には回させない）
+                Tsukino::ECS::Entity holder = CreateFruitIconHolder(registry, hlslpp::float2(ui.cutInFruitX, ui.cutInCenterY), kFruitOrder);
+                registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(holder).scale = hlslpp::float3(0.0f, 0.0f, 0.0f);
 
                 ECS::CutInElementComponent& element = registry.AddComponent<ECS::CutInElementComponent>(holder);
                 element.part                        = ECS::CutInPart::Fruit;
@@ -1359,8 +1367,6 @@ namespace FruitMagic {
             const float      pitch   = ui.zukanRowPitch;
             const ScrollList list    = createScrollList(MenuKind::Zukan, menuLeft + ui.zukanListLeft, rowsTop, menuRight - ui.zukanListRight, menuBottom - ui.zukanRowsBottom,
                                                         pitch * static_cast<float>(rows), ui.zukanThumbColor);
-            // 数（×3 など）は、次の列の色見本の左端まで
-            const float countWidth = columnPitch + ui.zukanSwatchOffsetX - ui.zukanSwatchSize * 0.5f - ui.zukanCountOffsetX - ui.textPadding;
             for(int f = 0; f < rows; ++f) {
                 const float y = rowsTop + pitch * (static_cast<float>(f) + 0.5f);
 
@@ -1368,10 +1374,19 @@ namespace FruitMagic {
 
                 for(int v = 0; v < columns; ++v) {
                     const float x = columnX(v);
-                    addElement(attach(list, createPanel(hlslpp::float2(x + ui.zukanSwatchOffsetX, y), hlslpp::float2(ui.zukanSwatchSize, ui.zukanSwatchSize),
-                                                        ui.zukanSwatchColor, 21)),
-                               ECS::ZukanElementKind::Swatch, f, v);
-                    addElement(attach(list, createFontText(hlslpp::float2(x + ui.zukanCountOffsetX, y), ui.zukanCount, kLeft, 22, countWidth)),
+
+                    // 枠の果物（3D。中身は ZukanSystem が入れる）。位置の基準はスクロールの中身の子に置き、
+                    // 行と一緒に動き、枠の外では切れるようにする。画面の板（20）より上、文字（22）より下
+                    Tsukino::ECS::Entity                       anchor          = m_scene.CreateEntity();
+                    Tsukino::BuiltIn::ECS::TransformComponent& anchorTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(anchor);
+                    anchorTransform.position                                   = hlslpp::float3(x, y + ui.zukanFruitOffsetY, 0.0f);
+                    anchorTransform.dirty                                      = true;
+                    attach(list, anchor);
+                    Tsukino::ECS::Entity icon = CreateFruitIconHolder(registry, hlslpp::float2(0.0f, 0.0f), 21, anchor);
+                    addElement(icon, ECS::ZukanElementKind::Fruit, f, v);
+
+                    // 数（×3 など。果物の下に、列の中心で揃える）
+                    addElement(attach(list, createFontText(hlslpp::float2(x, y + ui.zukanCountOffsetY), ui.zukanCount, kCenter, 22, inside(columnPitch))),
                                ECS::ZukanElementKind::Count, f, v);
                 }
             }

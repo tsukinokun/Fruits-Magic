@@ -60,6 +60,6 @@ namespace FruitMagic::ECS {
         bool                           m_playing = false;    // カットインを出しているか
         float                          m_time    = 0.0f;     // 出し始めてからの時間（秒）
         float                          m_spin    = 0.0f;     // 果物の回転（度）
-        Tsukino::ECS::Entity           m_fruit   = entt::null;    // 出している果物の見た目
+        Tsukino::ECS::Entity           m_fruit   = entt::null;    // 果物を出している置き台（FruitIconComponent）
     };
 }    // namespace FruitMagic::ECS
