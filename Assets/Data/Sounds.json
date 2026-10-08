@@ -2,7 +2,7 @@
   "masterVolume": 0.8,
   "music": { "file": "Assets/Sounds/ingame_bgm.mp3", "volume": 0.5 },
   "sounds": {
-    "coinLaunch":    { "file": "Assets/Sounds/coin_launch.wav",    "volume": 0.45, "minInterval": 0.05 },
+    "coinLaunch":    { "file": "Assets/Sounds/coin_launch.wav",    "volume": 0.45, "minInterval": 0.08 },
     "coinPayout":    { "file": "Assets/Sounds/coin_payout.wav",    "volume": 0.55, "minInterval": 0.09 },
     "gutter":        { "file": "Assets/Sounds/gutter.wav",         "volume": 0.4,  "minInterval": 0.15 },
     "fruitGet":      { "file": "Assets/Sounds/fruit_get.wav",      "volume": 0.8,  "minInterval": 0.1 },

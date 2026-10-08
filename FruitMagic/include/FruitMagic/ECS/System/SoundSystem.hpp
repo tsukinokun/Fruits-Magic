@@ -96,7 +96,7 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         // 状態の変化で知る出来事のための、前のフレームの値
         //--------------------------------------------------------------
-        int           m_lastLaunched      = 0;                     // プレイヤーが投入したコインの数
+        int           m_lastLaunched      = 0;                     // 台に落としたコインの数（投入・妖精・シャワー）
         int           m_lastUpgradeLevels = -1;                    // 強化のレベルの合計（-1 はまだ見ていない）
         MenuKind      m_lastMenu          = MenuKind::None;        // 開いている画面
         RoulettePhase m_lastPhase         = RoulettePhase::Idle;   // ルーレットの段階

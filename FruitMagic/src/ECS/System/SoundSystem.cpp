@@ -189,7 +189,9 @@ namespace FruitMagic::ECS {
         // 状態の変化で知る出来事
         //--------------------------------------------------------------
         if(registry.HasContext<PlayStats>()) {
-            const int launched = registry.GetContext<PlayStats>().coinsLaunched;
+            // プレイヤー・妖精が入れたコインと、シャワーで降らせたコイン（台に落ちたら鳴らす）
+            const PlayStats& stats    = registry.GetContext<PlayStats>();
+            const int        launched = stats.coinsLaunched + stats.fairyCoins + stats.showerCoins;
             if(launched > m_lastLaunched)
                 m_pending.push_back("coinLaunch");
             m_lastLaunched = launched;

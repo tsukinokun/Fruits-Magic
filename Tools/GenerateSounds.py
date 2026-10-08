@@ -94,11 +94,11 @@ def mix(length, *parts):
     return buf
 
 
-def bell(freq, duration, volume=1.0):
-    """金属の響き（チャリン）。整数倍でない倍音を重ねる。"""
+def bell(freq, duration, volume=1.0, ring=1.0):
+    """金属の響き（チャリン）。整数倍でない倍音を重ねる。ring を大きくすると長く響く。"""
     parts = []
     for ratio, amp, dec in ((1.0, 1.0, 0.18), (2.76, 0.5, 0.10), (5.4, 0.25, 0.05)):
-        parts.append((0.0, tone(freq * ratio, duration, sine, decay=dec, attack=0.001, volume=amp * volume)))
+        parts.append((0.0, tone(freq * ratio, duration, sine, decay=dec * ring, attack=0.001, volume=amp * volume)))
     return mix(duration, *parts)
 
 
@@ -121,8 +121,13 @@ def write(name, samples, peak=0.8):
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    # コイン投入（カチッ）: 短いノイズと高い音
-    write("coin_launch", mix(0.08, (0.0, noise(0.03, 0.006, 0.6)), (0.0, tone(2200, 0.06, triangle, decay=0.015, volume=0.5))), peak=0.5)
+    # コインが台に落ちる（ちゃりーん）: 当たったときの短いノイズ（ちゃ）、少しずらした2つ目の響き（り）、長い余韻（ーん）。
+    # 払い出しの「チャリン」（E7→B7 の短い2連）と聞き分けられるよう、低めの高さで長く響かせる
+    # （ノイズの長さを変えると乱数の進みが変わって、後の音まで変わるので 0.03 秒のまま）
+    write("coin_launch", mix(0.7,
+                             (0.0, noise(0.03, 0.006, 0.5)),
+                             (0.0, bell(note("C7"), 0.25, 0.6)),
+                             (0.035, bell(note("G7"), 0.65, 0.8, ring=2.2))), peak=0.5)
 
     # 払い出し（チャリン）: 金属の響きを2回
     write("coin_payout", mix(0.4, (0.0, bell(note("E7"), 0.35)), (0.06, bell(note("B7"), 0.3, 0.7))), peak=0.55)
