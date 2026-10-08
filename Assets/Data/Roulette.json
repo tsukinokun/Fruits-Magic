@@ -6,6 +6,7 @@
   "checkerPeriod": 4.0,
   "coinChance": 0.3,
   "coinAmount": 5,
+  "coinShowerSeconds": 0.5,
   "reelStopSeconds": [0.6, 0.85, 1.1],
   "reachExtraSeconds": 0.7,
   "reachMissChance": 0.25,

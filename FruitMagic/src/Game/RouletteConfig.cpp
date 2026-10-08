@@ -23,6 +23,7 @@ namespace FruitMagic {
         Json::Read(doc, "hitChance", hitChance);
         Json::Read(doc, "coinChance", coinChance);
         Json::Read(doc, "coinAmount", coinAmount);
+        Json::Read(doc, "coinShowerSeconds", coinShowerSeconds);
         Json::Read(doc, "resultSeconds", resultSeconds);
         Json::Read(doc, "maxStock", maxStock);
         Json::Read(doc, "checkerRange", checkerRange);
@@ -35,10 +36,11 @@ namespace FruitMagic {
         Json::Read(doc, "fruitSpawnLift", fruitSpawnLift);
         Json::Read(doc, "fruitSpawnBackMargin", fruitSpawnBackMargin);
 
-        hitChance    = std::clamp(hitChance, 0.0f, 1.0f);
-        coinChance   = std::clamp(coinChance, 0.0f, 1.0f);
-        coinAmount   = std::max(0, coinAmount);
-        maxStock     = std::max(1, maxStock);
+        hitChance         = std::clamp(hitChance, 0.0f, 1.0f);
+        coinChance        = std::clamp(coinChance, 0.0f, 1.0f);
+        coinAmount        = std::max(0, coinAmount);
+        coinShowerSeconds = std::max(0.0f, coinShowerSeconds);
+        maxStock          = std::max(1, maxStock);
         // 左から順に止まるよう、前の列より後にする
         for(int reel = 0; reel < kReelCount; ++reel)
             reelStopSeconds[reel] = std::max(reelStopSeconds[reel], reel > 0 ? reelStopSeconds[reel - 1] + 0.05f : 0.1f);

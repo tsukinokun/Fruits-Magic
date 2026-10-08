@@ -179,8 +179,9 @@ namespace FruitMagic::ECS {
                     state.flyTime    = 0.0f;
                     state.flyTarget  = SpawnPosition(registry, m_resultFruit);
                 }
-                if(state.resultCoins > 0)
-                    registry.GetContext<GameState>().coins += state.resultCoins;
+                // コインは投入位置の列のどこかに落とす（手持ちには入れない）
+                if(state.resultCoins > 0 && registry.HasContext<CoinShowerState>())
+                    registry.GetContext<CoinShowerState>().Add(state.resultCoins, config.coinShowerSeconds, ShowerPlace::Launch);
                 if(registry.HasContext<PlayStats>()) {
                     PlayStats& stats = registry.GetContext<PlayStats>();
                     stats.rouletteSpins += 1;
@@ -309,9 +310,9 @@ namespace FruitMagic::ECS {
         const JackpotConfig jackpot = registry.HasContext<JackpotConfig>() ? registry.GetContext<JackpotConfig>() : JackpotConfig{};
         const int           coins   = win ? jackpot.bonusCoins : jackpot.consolationCoins;
 
-        // コインは台の手前側に降らせる（タダ。手持ちからは引かない）
+        // コインは投入位置の列のどこかに落とす（タダ。手持ちからは引かない）
         if(registry.HasContext<CoinShowerState>())
-            registry.GetContext<CoinShowerState>().Add(coins, win ? jackpot.winShowerSeconds : jackpot.loseShowerSeconds);
+            registry.GetContext<CoinShowerState>().Add(coins, win ? jackpot.winShowerSeconds : jackpot.loseShowerSeconds, ShowerPlace::Launch);
 
         if(!win) {
             m_eventBus.Publish(NoticeEvent{GetTexts(registry).Format("notice.jackpotLose", {{"n", std::to_wstring(coins)}}), jackpot.resultSeconds});

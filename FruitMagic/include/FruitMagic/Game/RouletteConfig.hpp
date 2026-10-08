@@ -15,13 +15,14 @@ namespace FruitMagic {
 
     //! チェッカーとルーレットの設定です。Registry のコンテキストに置いて共有します。
     struct RouletteConfig {
-        float hitChance       = 0.4f;     // 当たり（果物）の確率（0〜1）
-        float coinChance      = 0.3f;     // 果物が外れたときに、コインが当たる確率（0〜1）
-        int   coinAmount      = 5;        // コイン当たりで手持ちに入るコイン
-        float resultSeconds   = 0.8f;     // 止まった結果を表示しておく時間（秒）
-        int   maxStock        = 4;        // ためておける回転の数
-        float checkerRange    = 16.0f;    // 穴が往復する範囲（中心からの距離、cm）
-        float checkerPeriod   = 4.0f;     // 穴の往復の周期（秒）
+        float hitChance         = 0.4f;     // 当たり（果物）の確率（0〜1）
+        float coinChance        = 0.3f;     // 果物が外れたときに、コインが当たる確率（0〜1）
+        int   coinAmount        = 5;        // コイン当たりで台に降らせるコイン（手持ちには入れない）
+        float coinShowerSeconds = 0.5f;     // コイン当たりのコインを降らせる時間（秒）
+        float resultSeconds     = 0.8f;     // 止まった結果を表示しておく時間（秒）
+        int   maxStock          = 4;        // ためておける回転の数
+        float checkerRange      = 16.0f;    // 穴が往復する範囲（中心からの距離、cm）
+        float checkerPeriod     = 4.0f;     // 穴の往復の周期（秒）
 
         //--------------------------------------------------------------
         // スロット（3リール）の止め方。当たりの確率は上のまま（結果を先に抽選し、リールはそれに合わせて止まる）

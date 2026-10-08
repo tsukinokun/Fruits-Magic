@@ -53,37 +53,43 @@ namespace FruitMagic::ECS {
         }
 
         //--------------------------------------------------------------
-        // 今フレームに落とす枚数を数える（生成は後でまとめて）
+        // 落とす範囲。
+        // 手前側: プッシャーが最も前に出ても届かない所（届く所に落とすとプッシャーの上や下に入り込む）
+        // 投入位置: プレイヤーが投入できる列のどこか（プッシャー上面の上から落とす）
         //--------------------------------------------------------------
-        const TableLayout& layout = GetTableLayout(registry);
-        int                count  = 0;
+        const TableLayout&                    layout = GetTableLayout(registry);
+        const float                           halfX  = layout.fieldHalfWidth - layout.coinHalfExtent.x - layout.showerSideMargin;
+        const float                           minZ   = layout.pusherMinFrontZ + layout.pusherMaxAmplitude * 2.0f + layout.showerBackMargin;    // 奥の端
+        const float                           maxZ   = std::max(minZ, layout.fieldFrontZ - layout.showerFrontMargin);    // 手前の端
+        std::uniform_real_distribution<float> frontX(-halfX, halfX);
+        std::uniform_real_distribution<float> frontZ(minZ, maxZ);
+        std::uniform_real_distribution<float> launchX(-layout.launchLaneHalfWidth, layout.launchLaneHalfWidth);
+
+        //--------------------------------------------------------------
+        // 今フレームに落とす位置を決める（生成は後でまとめて）
+        //--------------------------------------------------------------
+        std::vector<hlslpp::float3> positions;
         for(CoinShowerState::Request& r : shower.requests) {
             r.timer -= deltaTime;
-            while(r.remaining > 0 && r.timer <= 0.0f && count < layout.showerMaxPerFrame) {
+            while(r.remaining > 0 && r.timer <= 0.0f && static_cast<int>(positions.size()) < layout.showerMaxPerFrame) {
                 r.remaining -= 1;
                 r.timer += r.interval;
-                ++count;
+                if(r.place == ShowerPlace::Launch)
+                    positions.push_back(hlslpp::float3(launchX(m_rng), layout.LaunchY(), layout.LaunchZ()));
+                else
+                    positions.push_back(hlslpp::float3(frontX(m_rng), layout.showerDropY, frontZ(m_rng)));
             }
         }
         shower.requests.erase(std::remove_if(shower.requests.begin(), shower.requests.end(),
                                              [](const CoinShowerState::Request& r) { return r.remaining <= 0; }),
                               shower.requests.end());
 
-        //--------------------------------------------------------------
-        // 落とす範囲。プッシャーが最も前に出ても届かない手前側（届く所に落とすとプッシャーの上や下に入り込む）
-        //--------------------------------------------------------------
-        PrizeFactory&                         factory = registry.GetContext<PrizeFactory>();
-        const float                           halfX   = layout.fieldHalfWidth - layout.coinHalfExtent.x - layout.showerSideMargin;
-        const float                           minZ    = layout.pusherMinFrontZ + layout.pusherMaxAmplitude * 2.0f + layout.showerBackMargin;    // 奥の端
-        const float                           maxZ    = std::max(minZ, layout.fieldFrontZ - layout.showerFrontMargin);    // 手前の端
-        std::uniform_real_distribution<float> randomX(-halfX, halfX);
-        std::uniform_real_distribution<float> randomZ(minZ, maxZ);
-        for(int i = 0; i < count; ++i) {
-            const hlslpp::float3 position(randomX(m_rng), layout.showerDropY, randomZ(m_rng));
+        PrizeFactory& factory = registry.GetContext<PrizeFactory>();
+        for(const hlslpp::float3& position : positions) {
             factory.CreateCoin(registry, position, factory.RandomCoinRotation(m_rng));
             m_eventBus.Publish(EffectEvent{"showerCoin", position});
         }
         if(registry.HasContext<PlayStats>())
-            registry.GetContext<PlayStats>().showerCoins += count;
+            registry.GetContext<PlayStats>().showerCoins += static_cast<int>(positions.size());
     }
 }    // namespace FruitMagic::ECS

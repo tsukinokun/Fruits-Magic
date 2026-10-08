@@ -41,7 +41,7 @@
 - セーブ: `Saves/save.json`（アセットルート基準。Debug はリポジトリ直下で、git には入れない）。`SaveData::Save/Load` が GameState を JSON で読み書きする。果物・バリエーション・強化は id で保存するので、定義データを足しても古いセーブが読める（消えた果物は警告して読み飛ばす）。台の上の景品は保存せず、毎回初期配置から始める。30 秒ごとの自動セーブ（`SaveSystem`）と終了時（`PusherScene::OnExit`）に保存し、一時ファイルに書いてから置き換える。壊れたセーブは `save.json.broken` に写してから新規で始める。セーブの形式を変えたら `version` を上げる
 - オフライン報酬: 物理は回さず期待値で計算する（`GrantOfflineReward`）。妖精が入れたはずのコイン（留守の秒数 ÷ 妖精の間隔）× 戻る割合がコイン、× 果物の割合が収穫数で、果物は今の果樹の段階で抽選して価値を果実に足す（図鑑には載せない）。上限時間は「おるすばん時間」の強化、割合と最短時間・自動セーブ間隔は `Assets/Data/Offline.json`。テストではセーブの `savedAt` を過去にずらす
 - 魔法の追加: `Magic.json` に1つ足し（`unlockZukan` で解放に必要な図鑑の登録数）、効果は id ごとのシステムを1つ書く（`SwellMagicSystem` などが見本。`MagicCatalog::IsMagic` で自分の魔法かを調べ、効果中は `MagicState::SetRemaining` で残り時間を書く）。違う魔法は同時に効果中になれる
-- 台への影響: 魔法の効果は `MagicEffects`（プッシャーの振幅のボーナス）に書き、`PusherScene::OnUpdate` が強化の値と足して使う。振幅の上限は `kPusherMaxAmplitude`（24cm）。コインを降らせるのは `CoinShowerState` に依頼する（メテオコインとジャックポットで共用。台の上のコインが `Economy.json` の `maxCoinsOnTable` 以上なら待つ）
+- 台への影響: 魔法の効果は `MagicEffects`（プッシャーの振幅のボーナス）に書き、`PusherScene::OnUpdate` が強化の値と足して使う。振幅の上限は `kPusherMaxAmplitude`（24cm）。コインを降らせるのは `CoinShowerState` に依頼する（メテオコイン・ジャックポット・ルーレットのコイン当たりで共用。メテオは台の手前側、ほかは投入位置の列に落とす。台の上のコインが `Economy.json` の `maxCoinsOnTable` 以上なら待つ）
 - 画面の左右: カメラは手前から奥を見ているので、画面の右はワールドの -X（`Layout::kScreenRightX`）。プレイヤーの入力を左右に対応させるときは必ずこれを掛ける
 - ジャックポット: ルーレットを回すたびに `Jackpot.json` の `chanceRate` でチャンス、`winRate` で当たり。物理の穴は簡単に入りすぎたのでやめた（上面のコインは背面パネルに掻かれて必ず前端を通る）
 - バランスの計測: 環境変数 `FRUITMAGIC_AUTOPLAY=1` で Release を起動すると、セーブを使わずに自動で遊び（`AutoPlaySystem`）、1分ごとに `BALANCE` 行をログへ出す（`BalanceProbeSystem`）。計測中はウィンドウを最小化して起動する（前に出ていると閉じられたりキー入力が入ったりする）。エンジンは入力を低レベルフックで読むので、`PostMessage` のキー・マウスは `IsKeyDown` やマウス位置には届かない
