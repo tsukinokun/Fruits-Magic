@@ -10,7 +10,6 @@
 #include <FruitMagic/Game/FruitIcon.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/JackpotConfig.hpp>
-#include <FruitMagic/Game/MenuState.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
@@ -125,7 +124,6 @@ namespace FruitMagic::ECS {
         const FruitCatalog&  catalog  = registry.GetContext<FruitCatalog>();
         const UiConfig&      ui       = GetUiConfig(registry);
         const int            level    = registry.HasContext<GameState>() ? registry.GetContext<GameState>().treeLevel : 0;
-        const bool           menuOpen = registry.HasContext<MenuState>() && registry.GetContext<MenuState>().open != MenuKind::None;
 
         const bool jackpotShown = state.phase == RoulettePhase::JackpotSpin || state.phase == RoulettePhase::JackpotResult;
         const bool spinning     = state.phase == RoulettePhase::Spinning || state.phase == RoulettePhase::JackpotSpin;
@@ -139,7 +137,8 @@ namespace FruitMagic::ECS {
         registry.View<SlotReelComponent>().each([&](Tsukino::ECS::Entity, SlotReelComponent& reel) {
             const SlotLayout& layout = reel.jackpot ? ui.jackpotSlot : ui.slot;
             const bool        mine   = (state.jackpotReels == reel.jackpot);    // 今の回転がこのスロットのものか
-            const bool        shown  = (reel.jackpot ? jackpotShown : true) && !menuOpen;
+            // 画面（図鑑など）を開いていても隠さない。絵柄の重ね順は画面の板より奥なので、板の下に透けて見える
+            const bool        shown  = reel.jackpot ? jackpotShown : true;
             const float       pitch  = layout.symbolPitch;
             if(reel.icons.empty())
                 return;
