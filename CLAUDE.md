@@ -45,9 +45,12 @@
 | `Assets/Models/Kenney/<キット>/` | Kenney の CC0 素材（果物・コイン・ちょうちん・電飾と、台の周りの置き物＝隣の屋台・荷車・樽・袋・木・ベンチ・街灯）。使う glb と、それが参照するテクスチャ `colormap.png`（キットごとに同じ名前なのでフォルダを分ける）、ライセンス文 `License.txt`。果物は JSON の `"model"`、コインは `Table.json` の `coin.model`、飾りと周りの置き物は `Stage.json` の `props`・`lantern` で指定する（カメラから見て画面の左が +x） |
 | `Assets/Materials/` | マテリアルのファイル `.tmat`（エンジンの形式。「キー = 値」で書く）。モデルのマテリアルを差し替えるときに使う（例: 金属のコイン `CoinGold.tmat`） |
 | `Assets/Icon/App.ico` | exe とウィンドウのアイコン。`premake5.lua` の `tsukino_icon()` で exe に埋め込む。`Tools/GenerateIcon.py` で合成したもの |
-| `Assets/Sounds/`・`Assets/Textures/` | 効果音（WAV）と光の画像。どちらも `Tools/GenerateSounds.py`・`Tools/GenerateTextures.py` で合成したもの（作り直すときはスクリプトを直して実行） |
+| `Assets/Sounds/`・`Assets/Textures/` | 効果音（WAV）と光の画像・HUD のお金のマーク（`CoinIcon.png`・`FpIcon.png`）。どちらも `Tools/GenerateSounds.py`・`Tools/GenerateTextures.py` で合成したもの（作り直すときはスクリプトを直して実行） |
 | `Saves/save.json` | セーブデータ（実行時に作られる。git 管理外）。消すと最初から |
 | `Saves/settings.json` | オプションの設定（音量・消音・操作説明の表示・果物のカットイン）。セーブとは別なので「データを消して最初から」でも残る |
+
+強化に使うポイントは画面では「フルーツポイント（FP）」と呼ぶ（コードでは `GameState::fruitPoints`。旧称「果実」）。
+収穫数やコイン・ルーレットなどの累計は記録画面（P）に出す。累計は `GameState::stats`（`LifetimeStats`。`StatsSystem` が数えてセーブする）。
 
 単位はエンジン規約どおり 1unit ≒ 1cm。
 UI は 1280×720 の座標（`Ui.json` の `screen`）で置く。UI カメラの `referenceResolution` により、ウィンドウを広げると縦横比を保って拡大され、真ん中に寄る（エンジンの `UICanvas`）。画面全体を覆う板は `UiConfig::FullScreenCover()` の大きさにする（余白まで覆うため）。

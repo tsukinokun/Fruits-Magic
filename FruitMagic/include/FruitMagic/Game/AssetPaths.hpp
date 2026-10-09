@@ -14,10 +14,15 @@ namespace FruitMagic::AssetPaths {
     inline constexpr const char* kSparkleTexture = "Assets/Textures/Sparkle.png";    // 光の粒（きらめき）
     inline constexpr const char* kGlowTexture    = "Assets/Textures/Glow.png";       // 光の粒（ぼんやり）
     inline constexpr const char* kRingTexture    = "Assets/Textures/Ring.png";       // 円形のゲージ（おすそわけ待ち）
+    inline constexpr const char* kCoinIconTexture = "Assets/Textures/CoinIcon.png";  // コインのマーク（HUD）
+    inline constexpr const char* kFpIconTexture   = "Assets/Textures/FpIcon.png";    // フルーツポイント（FP）のマーク（HUD）
 
     //! 白い画像の1辺のピクセル数です。
     inline constexpr float kWhiteTextureSize = 8.0f;
 
     //! リングの画像の1辺のピクセル数です（Tools/GenerateTextures.py の SIZE）。
     inline constexpr float kRingTextureSize = 64.0f;
+
+    //! お金のマークの画像の1辺のピクセル数です（Tools/GenerateTextures.py の ICON_SIZE）。
+    inline constexpr float kMoneyIconTextureSize = 128.0f;
 }    // namespace FruitMagic::AssetPaths

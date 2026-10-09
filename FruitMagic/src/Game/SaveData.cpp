@@ -103,6 +103,28 @@ namespace FruitMagic::SaveData {
             writer.EndObject();
         }
         writer.EndObject();
+
+        // これまでのプレイの累計（記録画面）
+        const LifetimeStats& stats = state.stats;
+        writer.Key("stats");
+        writer.StartObject();
+        auto writeCount = [&](const char* key, long long value) {
+            writer.Key(key);
+            writer.Int64(value);
+        };
+        writeCount("coinsLaunched", stats.coinsLaunched);
+        writeCount("coinsPaidOut", stats.coinsPaidOut);
+        writeCount("coinsToGutter", stats.coinsToGutter);
+        writeCount("fairyCoins", stats.fairyCoins);
+        writeCount("showerCoins", stats.showerCoins);
+        writeCount("rouletteSpins", stats.rouletteSpins);
+        writeCount("rouletteHits", stats.rouletteHits);
+        writeCount("jackpotChances", stats.jackpotChances);
+        writeCount("jackpots", stats.jackpots);
+        writeCount("magicsCast", stats.magicsCast);
+        writer.Key("playSeconds");
+        writer.Double(stats.playSeconds);
+        writer.EndObject();
         writer.EndObject();
 
         //--------------------------------------------------------------
@@ -203,6 +225,27 @@ namespace FruitMagic::SaveData {
                     state.harvestCounts[f][v] = std::max(0, variant->value.GetInt());
                 }
             }
+        }
+
+        //--------------------------------------------------------------
+        // これまでのプレイの累計（無いセーブは 0 から）
+        //--------------------------------------------------------------
+        state.stats = LifetimeStats{};
+        if(const Json::Value* stats = Json::FindObject(doc, "stats")) {
+            LifetimeStats& s = state.stats;
+            Json::Read(*stats, "coinsLaunched", s.coinsLaunched);
+            Json::Read(*stats, "coinsPaidOut", s.coinsPaidOut);
+            Json::Read(*stats, "coinsToGutter", s.coinsToGutter);
+            Json::Read(*stats, "fairyCoins", s.fairyCoins);
+            Json::Read(*stats, "showerCoins", s.showerCoins);
+            Json::Read(*stats, "rouletteSpins", s.rouletteSpins);
+            Json::Read(*stats, "rouletteHits", s.rouletteHits);
+            Json::Read(*stats, "jackpotChances", s.jackpotChances);
+            Json::Read(*stats, "jackpots", s.jackpots);
+            Json::Read(*stats, "magicsCast", s.magicsCast);
+            auto playSeconds = stats->FindMember("playSeconds");
+            if(playSeconds != stats->MemberEnd() && playSeconds->value.IsNumber())
+                s.playSeconds = std::max(0.0, playSeconds->value.GetDouble());
         }
 
         Tsukino::Core::Log::Info("SaveData: loaded " + path + ".");

@@ -129,7 +129,6 @@ namespace FruitMagic::ECS {
 
         const GameState     state    = registry.HasContext<GameState>() ? registry.GetContext<GameState>() : GameState{};
         const RouletteState roulette = registry.HasContext<RouletteState>() ? registry.GetContext<RouletteState>() : RouletteState{};
-        const int           harvestTotal = state.HarvestTotal();
 
         CheckMagicUnlocks(registry, state);
 
@@ -166,8 +165,8 @@ namespace FruitMagic::ECS {
                     break;
                 }
 
-                case HudTextKind::HarvestTotal:
-                    font.text = texts.Format("hud.harvestTotal", {{"fruit", std::to_wstring(state.fruitPoints)}, {"harvest", std::to_wstring(harvestTotal)}});
+                case HudTextKind::FruitPoints:
+                    font.text = texts.Format("hud.fruitPoints", {{"n", std::to_wstring(state.fruitPoints)}});
                     break;
 
                 case HudTextKind::HarvestPopup:

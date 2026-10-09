@@ -11,6 +11,7 @@ namespace FruitMagic {
     enum class MenuKind {
         None,       // 何も開いていない
         Zukan,      // 図鑑
+        Record,     // 記録（収穫やコインなどの累計とプレイ時間）
         Upgrade,    // 台の強化
         Welcome,    // おかえり（閉じている間の報酬。起動時にだけ開く）
         Options,    // オプション（音量・操作説明・データの消去・終了）

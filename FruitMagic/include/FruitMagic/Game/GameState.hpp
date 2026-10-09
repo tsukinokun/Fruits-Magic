@@ -5,6 +5,8 @@
 //!         セーブ（M6）の対象もここに足していきます。
 //----------------------------------------------------------------------------
 #pragma once
+#include <FruitMagic/Game/LifetimeStats.hpp>
+
 #include <map>
 #include <string>
 #include <vector>
@@ -15,13 +17,14 @@ namespace FruitMagic {
     //! プレイヤーの資源です。
     struct GameState {
         int                           coins        = 50;     // 手持ちのコイン枚数
-        long long                     fruitPoints  = 0;      // 手持ちの果実（収穫した果物の価値 × バリエーションの倍率。強化に使う）
+        long long                     fruitPoints  = 0;      // 手持ちのフルーツポイント（FP。収穫した果物の価値 × バリエーションの倍率。強化に使う）
         int                           treeLevel    = 0;      // 果樹の段階（出現できる果物が決まる。果樹の強化のレベルと同じ）
         std::map<std::string, int>    upgradeLevels;         // 強化のレベル [強化の id]（無ければ 0）
         std::vector<std::vector<int>> harvestCounts;         // 収穫数 [果物（FruitCatalog の添字）][バリエーション（CollectionConfig の添字）]
         long long                     harvestValue = 0;      // 収穫した果物の価値の合計（価値 × バリエーションの倍率。転生ポイントに使う）
         int                           mana         = 0;      // 今のマナ（魔法を撃つと減る）
         int                           maxMana      = 100;    // マナの上限
+        LifetimeStats                 stats;                 // これまでのプレイの累計（記録画面に出す）
 
         //! 強化のレベルを返します。
         //! @param  [in] id 強化の識別子

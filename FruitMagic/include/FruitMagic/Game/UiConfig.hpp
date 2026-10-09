@@ -104,7 +104,7 @@ namespace FruitMagic {
         // マナゲージ
         //--------------------------------------------------------------
         float          manaGaugeLeft    = 28.0f;     // 左端
-        float          manaGaugeCenterY = 100.0f;    // 中心の高さ
+        float          manaGaugeCenterY = 162.0f;    // 中心の高さ
         float          manaGaugeWidth   = 220.0f;    // 全幅
         float          manaGaugeHeight  = 14.0f;     // 高さ
         float          manaGaugePadding = 4.0f;      // 背景の、中身より大きい分
@@ -118,6 +118,14 @@ namespace FruitMagic {
         hlslpp::float2 reliefRingCenter    = hlslpp::float2(46.0f, 268.0f);
         hlslpp::float4 reliefRingBackColor = hlslpp::float4(0.1f, 0.05f, 0.15f, 0.7f);
         hlslpp::float4 reliefRingFillColor = hlslpp::float4(0.75f, 1.0f, 0.55f, 1.0f);
+
+        //--------------------------------------------------------------
+        // お金のマーク（HUD のコインと FP の数の左）。位置は中心、大きさは直径
+        //--------------------------------------------------------------
+        hlslpp::float2 coinIconCenter = hlslpp::float2(48.0f, 48.0f);
+        float          coinIconSize   = 52.0f;
+        hlslpp::float2 fpIconCenter   = hlslpp::float2(44.0f, 112.0f);
+        float          fpIconSize     = 40.0f;
 
         //--------------------------------------------------------------
         // 魔法ボタン（画面下に横並び）
@@ -135,17 +143,19 @@ namespace FruitMagic {
         hlslpp::float4 magicReadyColor     = hlslpp::float4(0.85f, 0.45f, 0.95f, 1.0f);    // 撃てる
 
         //--------------------------------------------------------------
-        // 画面（図鑑・強化）の開閉ボタン（右上）
+        // 画面（図鑑・記録・強化・オプション）の開閉ボタン（右上）
         //--------------------------------------------------------------
         float          menuButtonX      = 1170.0f;
         float          zukanButtonY     = 40.0f;
-        float          upgradeButtonY   = 90.0f;
+        float          recordButtonY    = 90.0f;
+        hlslpp::float4 recordButtonColor = hlslpp::float4(0.95f, 0.7f, 0.35f, 1.0f);
+        float          upgradeButtonY   = 140.0f;
         float          menuButtonWidth  = 170.0f;
         float          menuButtonHeight = 42.0f;
         float          menuLabelScale   = 0.85f;
         hlslpp::float4 zukanButtonColor   = hlslpp::float4(0.95f, 0.55f, 0.65f, 1.0f);
         hlslpp::float4 upgradeButtonColor = hlslpp::float4(0.45f, 0.75f, 0.4f, 1.0f);
-        float          optionsButtonY     = 140.0f;
+        float          optionsButtonY     = 190.0f;
         hlslpp::float4 optionsButtonColor = hlslpp::float4(0.55f, 0.6f, 0.85f, 1.0f);
 
         //--------------------------------------------------------------
@@ -318,6 +328,25 @@ namespace FruitMagic {
         UiFont         optionsDataNote      = {0.72f, hlslpp::float4(0.9f, 0.9f, 0.95f, 1.0f)};
         hlslpp::float2 optionsResetSize     = hlslpp::float2(340.0f, 46.0f);
         hlslpp::float4 optionsResetColor    = hlslpp::float4(0.75f, 0.35f, 0.4f, 1.0f);
+
+        //--------------------------------------------------------------
+        // 記録画面（左右2列に「見出し」と「項目名 … 数」の行を並べる。y はスクロールする領域の上端から）
+        //--------------------------------------------------------------
+        float          recordListTop     = 70.0f;      // スクロールする領域の上端（画面の上端から）
+        float          recordListBottom  = 24.0f;      // スクロールする領域の下端（画面の下端から）
+        float          recordListLeft    = 20.0f;      // スクロールする領域の左端（画面の左端から）
+        float          recordListRight   = 44.0f;      // スクロールする領域の右端（画面の右端から。スクロールバーの分あける）
+        hlslpp::float4 recordThumbColor  = hlslpp::float4(0.95f, 0.7f, 0.35f, 1.0f);
+        float          recordColumnPadding = 30.0f;    // 領域の左右の端から列までの余白
+        float          recordColumnGap   = 50.0f;      // 左右の列の間
+        float          recordRowsTop     = 24.0f;      // 1行目の中心
+        float          recordRowPitch    = 34.0f;      // 行の間隔
+        float          recordSectionGap  = 16.0f;      // 見出しの前に足す間隔（2つ目からの見出し）
+        float          recordItemIndent  = 16.0f;      // 項目名を見出しより右へずらす量
+        float          recordBottomMargin = 20.0f;     // 最後の行の下の余白
+        UiFont         recordHeading     = {0.95f, hlslpp::float4(1.0f, 0.75f, 0.9f, 1.0f), true};
+        UiFont         recordLabel       = {0.8f, hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f)};
+        UiFont         recordValue       = {0.85f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), true};
 
         //--------------------------------------------------------------
         // データ消去の確認ウィンドウ（画面の中央に出す。y はウィンドウの上端から、ボタンの x は中央から）

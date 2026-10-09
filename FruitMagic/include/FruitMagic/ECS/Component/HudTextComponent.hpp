@@ -12,7 +12,7 @@ namespace FruitMagic::ECS {
         Coins,           // 手持ちのコイン枚数
         Mana,            // マナ（今の量 / 上限）
         DropPopup,       // 直近のコインの払い出し（+1 / 溝）
-        HarvestTotal,    // 手持ちの果実と、収穫した果物の合計
+        FruitPoints,     // 手持ちのフルーツポイント（FP）
         HarvestPopup,    // 直近に収穫した果物（「いちご ゲット！」）
         Roulette,        // ルーレット（回転中の表示・結果・ストック）
         ControlsHint,    // 操作説明

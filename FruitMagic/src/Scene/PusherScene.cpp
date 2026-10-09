@@ -52,6 +52,7 @@
 #include <FruitMagic/ECS/Component/SlotMachineComponents.hpp>
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ZukanElementComponent.hpp>
+#include <FruitMagic/ECS/Component/RecordElementComponent.hpp>
 #include <FruitMagic/ECS/System/AutoPlaySystem.hpp>
 #include <FruitMagic/ECS/System/BalanceProbeSystem.hpp>
 #include <FruitMagic/ECS/System/CheckerSystem.hpp>
@@ -82,6 +83,8 @@
 #include <FruitMagic/ECS/System/UpgradeSystem.hpp>
 #include <FruitMagic/ECS/System/WalletSystem.hpp>
 #include <FruitMagic/ECS/System/ZukanSystem.hpp>
+#include <FruitMagic/ECS/System/RecordSystem.hpp>
+#include <FruitMagic/ECS/System/StatsSystem.hpp>
 #ifdef _DEBUG
 #include <FruitMagic/ECS/System/DebugResourceSystem.hpp>
 #endif
@@ -196,7 +199,7 @@ namespace FruitMagic {
             {ECS::HudTextKind::Coins, "coins"},
             {ECS::HudTextKind::Mana, "mana"},
             {ECS::HudTextKind::DropPopup, "dropPopup"},
-            {ECS::HudTextKind::HarvestTotal, "harvestTotal"},
+            {ECS::HudTextKind::FruitPoints, "fruitPoints"},
             {ECS::HudTextKind::HarvestPopup, "harvestPopup"},
             {ECS::HudTextKind::Relief, "relief"},
             {ECS::HudTextKind::Roulette, "roulette"},
@@ -231,6 +234,7 @@ namespace FruitMagic {
             Menu,                // 画面の開閉と表示切替。中身は続く Zukan・Upgrade が書く
             ScrollView,          // 開いている画面の行のスクロール（Menu が決めた開閉の後、Transform の前）
             Zukan,
+            Record,
             Upgrade,
             Options,
             MagicInput,
@@ -259,6 +263,7 @@ namespace FruitMagic {
             CutIn,               // 果物が取れたときのカットイン（このフレームの収穫・図鑑登録で出す）
             SlotMachine,         // ルーレットのスロット（このフレームの RouletteState に合わせてリールを止める）
             FruitIcon,           // 画面に出す果物（図鑑・パネル・ゲット！）を回す
+            Stats,               // このフレームの出来事を累計に足す（セーブの前）
             BalanceProbe,
             Save,
             Light,
@@ -281,6 +286,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::MenuSystem>(), (int)SystemPriority::Menu);
         m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::ScrollViewSystem>(), (int)SystemPriority::ScrollView);
         m_scene.AddSystem(std::make_shared<ECS::ZukanSystem>(), (int)SystemPriority::Zukan);
+        m_scene.AddSystem(std::make_shared<ECS::RecordSystem>(), (int)SystemPriority::Record);
         m_scene.AddSystem(std::make_shared<ECS::UpgradeSystem>(), (int)SystemPriority::Upgrade);
         m_scene.AddSystem(std::make_shared<ECS::OptionsSystem>(), (int)SystemPriority::Options);
         m_scene.AddSystem(std::make_shared<ECS::MagicInputSystem>(eventBus), (int)SystemPriority::MagicInput);
@@ -318,6 +324,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::CutInSystem>(eventBus), (int)SystemPriority::CutIn);
         m_scene.AddSystem(std::make_shared<ECS::SlotMachineSystem>(), (int)SystemPriority::SlotMachine);
         m_scene.AddSystem(std::make_shared<ECS::FruitIconSystem>(), (int)SystemPriority::FruitIcon);
+        m_scene.AddSystem(std::make_shared<ECS::StatsSystem>(eventBus), (int)SystemPriority::Stats);
         m_scene.AddSystem(std::make_shared<ECS::SaveSystem>(), (int)SystemPriority::Save);
 
         // バランス計測用の自動プレイ（セーブは読み書きしない）
@@ -943,6 +950,26 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
+        // お金のマーク（コインと FP の数の左）
+        //--------------------------------------------------------------
+        {
+            auto createIcon = [&](const char* path, const hlslpp::float2& center, float size) {
+                Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
+                Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
+                t.position                                   = hlslpp::float3(center.x, center.y, 0.0f);
+                t.scale = hlslpp::float3(size / AssetPaths::kMoneyIconTextureSize, size / AssetPaths::kMoneyIconTextureSize, 1.0f);
+                t.dirty = true;
+
+                Tsukino::BuiltIn::ECS::SpriteComponent& sprite = registry.AddComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e);
+                sprite.textureHandle                           = context->assetManager->Load(Tsukino::Core::Path(path));
+                sprite.tintColor                               = hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f);
+                sprite.sortOrder                               = 1;
+            };
+            createIcon(AssetPaths::kCoinIconTexture, ui.coinIconCenter, ui.coinIconSize);
+            createIcon(AssetPaths::kFpIconTexture, ui.fpIconCenter, ui.fpIconSize);
+        }
+
+        //--------------------------------------------------------------
         // おすそわけ待ちのリング（「おすそわけ待ち」の文字の左。下地＋中身）。
         // 待っている間だけ HudSystem が表示し、中身を真上から時計回りに塗る
         //--------------------------------------------------------------
@@ -1052,6 +1079,7 @@ namespace FruitMagic {
         };
         const MenuButtonSpec menuButtons[] = {
             {MenuKind::Zukan, Tsukino::Input::KeyCode::Tab, ui.zukanButtonY, ui.zukanButtonColor, "menu.zukanButton", "menu.zukanClose"},
+            {MenuKind::Record, Tsukino::Input::KeyCode::P, ui.recordButtonY, ui.recordButtonColor, "menu.recordButton", "menu.recordClose"},
             {MenuKind::Upgrade, Tsukino::Input::KeyCode::U, ui.upgradeButtonY, ui.upgradeButtonColor, "menu.upgradeButton", "menu.upgradeClose"},
             // Esc は MenuSystem が別に扱う（開いている画面を閉じる・何も無ければオプション）ので、ボタンにはキーを割り当てない
             {MenuKind::Options, Tsukino::Input::KeyCode::None, ui.optionsButtonY, ui.optionsButtonColor, "menu.optionsButton", "menu.optionsClose"},
@@ -1570,6 +1598,88 @@ namespace FruitMagic {
             close.label                     = addPage(createText(buttonCenter, ui.welcomeLabelScale, kCenter, kWhite, 32, true, inside(ui.welcomeButtonSize.x)), MenuKind::Welcome);
             close.openText                  = texts.Get("welcome.close");
             close.canOpen                   = false;
+        }
+
+        //--------------------------------------------------------------
+        // 記録画面。左右2列に、見出しと「項目名 … 数」の行を並べる（数は RecordSystem が書く）。
+        // 収まらないときはスクロールする
+        //--------------------------------------------------------------
+        {
+            constexpr auto kRight = Tsukino::BuiltIn::ECS::HorizontalAlign::Right;
+            struct RecordRow {
+                const char*     label;    // 文言のキー
+                ECS::RecordItem item;     // 出す数
+            };
+            struct RecordSection {
+                const char*            title;    // 見出しの文言のキー
+                std::vector<RecordRow> rows;
+            };
+            const std::vector<RecordSection> columns[2] = {
+                {
+                    {"record.harvestTitle",
+                     {{"record.harvestCount", ECS::RecordItem::HarvestCount},
+                      {"record.harvestValue", ECS::RecordItem::HarvestValue},
+                      {"record.zukan", ECS::RecordItem::Zukan},
+                      {"record.fruitPoints", ECS::RecordItem::FruitPoints}}},
+                    {"record.coinTitle",
+                     {{"record.coinsLaunched", ECS::RecordItem::CoinsLaunched},
+                      {"record.coinsPaidOut", ECS::RecordItem::CoinsPaidOut},
+                      {"record.coinsToGutter", ECS::RecordItem::CoinsToGutter},
+                      {"record.fairyCoins", ECS::RecordItem::FairyCoins},
+                      {"record.showerCoins", ECS::RecordItem::ShowerCoins}}},
+                },
+                {
+                    {"record.rouletteTitle",
+                     {{"record.rouletteSpins", ECS::RecordItem::RouletteSpins},
+                      {"record.rouletteHits", ECS::RecordItem::RouletteHits},
+                      {"record.jackpotChances", ECS::RecordItem::JackpotChances},
+                      {"record.jackpots", ECS::RecordItem::Jackpots},
+                      {"record.magicsCast", ECS::RecordItem::MagicsCast}}},
+                    {"record.playTitle", {{"record.playTime", ECS::RecordItem::PlayTime}}},
+                },
+            };
+
+            createMenuPanel(MenuKind::Record, texts.Get("record.title"));
+
+            //--------------------------------------------------------------
+            // 行の高さ（見出しの前の間隔を含む）を先に出して、高い方の列で中身の高さを決める
+            //--------------------------------------------------------------
+            auto columnHeight = [&](const std::vector<RecordSection>& sections) {
+                float height = ui.recordRowsTop;
+                for(size_t s = 0; s < sections.size(); ++s)
+                    height += (s > 0 ? ui.recordSectionGap : 0.0f) + ui.recordRowPitch * static_cast<float>(sections[s].rows.size() + 1);
+                return height;
+            };
+            const float      listLeft    = menuLeft + ui.recordListLeft;
+            const float      listRight   = menuRight - ui.recordListRight;
+            const float      listTop     = menuTop + ui.recordListTop;
+            const float      contentSize = std::max(columnHeight(columns[0]), columnHeight(columns[1])) + ui.recordBottomMargin;
+            const ScrollList list = createScrollList(MenuKind::Record, listLeft, listTop, listRight, menuBottom - ui.recordListBottom, contentSize, ui.recordThumbColor);
+
+            const float columnWidth = (listRight - listLeft - ui.recordColumnPadding * 2.0f - ui.recordColumnGap) * 0.5f;
+            for(int c = 0; c < 2; ++c) {
+                const float left  = listLeft + ui.recordColumnPadding + (columnWidth + ui.recordColumnGap) * static_cast<float>(c);
+                const float right = left + columnWidth;
+                float       y     = listTop + ui.recordRowsTop;
+                for(size_t s = 0; s < columns[c].size(); ++s) {
+                    const RecordSection& section = columns[c][s];
+                    if(s > 0)
+                        y += ui.recordSectionGap;
+                    addPage(attach(list, createFontText(hlslpp::float2(left, y), ui.recordHeading, kLeft, 22, columnWidth)), MenuKind::Record, texts.Get(section.title));
+                    y += ui.recordRowPitch;
+
+                    // 項目名は左（見出しより少し右）、数は列の右端に揃える
+                    const float labelLeft = left + ui.recordItemIndent;
+                    for(const RecordRow& row : section.rows) {
+                        addPage(attach(list, createFontText(hlslpp::float2(labelLeft, y), ui.recordLabel, kLeft, 22, (right - labelLeft) * 0.62f)), MenuKind::Record,
+                                texts.Get(row.label));
+                        Tsukino::ECS::Entity value = addPage(attach(list, createFontText(hlslpp::float2(right, y), ui.recordValue, kRight, 22, (right - labelLeft) * 0.38f)),
+                                                             MenuKind::Record);
+                        registry.AddComponent<ECS::RecordElementComponent>(value).item = row.item;
+                        y += ui.recordRowPitch;
+                    }
+                }
+            }
         }
 
         //--------------------------------------------------------------

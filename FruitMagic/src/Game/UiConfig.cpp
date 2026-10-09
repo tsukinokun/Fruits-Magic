@@ -78,10 +78,10 @@ namespace FruitMagic {
     //! 既定の HUD の文字の置き方を入れます。
     //----------------------------------------------------------------------------
     UiConfig::UiConfig() {
-        hudTexts["coins"]        = {hlslpp::float2(24.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), UiAlign::Left, true};
-        hudTexts["mana"]         = {hlslpp::float2(260.0f, 86.0f), 0.9f, hlslpp::float4(0.85f, 0.7f, 1.0f, 1.0f), UiAlign::Left};
-        hudTexts["dropPopup"]    = {hlslpp::float2(28.0f, 122.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f), UiAlign::Left, true};
-        hudTexts["harvestTotal"] = {hlslpp::float2(24.0f, 162.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left, true};
+        hudTexts["coins"]        = {hlslpp::float2(84.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), UiAlign::Left, true};
+        hudTexts["mana"]         = {hlslpp::float2(260.0f, 148.0f), 0.9f, hlslpp::float4(0.85f, 0.7f, 1.0f, 1.0f), UiAlign::Left};
+        hudTexts["dropPopup"]    = {hlslpp::float2(260.0f, 32.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f), UiAlign::Left, true};
+        hudTexts["fruitPoints"]  = {hlslpp::float2(72.0f, 86.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left, true};
         hudTexts["harvestPopup"] = {hlslpp::float2(72.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f), UiAlign::Left, true};
         hudTexts["relief"]       = {hlslpp::float2(72.0f, 248.0f), 0.8f, hlslpp::float4(0.75f, 1.0f, 0.85f, 1.0f), UiAlign::Left};
         hudTexts["roulette"]     = {hlslpp::float2(640.0f, 126.0f), 0.85f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f), UiAlign::Center, true, 640.0f};
@@ -156,6 +156,16 @@ namespace FruitMagic {
             Json::ReadColor(*ring, "backColor", reliefRingBackColor);
             Json::ReadColor(*ring, "fillColor", reliefRingFillColor);
         }
+        if(const Json::Value* icons = Json::FindObject(doc, "moneyIcons")) {
+            if(const Json::Value* coin = Json::FindObject(*icons, "coin")) {
+                Json::ReadVec(*coin, "center", coinIconCenter);
+                Json::Read(*coin, "size", coinIconSize);
+            }
+            if(const Json::Value* fp = Json::FindObject(*icons, "fp")) {
+                Json::ReadVec(*fp, "center", fpIconCenter);
+                Json::Read(*fp, "size", fpIconSize);
+            }
+        }
         if(const Json::Value* magic = Json::FindObject(doc, "magicButtons")) {
             Json::Read(*magic, "width", magicButtonWidth);
             Json::Read(*magic, "height", magicButtonHeight);
@@ -172,6 +182,8 @@ namespace FruitMagic {
         if(const Json::Value* buttons = Json::FindObject(doc, "menuButtons")) {
             Json::Read(*buttons, "x", menuButtonX);
             Json::Read(*buttons, "zukanY", zukanButtonY);
+            Json::Read(*buttons, "recordY", recordButtonY);
+            Json::ReadColor(*buttons, "recordColor", recordButtonColor);
             Json::Read(*buttons, "upgradeY", upgradeButtonY);
             Json::Read(*buttons, "width", menuButtonWidth);
             Json::Read(*buttons, "height", menuButtonHeight);
@@ -343,6 +355,23 @@ namespace FruitMagic {
             ReadFont(*options, "dataNote", optionsDataNote);
             Json::ReadVec(*options, "resetSize", optionsResetSize);
             Json::ReadColor(*options, "resetColor", optionsResetColor);
+        }
+        if(const Json::Value* record = Json::FindObject(doc, "record")) {
+            Json::Read(*record, "listTop", recordListTop);
+            Json::Read(*record, "listBottom", recordListBottom);
+            Json::Read(*record, "listLeft", recordListLeft);
+            Json::Read(*record, "listRight", recordListRight);
+            Json::ReadColor(*record, "thumbColor", recordThumbColor);
+            Json::Read(*record, "columnPadding", recordColumnPadding);
+            Json::Read(*record, "columnGap", recordColumnGap);
+            Json::Read(*record, "rowsTop", recordRowsTop);
+            Json::Read(*record, "rowPitch", recordRowPitch);
+            Json::Read(*record, "sectionGap", recordSectionGap);
+            Json::Read(*record, "itemIndent", recordItemIndent);
+            Json::Read(*record, "bottomMargin", recordBottomMargin);
+            ReadFont(*record, "heading", recordHeading);
+            ReadFont(*record, "label", recordLabel);
+            ReadFont(*record, "value", recordValue);
         }
         if(const Json::Value* confirm = Json::FindObject(doc, "confirm")) {
             Json::ReadVec(*confirm, "size", confirmSize);

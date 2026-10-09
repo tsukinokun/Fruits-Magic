@@ -11,10 +11,10 @@
     "textPadding": 8
   },
   "hud": {
-    "coins":        { "position": { "x": 24,  "y": 20 },  "scale": 1.6,  "color": { "r": 1.0,  "g": 0.92, "b": 0.4,  "a": 1.0 },  "align": "left", "bold": true },
-    "mana":         { "position": { "x": 260, "y": 86 },  "scale": 0.9,  "color": { "r": 0.85, "g": 0.7,  "b": 1.0,  "a": 1.0 },  "align": "left" },
-    "dropPopup":    { "position": { "x": 28,  "y": 122 }, "scale": 1.2,  "color": { "r": 0.6,  "g": 1.0,  "b": 0.6,  "a": 1.0 },  "align": "left", "bold": true },
-    "harvestTotal": { "position": { "x": 24,  "y": 162 }, "scale": 1.2,  "color": { "r": 1.0,  "g": 0.6,  "b": 0.7,  "a": 1.0 },  "align": "left", "bold": true },
+    "coins":        { "position": { "x": 84,  "y": 20 },  "scale": 1.6,  "color": { "r": 1.0,  "g": 0.92, "b": 0.4,  "a": 1.0 },  "align": "left", "bold": true },
+    "mana":         { "position": { "x": 260, "y": 148 },  "scale": 0.9,  "color": { "r": 0.85, "g": 0.7,  "b": 1.0,  "a": 1.0 },  "align": "left" },
+    "dropPopup":    { "position": { "x": 260, "y": 32 }, "scale": 1.2,  "color": { "r": 0.6,  "g": 1.0,  "b": 0.6,  "a": 1.0 },  "align": "left", "bold": true },
+    "fruitPoints":  { "position": { "x": 72,  "y": 86 }, "scale": 1.2,  "color": { "r": 1.0,  "g": 0.6,  "b": 0.7,  "a": 1.0 },  "align": "left", "bold": true },
     "harvestPopup": { "position": { "x": 72,  "y": 204 }, "scale": 1.2,  "color": { "r": 1.0,  "g": 0.85, "b": 0.9,  "a": 1.0 },  "align": "left", "bold": true },
     "relief":       { "position": { "x": 72,  "y": 248 }, "scale": 0.8,  "color": { "r": 0.75, "g": 1.0,  "b": 0.85, "a": 1.0 },  "align": "left" },
     "roulette":     { "position": { "x": 640, "y": 126 }, "scale": 0.85,  "color": { "r": 1.0,  "g": 0.95, "b": 0.6,  "a": 1.0 },  "align": "center", "bold": true, "maxWidth": 640 },
@@ -25,7 +25,7 @@
   "harvestIcon": { "position": { "x": 46, "y": 224 }, "size": 36, "spinSpeed": 120 },
   "manaGauge": {
     "left": 28,
-    "centerY": 100,
+    "centerY": 162,
     "width": 220,
     "height": 14,
     "padding": 4,
@@ -37,6 +37,10 @@
     "center": { "x": 46, "y": 268 },
     "backColor": { "r": 0.1,  "g": 0.05, "b": 0.15, "a": 0.7 },
     "fillColor": { "r": 0.75, "g": 1.0,  "b": 0.55, "a": 1.0 }
+  },
+  "moneyIcons": {
+    "coin": { "center": { "x": 48, "y": 56 },  "size": 52 },
+    "fp":   { "center": { "x": 44, "y": 112 }, "size": 40 }
   },
   "magicButtons": {
     "width": 200,
@@ -54,13 +58,15 @@
   "menuButtons": {
     "x": 1168,
     "zukanY": 40,
-    "upgradeY": 90,
+    "recordY": 90,
+    "recordColor":  { "r": 0.95, "g": 0.7,  "b": 0.35, "a": 1.0 },
+    "upgradeY": 140,
     "width": 196,
     "height": 42,
     "labelScale": 0.85,
     "zukanColor":   { "r": 0.95, "g": 0.55, "b": 0.65, "a": 1.0 },
     "upgradeColor": { "r": 0.45, "g": 0.75, "b": 0.4,  "a": 1.0 },
-    "optionsY": 140,
+    "optionsY": 190,
     "optionsColor": { "r": 0.55, "g": 0.6,  "b": 0.85, "a": 1.0 }
   },
   "sidePanels": {
@@ -168,6 +174,23 @@
     "maxedColor":      { "r": 0.75, "g": 0.6,  "b": 0.25, "a": 1.0 },
     "affordableColor": { "r": 1.0,  "g": 0.95, "b": 0.8,  "a": 1.0 },
     "shortColor":      { "r": 1.0,  "g": 0.55, "b": 0.55, "a": 1.0 }
+  },
+  "record": {
+    "listTop": 70,
+    "listBottom": 24,
+    "listLeft": 20,
+    "listRight": 44,
+    "thumbColor": { "r": 0.95, "g": 0.7, "b": 0.35, "a": 1.0 },
+    "columnPadding": 30,
+    "columnGap": 50,
+    "rowsTop": 24,
+    "rowPitch": 34,
+    "sectionGap": 16,
+    "itemIndent": 16,
+    "bottomMargin": 20,
+    "heading": { "scale": 0.95, "color": { "r": 1.0, "g": 0.75, "b": 0.9, "a": 1.0 }, "bold": true },
+    "label":   { "scale": 0.8,  "color": { "r": 1.0, "g": 1.0,  "b": 1.0, "a": 1.0 } },
+    "value":   { "scale": 0.85, "color": { "r": 1.0, "g": 0.92, "b": 0.4, "a": 1.0 }, "bold": true }
   },
   "options": {
     "listTop": 70,
