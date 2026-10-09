@@ -202,6 +202,13 @@ namespace FruitMagic {
         //! @param  [in] color    色
         static void SetColor(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity, const ModelInfo& model, const hlslpp::float3& color);
 
+        //! 照らし方を付けます。Stage.json の "toon" が有効なら、MaterialPropertyBlockComponent で
+        //! モデルのマテリアル（テクスチャ）のまま照らし方だけをトゥーンにします。
+        //! @param  [in] registry     レジストリ
+        //! @param  [in] entity       ModelComponent を持つエンティティ
+        //! @param  [in] specularSize くっきりしたハイライトの大きさ（0 で無し）
+        void ApplyShading(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity, float specularSize = 0.0f) const;
+
         Tsukino::Asset::AssetManager*              m_assetManager = nullptr;    // モデルの読み込みに使う
         TableLayout                                m_layout;                    // 景品の大きさ・物理（Initialize で受け取った写し）
         StageConfig                                m_stage;                     // 景品の見た目（同上）

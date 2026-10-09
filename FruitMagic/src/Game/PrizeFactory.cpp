@@ -33,6 +33,18 @@
 namespace FruitMagic {
     namespace {
         //--------------------------------------------------------------
+        //! エンティティのマテリアルの上書き（MaterialPropertyBlockComponent）を返します。無ければ付けます。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] entity   ModelComponent を持つエンティティ
+        //! @return マテリアルの上書き
+        //--------------------------------------------------------------
+        Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent& GetOrAddPropertyBlock(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity) {
+            if(auto* block = registry.try_get<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(entity))
+                return *block;
+            return registry.AddComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(entity);
+        }
+
+        //--------------------------------------------------------------
         //! メッシュの AABB 上の点を、ノードの回転と移動で描画時の空間へ移します。
         //! @param  [in]     node 変換に使うノード
         //! @param  [in,out] p    変換する点（x, y, z）
@@ -193,8 +205,21 @@ namespace FruitMagic {
     void PrizeFactory::SetColor(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity, const ModelInfo& model, const hlslpp::float3& color) {
         if(color.x >= 1.0f && color.y >= 1.0f && color.z >= 1.0f)
             return;
-        auto& block     = registry.AddComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(entity);
-        block.baseColor = hlslpp::float4(model.baseColor * color, 1.0f);
+        GetOrAddPropertyBlock(registry, entity).baseColor = hlslpp::float4(model.baseColor * color, 1.0f);
+    }
+
+    //----------------------------------------------------------------------------
+    //! 照らし方（トゥーン）を付けます。
+    //----------------------------------------------------------------------------
+    void PrizeFactory::ApplyShading(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity entity, float specularSize) const {
+        if(!m_stage.toonEnabled)
+            return;
+        auto& block            = GetOrAddPropertyBlock(registry, entity);
+        block.shadingModel     = Tsukino::GraphicsCommon::ShadingModel::Toon;
+        block.toonThreshold    = m_stage.toonThreshold;
+        block.toonSmoothness   = m_stage.toonSmoothness;
+        block.toonShadeColor   = m_stage.toonShadeColor;
+        block.toonSpecularSize = specularSize;
     }
 
     //----------------------------------------------------------------------------
@@ -238,6 +263,7 @@ namespace FruitMagic {
         model.visible                                = true;
         model.opacity                                = opacity;
         SetColor(registry, e, block, color);
+        ApplyShading(registry, e);
 
         return e;
     }
@@ -253,6 +279,7 @@ namespace FruitMagic {
             //--------------------------------------------------------------
             e = CreateBox(registry, position, CoinHalfExtent(), Tsukino::BuiltIn::ECS::RigidbodyType::Dynamic);
             SetColor(registry, e, GetModel(AssetPaths::kBlockModel), m_stage.coinColor);
+            ApplyShading(registry, e, m_stage.toonCoinSpecularSize);
             Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);
             rim.active                                   = true;
             rim.rimColor                                 = m_stage.coinColor;
@@ -319,6 +346,8 @@ namespace FruitMagic {
             material.path = m_layout.coinMaterial;
             registry.GetComponent<Tsukino::BuiltIn::ECS::ModelComponent>(visual).materials.assign(1, material);
         }
+        // 金属らしさはくっきりしたハイライトで出す（トゥーンでは金属の映り込みを付けないため）
+        ApplyShading(registry, visual, m_stage.toonCoinSpecularSize);
         Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(visual);
         rim.active                                   = true;
         rim.rimColor                                 = m_stage.coinColor;
@@ -442,6 +471,7 @@ namespace FruitMagic {
             model.modelHandle                            = modelInfo.handle;
             model.visible                                = true;
             SetColor(registry, fruit, modelInfo, tint);
+            ApplyShading(registry, fruit);
         }
 
         // 輪郭を果物の色で少し光らせて、台の上で目立たせる（ポップな見た目の仮演出）
@@ -502,6 +532,7 @@ namespace FruitMagic {
         model.modelHandle                            = info.handle;
         model.visible                                = true;
         SetColor(registry, e, info, color);
+        ApplyShading(registry, e);
 
         // 親を消すときに一緒に消す（DestroyPrize）
         ECS::FruitPartsComponent* owned = registry.try_get<ECS::FruitPartsComponent>(parent);
@@ -528,6 +559,7 @@ namespace FruitMagic {
         model.modelHandle                            = ball.handle;
         model.visible                                = true;
         SetColor(registry, e, ball, color);
+        ApplyShading(registry, e);
         return e;
     }
 
@@ -548,6 +580,7 @@ namespace FruitMagic {
         Tsukino::BuiltIn::ECS::ModelComponent& model = registry.AddComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e);
         model.modelHandle                            = info.handle;
         model.visible                                = true;
+        ApplyShading(registry, e);
         return e;
     }
 
@@ -578,6 +611,7 @@ namespace FruitMagic {
             component.modelHandle                            = model.handle;
             component.visible                                = true;
             SetColor(registry, e, model, part.color);
+            ApplyShading(registry, e);
 
             if(part.glow > 0.0f) {
                 Tsukino::BuiltIn::ECS::RimGlowComponent& rim = registry.AddComponent<Tsukino::BuiltIn::ECS::RimGlowComponent>(e);

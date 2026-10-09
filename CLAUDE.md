@@ -39,7 +39,7 @@
 | `FruitMagic/*/ECS/System/SlotMachineSystem.*` | ルーレットの表示（3リールのスロット）。結果は `RouletteSystem` が決め、`RouletteState` の止める絵柄と時刻に合わせてリールを止めるだけ |
 | `FruitMagic/*/Game/FruitIcon.*` | 画面に出す 3D の果物（図鑑・左のパネル・「ゲット！」・カットイン）。置き台を `CreateFruitIconHolder` で作り、`SetFruitIcon` で中身を入れる（エンジンの `ScreenModelComponent` で UI の層に描く） |
 | `Assets/` | ゲームのアセット。パスはリポジトリルート相対（例 `Assets/Models/Block.fbx`） |
-| `Assets/Data/` | 果物・ランク・ルーレット・魔法・図鑑・強化・放置・ジャックポット・コインのやりくり（Economy）・演出（Effects）・効果音（Sounds）の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要）。台の寸法と景品の物理（Table）・屋台と周りの景色（地面・置き物）と光とカメラ（Stage）・UI の配置と色と表示時間（Ui。画面の左右のパネルも）・画面の文言（Texts。`{n}` などを差し込む）もここ。調整値はコードに直書きせず JSON に置く（読み込みは `Game/JsonReader.hpp`）。Table.json の寸法が矛盾していると Warn を出して既定の台に戻る |
+| `Assets/Data/` | 果物・ランク・ルーレット・魔法・図鑑・強化・放置・ジャックポット・コインのやりくり（Economy）・演出（Effects）・効果音（Sounds）の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要）。台の寸法と景品の物理（Table）・屋台と周りの景色（地面・置き物）と光とカメラとトゥーンの陰影（Stage。`"toon"`。PrizeFactory が作るモデルに MaterialPropertyBlock で付ける）・UI の配置と色と表示時間（Ui。画面の左右のパネルも）・画面の文言（Texts。`{n}` などを差し込む）もここ。調整値はコードに直書きせず JSON に置く（読み込みは `Game/JsonReader.hpp`）。Table.json の寸法が矛盾していると Warn を出して既定の台に戻る |
 
 | `Assets/Fonts/` | 画面の文字のフォント（M PLUS Rounded 1c の Medium・ExtraBold。SIL OFL 1.1、`OFL.txt` を一緒に置く）と、それを指す `.dfont`。どの文字を太字にするかは `Ui.json` の `"bold"`。元のフォントをそのまま入れてある（使う字だけに減らすと、字が増えるたびに作り直して git の履歴が増えるため） |
 | `Assets/Models/Kenney/<キット>/` | Kenney の CC0 素材（果物・コイン・ちょうちん・電飾と、台の周りの置き物＝隣の屋台・荷車・樽・袋・木・ベンチ・街灯）。使う glb と、それが参照するテクスチャ `colormap.png`（キットごとに同じ名前なのでフォルダを分ける）、ライセンス文 `License.txt`。果物は JSON の `"model"`、コインは `Table.json` の `coin.model`、飾りと周りの置き物は `Stage.json` の `props`・`lantern` で指定する（カメラから見て画面の左が +x） |

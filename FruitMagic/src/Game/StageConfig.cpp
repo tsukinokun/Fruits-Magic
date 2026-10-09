@@ -167,6 +167,13 @@ namespace FruitMagic {
             Json::Read(*prize, "coinGlow", coinGlow);
             Json::Read(*prize, "rimPower", prizeRimPower);
         }
+        if(const Json::Value* toon = Json::FindObject(doc, "toon")) {
+            Json::Read(*toon, "enabled", toonEnabled);
+            Json::Read(*toon, "threshold", toonThreshold);
+            Json::Read(*toon, "smoothness", toonSmoothness);
+            Json::ReadColor(*toon, "shadeColor", toonShadeColor);
+            Json::Read(*toon, "coinSpecularSize", toonCoinSpecularSize);
+        }
         if(const Json::Value* wall = Json::FindObject(doc, "wallMagic")) {
             Json::ReadColor(*wall, "color", wallColor);
             Json::Read(*wall, "opacity", wallOpacity);

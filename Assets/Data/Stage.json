@@ -133,6 +133,13 @@
     "coinGlow": 0.25,
     "rimPower": 3.0
   },
+  "toon": {
+    "enabled": true,
+    "threshold": 0.5,
+    "smoothness": 0.03,
+    "shadeColor": { "r": 0.6, "g": 0.58, "b": 0.72 },
+    "coinSpecularSize": 0.4
+  },
   "wallMagic": {
     "color": { "r": 0.4, "g": 0.85, "b": 1.0 },
     "opacity": 0.5,
