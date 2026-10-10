@@ -1,0 +1,19 @@
+{
+  "id": "golden_pineapple",
+  "name": "金のパイナップル",
+  "shape": "capsule",
+  "radius": 3.5,
+  "halfHeight": 4.0,
+  "mass": 2.0,
+  "value": 55,
+  "mana": 15,
+  "spawnWeight": 0.5,
+  "unlockTreeLevel": 7,
+  "color": {
+    "r": 1.0,
+    "g": 0.85,
+    "b": 0.3
+  },
+  "model": "Assets/Models/Kenney/FoodKit/pineapple.glb",
+  "tintBase": true
+}

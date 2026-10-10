@@ -13,6 +13,7 @@
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/CameraComponent.hpp>
@@ -280,9 +281,15 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         // 板・窓・縁・玉
         //--------------------------------------------------------------
+        // 「のこり」の玉は、今ためられる数（強化で増える）だけを真ん中揃えで並べる
+        const int lamps = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().rouletteMaxStock : 4;
         registry.View<SlotPartComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
             [&](Tsukino::ECS::Entity entity, SlotPartComponent& part, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
-                const bool shown = part.jackpot ? jackpotShown : true;
+                bool shown = part.jackpot ? jackpotShown : true;
+                if(part.part == SlotPart::Lamp) {
+                    shown = part.index < lamps;
+                    transform.position.x = float(ui.slot.center.x) + ui.slotLampGap * (static_cast<float>(part.index) - static_cast<float>(lamps - 1) * 0.5f);
+                }
                 transform.scale  = shown ? part.shownScale : hlslpp::float3(0.0f, 0.0f, 1.0f);
                 transform.dirty  = true;
 

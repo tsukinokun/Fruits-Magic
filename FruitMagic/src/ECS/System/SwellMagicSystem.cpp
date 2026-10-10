@@ -8,6 +8,7 @@
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicEffects.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
@@ -39,7 +40,7 @@ namespace FruitMagic::ECS {
 
         if(m_activeMagic < 0 && catalog.IsMagic(m_pendingCast, kMagicId)) {
             m_activeMagic = m_pendingCast;
-            m_timer       = catalog.Magics()[m_activeMagic].Param("duration", 8.0f);
+            m_timer       = catalog.Magics()[m_activeMagic].Param("duration", 8.0f) * (registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().magicDurationMultiplier : 1.0f);    // 強化「魔法の効果時間」で延びる
         }
         m_pendingCast = -1;
 

@@ -91,11 +91,11 @@ namespace FruitMagic {
     //----------------------------------------------------------------------------
     //! バリエーションを抽選します。
     //----------------------------------------------------------------------------
-    int CollectionConfig::PickVariant(std::mt19937& rng) const {
+    int CollectionConfig::PickVariant(std::mt19937& rng, float chanceMultiplier) const {
         // 確率の低いものから順に判定する方が直感に合うよう、後ろ（レア）から判定する
         std::uniform_real_distribution<float> roll(0.0f, 1.0f);
         for(size_t i = m_variants.size(); i-- > 1;) {
-            if(roll(rng) < m_variants[i].chance)
+            if(roll(rng) < m_variants[i].chance * chanceMultiplier)
                 return static_cast<int>(i);
         }
         return 0;

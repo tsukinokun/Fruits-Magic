@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //! @file   FruitCatalog.hpp
-//! @brief  果物とランクの定義データ
-//! @detail Assets/Data/FruitRanks.json と Assets/Data/Fruits/*.json を読み込み、果物の定義を保持します。
+//! @brief  果物の定義データ
+//! @detail Assets/Data/Fruits/*.json を読み込み、果物の定義を保持します。
 //!         果物を増やすときは JSON を1つ置くだけでよく、果物ごとの専用コードは書きません。
 //!         図鑑・出現抽選・解放条件はすべてこの定義から組み立てます。
 //----------------------------------------------------------------------------
@@ -39,18 +39,11 @@ namespace FruitMagic {
         float          glow     = 0.0f;                                // 輪郭の光の強さ（0 で光らない）
     };
 
-    //! 果物のランク（小・中・大・伝説 など）の定義です。
-    struct FruitRank {
-        std::string  id;           // 識別子（果物の "rank" から参照される）
-        std::wstring name;         // 表示名
-        int          order = 0;    // 並び順（小さいほど下位）
-    };
 
     //! 果物1種の定義です。JSON の1ファイルに対応します。
     struct FruitDef {
         std::string  id;                      // 識別子（ファイル名と同じにしておく）
         std::wstring name;                    // 表示名
-        int          rankIndex = 0;           // FruitCatalog::Ranks() の添字
 
         FruitShape     shape      = FruitShape::Sphere;                      // 当たり判定の形状
         float          radius     = 3.0f;                                    // 球・カプセルの半径（cm）
@@ -82,20 +75,16 @@ namespace FruitMagic {
         float HalfHeightOfBounds() const;
     };
 
-    //! 果物とランクの定義データを保持するクラスです。Registry のコンテキストに置いて共有します。
+    //! 果物の定義データを保持するクラスです。Registry のコンテキストに置いて共有します。
     class FruitCatalog {
     public:
 
         //! 定義データを読み込みます。不正な果物は警告を出して読み飛ばします。
         //! @param  [in] dataRoot データフォルダ（例: "<アセットルート>/Assets/Data"）
-        //! @return ランクと果物が1つ以上読み込めたら true
+        //! @return 果物が1つ以上読み込めたら true
         bool Load(const std::string& dataRoot);
 
-        //! ランクの一覧を返します（order 順）。
-        //! @return ランクの一覧
-        const std::vector<FruitRank>& Ranks() const { return m_ranks; }
-
-        //! 果物の一覧を返します（ランク順、同ランク内は id 順）。
+        //! 果物の一覧を返します（出現する果樹の段階の順、同じ段階の中は価値・id の順。図鑑の並び）。
         //! @return 果物の一覧
         const std::vector<FruitDef>& Fruits() const { return m_fruits; }
 
@@ -116,7 +105,6 @@ namespace FruitMagic {
         std::vector<int> SpawnableFruits(int treeLevel) const;
 
     private:
-        std::vector<FruitRank> m_ranks;     // ランクの一覧
-        std::vector<FruitDef>  m_fruits;    // 果物の一覧
+        std::vector<FruitDef> m_fruits;    // 果物の一覧
     };
 }    // namespace FruitMagic

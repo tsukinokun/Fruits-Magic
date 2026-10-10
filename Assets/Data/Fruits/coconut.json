@@ -1,0 +1,18 @@
+{
+  "id": "coconut",
+  "name": "ココナッツ",
+  "shape": "sphere",
+  "radius": 4.5,
+  "mass": 4.3,
+  "value": 11,
+  "mana": 5,
+  "spawnWeight": 2.5,
+  "unlockTreeLevel": 4,
+  "color": {
+    "r": 0.5,
+    "g": 0.33,
+    "b": 0.2
+  },
+  "model": "Assets/Models/Kenney/FoodKit/coconut.glb",
+  "tintBase": false
+}

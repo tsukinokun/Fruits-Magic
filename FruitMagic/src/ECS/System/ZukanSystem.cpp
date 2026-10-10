@@ -104,9 +104,9 @@ namespace FruitMagic::ECS {
                 case ZukanElementKind::RowName: {
                     if(element.fruitIndex < 0 || element.fruitIndex >= static_cast<int>(catalog.Fruits().size()))
                         break;
-                    const FruitDef& def  = catalog.Fruits()[element.fruitIndex];
-                    const auto&     rank = catalog.Ranks()[def.rankIndex];
-                    font->text           = texts.Format("zukan.rowName", {{"rank", rank.name}, {"name", AnyRegistered(state, element.fruitIndex) ? def.name : texts.Get("zukan.unknown")}});
+                    // ランク（小・中…）は出さない。行はランクの順に並ぶので、下ほど珍しいと分かる
+                    const FruitDef& def = catalog.Fruits()[element.fruitIndex];
+                    font->text          = texts.Format("zukan.rowName", {{"name", AnyRegistered(state, element.fruitIndex) ? def.name : texts.Get("zukan.unknown")}});
                     break;
                 }
 

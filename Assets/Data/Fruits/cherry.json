@@ -1,7 +1,6 @@
 {
   "id": "cherry",
   "name": "さくらんぼ",
-  "rank": "small",
   "shape": "sphere",
   "radius": 2.0,
   "mass": 1.0,

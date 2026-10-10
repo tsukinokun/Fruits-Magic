@@ -11,11 +11,16 @@
 // 名前空間 : FruitMagic
 namespace FruitMagic {
 
+    //! 強化に払うもの（台の強化はコイン、果物と魔法の強化は FP）です。
+    enum class UpgradeCurrency {
+        Coins,    // コイン
+        Fruit,    // フルーツポイント（FP）
+    };
+
     //! 強化の1段階です。
     struct UpgradeLevel {
-        int   coins = 0;       // 必要なコイン
-        int   fruit = 0;       // 必要な果実
-        float value = 0.0f;    // この段階での効果の値
+        long long cost  = 0;       // 値段（UpgradeDef::currency で払う）
+        float     value = 0.0f;    // この段階での効果の値
     };
 
     //! 強化1種の定義です。
@@ -25,6 +30,7 @@ namespace FruitMagic {
         std::wstring              description;       // 説明
         std::wstring              format = L"{v}";   // 効果の値の表示形式（"{v}" が値に置き換わる）
         std::wstring              zeroText;          // 値が 0 のときの表示（空なら format で表示）
+        UpgradeCurrency           currency = UpgradeCurrency::Coins;    // 払うもの
         float                     baseValue = 0.0f;  // 強化していないときの効果の値
         std::vector<UpgradeLevel> levels;            // 段階ごとの価格と効果（添字 0 が Lv1）
 

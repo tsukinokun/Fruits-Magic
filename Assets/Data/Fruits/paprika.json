@@ -1,0 +1,18 @@
+{
+  "id": "paprika",
+  "name": "パプリカ",
+  "shape": "sphere",
+  "radius": 3.5,
+  "mass": 2.0,
+  "value": 6,
+  "mana": 3,
+  "spawnWeight": 4,
+  "unlockTreeLevel": 2,
+  "color": {
+    "r": 1.0,
+    "g": 0.35,
+    "b": 0.1
+  },
+  "model": "Assets/Models/Kenney/FoodKit/paprika.glb",
+  "tintBase": false
+}

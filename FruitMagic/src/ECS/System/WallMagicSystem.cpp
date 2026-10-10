@@ -11,6 +11,7 @@
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/StageConfig.hpp>
 #include <FruitMagic/Game/TableLayout.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/ModelComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/RimGlowComponent.hpp>
@@ -64,7 +65,7 @@ namespace FruitMagic::ECS {
         if(m_activeMagic < 0 && catalog.IsMagic(m_pendingCast, kMagicId)) {
             const MagicDef& def = catalog.Magics()[m_pendingCast];
             m_activeMagic       = m_pendingCast;
-            m_timer             = def.Param("duration", 10.0f);
+            m_timer             = def.Param("duration", 10.0f) * (registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().magicDurationMultiplier : 1.0f);    // 強化「魔法の効果時間」で延びる
             m_elapsed           = 0.0f;
             m_height            = std::max(def.Param("minHeight", 1.0f), def.Param("height", 10.0f));
             m_riseSeconds       = def.Param("riseSeconds", 0.5f);       // 一瞬で出すと重なった景品を弾き飛ばす

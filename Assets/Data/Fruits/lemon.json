@@ -1,0 +1,18 @@
+{
+  "id": "lemon",
+  "name": "レモン",
+  "shape": "sphere",
+  "radius": 3.5,
+  "mass": 2.0,
+  "value": 4,
+  "mana": 2,
+  "spawnWeight": 5,
+  "unlockTreeLevel": 1,
+  "color": {
+    "r": 1.0,
+    "g": 0.9,
+    "b": 0.2
+  },
+  "model": "Assets/Models/Kenney/FoodKit/lemon.glb",
+  "tintBase": false
+}

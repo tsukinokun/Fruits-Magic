@@ -91,22 +91,25 @@ namespace FruitMagic::ECS {
         }
 
         //--------------------------------------------------------------
-        // 強化: 投入用のコインを残して買えるもののうち、いちばん安いもの
+        // 強化: 買えるもののうち、手持ちに対していちばん安いもの（コインの強化は投入用のコインを残す）
         //--------------------------------------------------------------
         if(registry.HasContext<UpgradeCatalog>()) {
             const auto& defs     = registry.GetContext<UpgradeCatalog>().Upgrades();
             int         cheapest = -1;
-            int         price    = 0;
+            double      price    = 0.0;
             for(int i = 0; i < static_cast<int>(defs.size()); ++i) {
                 const int level = state.UpgradeLevelOf(defs[i].id);
                 if(level >= defs[i].MaxLevel())
                     continue;
-                const UpgradeLevel& next = defs[i].levels[level];
-                if(state.coins - next.coins < kCoinReserve || state.fruitPoints < next.fruit)
+                const long long cost   = defs[i].levels[level].cost;
+                const bool      coins  = defs[i].currency == UpgradeCurrency::Coins;
+                const long long held   = coins ? state.coins - kCoinReserve : state.fruitPoints;
+                if(held < cost)
                     continue;
-                if(cheapest < 0 || next.coins < price) {
+                const double relative = static_cast<double>(cost) / std::max(1.0, static_cast<double>(held));
+                if(cheapest < 0 || relative < price) {
                     cheapest = i;
-                    price    = next.coins;
+                    price    = relative;
                 }
             }
             if(cheapest >= 0)

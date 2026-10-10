@@ -75,12 +75,14 @@ namespace FruitMagic {
         if(std::uniform_real_distribution<double>(0.0, 1.0)(rng) < fruits - std::floor(fruits))
             report.fruitCount += 1;
 
-        // どの果物が採れたかは今の果樹の段階で抽選し、価値を果実に足す（バリエーションは通常のみ）
+        // どの果物が採れたかは今の果樹の段階で抽選し、価値（強化「果物の価値」も掛ける）を FP に足す（バリエーションは通常のみ）
+        double fruitPoints = 0.0;
         for(int i = 0; i < report.fruitCount; ++i) {
             const int fruitIndex = catalog.PickSpawnable(state.treeLevel, rng);
             if(fruitIndex >= 0)
-                report.fruitPoints += catalog.Fruits()[fruitIndex].value;
+                fruitPoints += catalog.Fruits()[fruitIndex].value * stats.fruitValueMultiplier;
         }
+        report.fruitPoints = std::llround(fruitPoints);
 
         state.coins += report.coins;
         state.fruitPoints += report.fruitPoints;

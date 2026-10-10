@@ -252,9 +252,16 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         float          upgradeWalletOffsetY = 74.0f;     // 画面の上端から手持ちまで
         UiFont         upgradeWallet        = {0.9f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), true};
-        float          upgradeRowsTop       = 104.0f;    // 画面の上端から行の始まりまで
+        float          upgradeRowsTop       = 148.0f;    // 画面の上端から行の始まりまで（タブの下）
         float          upgradeRowsBottom    = 24.0f;     // 行の終わりから画面の下端まで
         float          upgradeRowPitch      = 100.0f;    // 行の高さ（行が多ければスクロールする）
+        float          upgradeTabY          = 118.0f;    // タブ（「コインで強化」「FP で強化」）の中心の高さ（画面の上端から）
+        hlslpp::float2 upgradeTabSize       = hlslpp::float2(260.0f, 40.0f);    // タブのボタンの大きさ
+        float          upgradeTabGap        = 12.0f;     // タブの間（タブは画面の中央に揃えて並べる）
+        float          upgradeTabLabelScale = 0.85f;
+        hlslpp::float4 upgradeTabColor         = hlslpp::float4(0.3f, 0.25f, 0.4f, 1.0f);     // 選んでいないタブ
+        hlslpp::float4 upgradeTabHoverColor    = hlslpp::float4(0.45f, 0.38f, 0.6f, 1.0f);    // 選んでいないタブ（カーソルが重なっている）
+        hlslpp::float4 upgradeTabSelectedColor = hlslpp::float4(0.85f, 0.55f, 0.25f, 1.0f);   // 選んでいるタブ
         float          upgradeRowSpread     = 0.2f;      // 1行の中の上段・下段のずれ（行の高さに対する割合）
         float          upgradeListLeft      = 16.0f;
         float          upgradeListRight     = 34.0f;

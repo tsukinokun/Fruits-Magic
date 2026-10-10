@@ -57,9 +57,10 @@ namespace FruitMagic {
         int FindIndex(const std::string& id) const;
 
         //! バリエーションを抽選します。
-        //! @param  [in,out] rng 乱数生成器
+        //! @param  [in,out] rng              乱数生成器
+        //! @param  [in]     chanceMultiplier 出る確率に掛ける倍率（強化「色違いの出やすさ」。1 で定義どおり）
         //! @return バリエーションの添字（どれにも当たらなければ 0 = 通常）
-        int PickVariant(std::mt19937& rng) const;
+        int PickVariant(std::mt19937& rng, float chanceMultiplier = 1.0f) const;
 
         //! 図鑑1枠あたりのマナ獲得の上乗せ率を返します（0.05 なら 5%）。
         //! @return 上乗せ率

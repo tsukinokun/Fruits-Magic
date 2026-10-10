@@ -3,6 +3,7 @@
 //! @brief  開いている画面（図鑑・強化・おかえり・オプション）
 //----------------------------------------------------------------------------
 #pragma once
+#include <FruitMagic/Game/UpgradeCatalog.hpp>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
@@ -19,7 +20,8 @@ namespace FruitMagic {
 
     //! 開いている画面です。Registry のコンテキストに置きます。
     struct MenuState {
-        MenuKind open = MenuKind::None;    // 開いている画面
+        MenuKind        open       = MenuKind::None;             // 開いている画面
+        UpgradeCurrency upgradeTab = UpgradeCurrency::Coins;    // 強化画面で選んでいるタブ（払うもの。閉じても覚えておく）
 
         //! 指定の画面が開いているかを返します。
         //! @param  [in] menu 画面の種類

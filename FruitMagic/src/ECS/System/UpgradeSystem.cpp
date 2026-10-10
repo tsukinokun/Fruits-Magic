@@ -6,7 +6,9 @@
 
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/ManaConfig.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
+#include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/Texts.hpp>
@@ -16,6 +18,7 @@
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/UIVisibilityComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/Log.hpp>
 
@@ -38,16 +41,28 @@ namespace FruitMagic::ECS {
         const auto&           defs    = catalog.Upgrades();
 
         //--------------------------------------------------------------
-        // 購入ボタンのクリック
+        // タブと購入ボタンのクリック（隠れているタブの中身はエンジンが当たり判定から外す）
         //--------------------------------------------------------------
-        int clickedIndex = -1;
+        MenuState& menu         = registry.GetContext<MenuState>();
+        int        clickedIndex = -1;
         registry.View<UpgradeElementComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
             [&](Tsukino::ECS::Entity, UpgradeElementComponent& element, Tsukino::BuiltIn::ECS::PointerTargetComponent& pointer) {
-                if(element.kind == UpgradeElementKind::BuyButton && pointer.clicked)
+                if(!pointer.clicked)
+                    return;
+                if(element.kind == UpgradeElementKind::BuyButton)
                     clickedIndex = element.upgradeIndex;
+                else if(element.kind == UpgradeElementKind::Tab)
+                    menu.upgradeTab = element.currency;
             });
         if(clickedIndex >= 0)
             Purchase(registry, clickedIndex);
+
+        // 選んでいるタブの中身だけを見せる
+        registry.View<UpgradeElementComponent, Tsukino::BuiltIn::ECS::UIVisibilityComponent>().each(
+            [&](Tsukino::ECS::Entity, UpgradeElementComponent& element, Tsukino::BuiltIn::ECS::UIVisibilityComponent& visibility) {
+                if(element.kind == UpgradeElementKind::TabGroup)
+                    visibility.visible = (element.currency == menu.upgradeTab);
+            });
 
         //--------------------------------------------------------------
         // 画面の文字・ボタンの色
@@ -61,6 +76,17 @@ namespace FruitMagic::ECS {
                     font->text = texts.Format("upgrade.wallet", {{"coins", std::to_wstring(state.coins)}, {"fruit", std::to_wstring(state.fruitPoints)}});
                 return;
             }
+            if(element.kind == UpgradeElementKind::Tab) {
+                auto* sprite  = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(entity);
+                auto* pointer = registry.try_get<Tsukino::BuiltIn::ECS::PointerTargetComponent>(entity);
+                if(sprite)
+                    sprite->tintColor = (element.currency == menu.upgradeTab) ? ui.upgradeTabSelectedColor
+                                        : (pointer && pointer->hovered)     ? ui.upgradeTabHoverColor
+                                                                            : ui.upgradeTabColor;
+                return;
+            }
+            if(element.kind == UpgradeElementKind::TabGroup)
+                return;
 
             if(element.upgradeIndex < 0 || element.upgradeIndex >= static_cast<int>(defs.size()))
                 return;
@@ -99,11 +125,7 @@ namespace FruitMagic::ECS {
                         font->text.clear();
                         break;
                     }
-                    const UpgradeLevel& next = def.levels[level];
-                    std::wstring        text = texts.Format("upgrade.costCoins", {{"n", std::to_wstring(next.coins)}});
-                    if(next.fruit > 0)
-                        text += texts.Format("upgrade.costFruit", {{"n", std::to_wstring(next.fruit)}});
-                    font->text  = text;
+                    font->text  = CostText(def, state, texts);
                     font->color = canBuy ? ui.upgradeAffordableColor : ui.upgradeShortColor;
                     break;
                 }
@@ -125,8 +147,19 @@ namespace FruitMagic::ECS {
         const int level = state.UpgradeLevelOf(def.id);
         if(level >= def.MaxLevel())
             return false;
-        const UpgradeLevel& next = def.levels[level];
-        return state.coins >= next.coins && state.fruitPoints >= next.fruit;
+        const long long cost = def.levels[level].cost;
+        return (def.currency == UpgradeCurrency::Coins) ? state.coins >= cost : state.fruitPoints >= cost;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 強化の次のレベルの値段を文字にします。
+    //----------------------------------------------------------------------------
+    std::wstring UpgradeSystem::CostText(const UpgradeDef& def, const GameState& state, const Texts& texts) {
+        const int level = state.UpgradeLevelOf(def.id);
+        if(level >= def.MaxLevel())
+            return std::wstring();
+        const char* key = (def.currency == UpgradeCurrency::Coins) ? "upgrade.costCoins" : "upgrade.costFruit";
+        return texts.Format(key, {{"n", std::to_wstring(def.levels[level].cost)}});
     }
 
     //----------------------------------------------------------------------------
@@ -140,17 +173,31 @@ namespace FruitMagic::ECS {
         TableStats& stats = registry.GetContext<TableStats>();
         const TableLayout& layout = GetTableLayout(registry);
 
-        // 押し幅の強化が無いときは台の既定の振幅（Table.json）
-        stats.pusherAmplitude = layout.pusherAmplitude;
+        //--------------------------------------------------------------
+        // 強化の無い項目は定義データの既定の値（Table.json・Roulette.json・Mana.json）。
+        // 下で強化のある項目だけを上書きする
+        //--------------------------------------------------------------
+        const RouletteConfig roulette = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
+        stats                    = TableStats{};
+        stats.pusherAmplitude    = layout.pusherAmplitude;
+        stats.pusherPeriod       = layout.pusherPeriod;
+        stats.rouletteMaxStock   = roulette.maxStock;
+        stats.rouletteCoinAmount = roulette.coinAmount;
+        stats.rouletteHitChance  = roulette.hitChance;
+        state.maxMana            = registry.HasContext<ManaConfig>() ? registry.GetContext<ManaConfig>().maxMana : ManaConfig{}.maxMana;
 
         for(const UpgradeDef& def : registry.GetContext<UpgradeCatalog>().Upgrades()) {
             const float value = def.ValueAt(state.UpgradeLevelOf(def.id));
 
+            //--------------------------------------------------------------
+            // 台（コイン）
+            //--------------------------------------------------------------
             if(def.id == "pusherStroke") {
                 // 振幅の上限はプッシャーの奥行で決まる（Table.json の pusher.maxAmplitude）。超える値は丸める
                 stats.pusherAmplitude = std::clamp(value, 1.0f, layout.pusherMaxAmplitude);
-            } else if(def.id == "treeLevel") {
-                state.treeLevel = std::max(0, static_cast<int>(value));
+            } else if(def.id == "pusherSpeed") {
+                // データは往復の周期（秒）。短すぎると景品を弾き飛ばすので下限を付ける
+                stats.pusherPeriod = std::max(1.0f, value);
             } else if(def.id == "fairy") {
                 stats.autoLaunchInterval = std::max(0.0f, value);
             } else if(def.id == "checkerWidth") {
@@ -158,10 +205,38 @@ namespace FruitMagic::ECS {
                 stats.checkerHalfWidth = std::clamp(value * 0.5f, 0.5f, layout.payoutHalfWidth);
             } else if(def.id == "offlineHours") {
                 stats.offlineMaxHours = std::max(0.0f, value);
+            } else if(def.id == "rouletteStock") {
+                stats.rouletteMaxStock = std::max(1, static_cast<int>(value));
+            } else if(def.id == "rouletteCoins") {
+                stats.rouletteCoinAmount = std::max(0, static_cast<int>(value));
+            } else if(def.id == "gutterCharm") {
+                // データは戻る割合（%）
+                stats.gutterRefundRate = std::clamp(value / 100.0f, 0.0f, 1.0f);
+            }
+            //--------------------------------------------------------------
+            // 果物と魔法（FP）
+            //--------------------------------------------------------------
+            else if(def.id == "treeLevel") {
+                state.treeLevel = std::max(0, static_cast<int>(value));
+            } else if(def.id == "fruitValue") {
+                // データは倍率の %（150 なら 1.5 倍）
+                stats.fruitValueMultiplier = std::max(1.0f, value / 100.0f);
+            } else if(def.id == "variantChance") {
+                stats.variantChanceMultiplier = std::max(1.0f, value / 100.0f);
+            } else if(def.id == "rouletteHit") {
+                // データは確率（%）
+                stats.rouletteHitChance = std::clamp(value / 100.0f, 0.0f, 1.0f);
+            } else if(def.id == "manaGain") {
+                stats.manaMultiplier = std::max(1.0f, value / 100.0f);
+            } else if(def.id == "maxMana") {
+                state.maxMana = std::max(1, static_cast<int>(value));
+            } else if(def.id == "magicDuration") {
+                stats.magicDurationMultiplier = std::max(1.0f, value / 100.0f);
             } else {
-                Tsukino::Core::Log::Warn("UpgradeSystem: upgrade \"" + def.id + "\" has no effect. Known ids: pusherStroke, treeLevel, fairy, checkerWidth, offlineHours.");
+                Tsukino::Core::Log::Warn("UpgradeSystem: upgrade \"" + def.id + "\" has no effect.");
             }
         }
+        state.mana = std::min(state.mana, state.maxMana);
     }
 
     //----------------------------------------------------------------------------
@@ -177,10 +252,12 @@ namespace FruitMagic::ECS {
         if(!CanAfford(def, state))
             return false;
 
-        const int           level = state.UpgradeLevelOf(def.id);
-        const UpgradeLevel& next  = def.levels[level];
-        state.coins -= next.coins;
-        state.fruitPoints -= next.fruit;
+        const int       level = state.UpgradeLevelOf(def.id);
+        const long long cost  = def.levels[level].cost;
+        if(def.currency == UpgradeCurrency::Coins)
+            state.coins -= static_cast<int>(cost);
+        else
+            state.fruitPoints -= cost;
         state.upgradeLevels[def.id] = level + 1;
 
         ApplyUpgrades(registry);

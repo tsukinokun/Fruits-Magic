@@ -107,6 +107,12 @@ namespace FruitMagic::ECS {
             if(!registry.HasContext<UpgradeCatalog>())
                 return best;
 
+            // 値段を手持ちとの比で比べる（コインと FP は単位が違うので、そのままでは比べられない）
+            auto relativeCost = [&](const UpgradeDef& def, int level) {
+                const double held = (def.currency == UpgradeCurrency::Coins) ? static_cast<double>(state.coins) : static_cast<double>(state.fruitPoints);
+                return static_cast<double>(def.levels[level].cost) / std::max(1.0, held);
+            };
+
             for(const UpgradeDef& def : registry.GetContext<UpgradeCatalog>().Upgrades()) {
                 const int level = state.UpgradeLevelOf(def.id);
                 if(level >= def.MaxLevel())
@@ -114,13 +120,11 @@ namespace FruitMagic::ECS {
 
                 const bool canBuy = UpgradeSystem::CanAfford(def, state);
                 if(best.def) {
-                    // 買えるものを優先し、同じなら必要なコイン（同じなら果実）の少ない方
-                    const UpgradeLevel& next = def.levels[level];
-                    const UpgradeLevel& held = best.def->levels[best.level];
+                    // 買えるものを優先し、同じなら手持ちに対して安い方
                     if(canBuy != best.canBuy) {
                         if(!canBuy)
                             continue;
-                    } else if(next.coins != held.coins ? next.coins > held.coins : next.fruit >= held.fruit) {
+                    } else if(relativeCost(def, level) >= relativeCost(*best.def, best.level)) {
                         continue;
                     }
                 }
@@ -334,11 +338,8 @@ namespace FruitMagic::ECS {
 
                     case SidePanelElementKind::UpgradeCost:
                         if(upgrade.def) {
-                            const UpgradeLevel& next = upgrade.def->levels[upgrade.level];
-                            std::wstring        cost = texts.Format("upgrade.costCoins", {{"n", std::to_wstring(next.coins)}});
-                            if(next.fruit > 0)
-                                cost += texts.Format("upgrade.costFruit", {{"n", std::to_wstring(next.fruit)}});
-                            font->text  = texts.Format(upgrade.canBuy ? "side.upgradeReady" : "side.upgradeShort", {{"cost", cost}});
+                            const std::wstring cost = UpgradeSystem::CostText(*upgrade.def, state, texts);
+                            font->text              = texts.Format(upgrade.canBuy ? "side.upgradeReady" : "side.upgradeShort", {{"cost", cost}});
                             font->color = upgrade.canBuy ? ui.sideValue.color : ui.sideDimColor;
                         }
                         break;

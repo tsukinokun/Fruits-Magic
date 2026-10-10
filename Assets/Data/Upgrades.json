@@ -2,64 +2,220 @@
   "upgrades": [
     {
       "id": "pusherStroke",
+      "currency": "coins",
       "name": "プッシャーの押し幅",
       "description": "プッシャーが前に出る距離が伸びる",
       "format": "{v}cm",
       "base": 12,
       "levels": [
-        { "coins": 30, "fruit": 2, "value": 14 },
-        { "coins": 70, "fruit": 8, "value": 16 },
-        { "coins": 140, "fruit": 20, "value": 18 }
+        { "cost": 30, "value": 14 },
+        { "cost": 70, "value": 16 },
+        { "cost": 140, "value": 18 },
+        { "cost": 280, "value": 20 },
+        { "cost": 500, "value": 22 },
+        { "cost": 800, "value": 24 }
       ]
     },
     {
-      "id": "treeLevel",
-      "name": "果樹",
-      "description": "上のランクの果物が実るようになる",
-      "format": "段階{v}",
-      "base": 0,
+      "id": "pusherSpeed",
+      "currency": "coins",
+      "name": "プッシャーの速さ",
+      "description": "プッシャーが速く往復し、押す回数が増える",
+      "format": "{v}秒で往復",
+      "base": 3,
       "levels": [
-        { "coins": 30, "fruit": 5, "value": 1 },
-        { "coins": 80, "fruit": 25, "value": 2 },
-        { "coins": 200, "fruit": 80, "value": 3 }
+        { "cost": 60, "value": 2.7 },
+        { "cost": 150, "value": 2.4 },
+        { "cost": 350, "value": 2.1 },
+        { "cost": 700, "value": 1.8 }
       ]
     },
     {
       "id": "fairy",
+      "currency": "coins",
       "name": "妖精の自動投入",
       "description": "妖精がタダでコインを入れてくれる",
       "format": "{v}秒ごと",
       "zeroText": "なし",
       "base": 0,
       "levels": [
-        { "coins": 20, "fruit": 0, "value": 6 },
-        { "coins": 60, "fruit": 5, "value": 4 },
-        { "coins": 120, "fruit": 15, "value": 2.5 },
-        { "coins": 250, "fruit": 40, "value": 1.5 }
+        { "cost": 20, "value": 6 },
+        { "cost": 60, "value": 4 },
+        { "cost": 120, "value": 2.5 },
+        { "cost": 250, "value": 1.5 },
+        { "cost": 500, "value": 1 },
+        { "cost": 900, "value": 0.7 }
       ]
     },
     {
       "id": "checkerWidth",
+      "currency": "coins",
       "name": "チェッカーの穴",
       "description": "穴が広がり、ルーレットが回りやすくなる",
       "format": "幅{v}cm",
       "base": 8,
       "levels": [
-        { "coins": 25, "fruit": 3, "value": 10 },
-        { "coins": 60, "fruit": 10, "value": 12 },
-        { "coins": 120, "fruit": 25, "value": 15 }
+        { "cost": 25, "value": 10 },
+        { "cost": 60, "value": 12 },
+        { "cost": 120, "value": 15 },
+        { "cost": 250, "value": 18 },
+        { "cost": 500, "value": 22 }
+      ]
+    },
+    {
+      "id": "rouletteStock",
+      "currency": "coins",
+      "name": "ルーレットのストック",
+      "description": "ためておけるルーレットの回数が増える",
+      "format": "{v}回",
+      "base": 4,
+      "levels": [
+        { "cost": 40, "value": 6 },
+        { "cost": 100, "value": 8 },
+        { "cost": 220, "value": 10 },
+        { "cost": 450, "value": 12 }
+      ]
+    },
+    {
+      "id": "rouletteCoins",
+      "currency": "coins",
+      "name": "コイン当たりの枚数",
+      "description": "ルーレットでコインが当たったときに降る枚数が増える",
+      "format": "{v}枚",
+      "base": 5,
+      "levels": [
+        { "cost": 50, "value": 8 },
+        { "cost": 120, "value": 12 },
+        { "cost": 260, "value": 18 },
+        { "cost": 500, "value": 25 }
+      ]
+    },
+    {
+      "id": "gutterCharm",
+      "currency": "coins",
+      "name": "溝のおまもり",
+      "description": "左右の溝に落ちたコインの一部が手持ちに戻る",
+      "format": "{v}%",
+      "zeroText": "なし",
+      "base": 0,
+      "levels": [
+        { "cost": 80, "value": 10 },
+        { "cost": 180, "value": 20 },
+        { "cost": 350, "value": 30 },
+        { "cost": 650, "value": 40 }
       ]
     },
     {
       "id": "offlineHours",
+      "currency": "coins",
       "name": "おるすばん時間",
       "description": "閉じている間に妖精が働く時間が延びる",
       "format": "{v}時間",
       "base": 2,
       "levels": [
-        { "coins": 50, "fruit": 5, "value": 4 },
-        { "coins": 120, "fruit": 20, "value": 8 },
-        { "coins": 300, "fruit": 60, "value": 24 }
+        { "cost": 50, "value": 4 },
+        { "cost": 120, "value": 8 },
+        { "cost": 250, "value": 12 },
+        { "cost": 500, "value": 24 },
+        { "cost": 900, "value": 48 }
+      ]
+    },
+    {
+      "id": "treeLevel",
+      "currency": "fp",
+      "name": "果樹",
+      "description": "新しい果物が実るようになる",
+      "format": "段階{v}",
+      "base": 0,
+      "levels": [
+        { "cost": 5, "value": 1 },
+        { "cost": 20, "value": 2 },
+        { "cost": 50, "value": 3 },
+        { "cost": 120, "value": 4 },
+        { "cost": 260, "value": 5 },
+        { "cost": 500, "value": 6 },
+        { "cost": 1000, "value": 7 }
+      ]
+    },
+    {
+      "id": "fruitValue",
+      "currency": "fp",
+      "name": "果物の価値",
+      "description": "収穫したときにもらえる FP が増える",
+      "format": "{v}%",
+      "base": 100,
+      "levels": [
+        { "cost": 10, "value": 110 },
+        { "cost": 40, "value": 125 },
+        { "cost": 100, "value": 150 },
+        { "cost": 220, "value": 175 },
+        { "cost": 450, "value": 200 }
+      ]
+    },
+    {
+      "id": "variantChance",
+      "currency": "fp",
+      "name": "色違いの出やすさ",
+      "description": "ルーレットで色違い・金色の果物が出やすくなる",
+      "format": "{v}%",
+      "base": 100,
+      "levels": [
+        { "cost": 30, "value": 150 },
+        { "cost": 90, "value": 200 },
+        { "cost": 250, "value": 300 }
+      ]
+    },
+    {
+      "id": "rouletteHit",
+      "currency": "fp",
+      "name": "ルーレットの当たり",
+      "description": "ルーレットで果物が当たる確率が上がる",
+      "format": "{v}%",
+      "base": 40,
+      "levels": [
+        { "cost": 15, "value": 45 },
+        { "cost": 50, "value": 50 },
+        { "cost": 130, "value": 55 },
+        { "cost": 300, "value": 60 }
+      ]
+    },
+    {
+      "id": "manaGain",
+      "currency": "fp",
+      "name": "マナの獲得",
+      "description": "景品が落ちたときにもらえるマナが増える",
+      "format": "{v}%",
+      "base": 100,
+      "levels": [
+        { "cost": 15, "value": 120 },
+        { "cost": 60, "value": 150 },
+        { "cost": 180, "value": 200 }
+      ]
+    },
+    {
+      "id": "maxMana",
+      "currency": "fp",
+      "name": "マナの上限",
+      "description": "ためておけるマナが増える",
+      "format": "{v}",
+      "base": 100,
+      "levels": [
+        { "cost": 20, "value": 130 },
+        { "cost": 70, "value": 160 },
+        { "cost": 200, "value": 200 }
+      ]
+    },
+    {
+      "id": "magicDuration",
+      "currency": "fp",
+      "name": "魔法の効果時間",
+      "description": "「ゆらゆら」「ふくらむ」「かべ」が長く続く",
+      "format": "{v}%",
+      "base": 100,
+      "levels": [
+        { "cost": 30, "value": 120 },
+        { "cost": 100, "value": 150 },
+        { "cost": 250, "value": 200 }
       ]
     }
   ]

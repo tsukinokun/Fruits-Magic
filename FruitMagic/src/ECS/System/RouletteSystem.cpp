@@ -15,6 +15,7 @@
 #include <FruitMagic/Game/PlayStats.hpp>
 #include <FruitMagic/Game/PrizeFactory.hpp>
 #include <FruitMagic/Game/TableLayout.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
@@ -47,8 +48,18 @@ namespace FruitMagic::ECS {
         RouletteState&       state   = registry.GetContext<RouletteState>();
         const FruitCatalog&  catalog = registry.GetContext<FruitCatalog>();
         const int            level   = registry.GetContext<GameState>().treeLevel;
-        const RouletteConfig config  = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
+        RouletteConfig       config  = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>() : RouletteConfig{};
         const JackpotConfig  jackpot = registry.HasContext<JackpotConfig>() ? registry.GetContext<JackpotConfig>() : JackpotConfig{};
+
+        // ためられる数・果物の当たり率・コイン当たりの枚数・色違いの出やすさは強化で変わる（TableStats）
+        float variantChance = 1.0f;
+        if(registry.HasContext<TableStats>()) {
+            const TableStats& stats = registry.GetContext<TableStats>();
+            config.maxStock         = stats.rouletteMaxStock;
+            config.hitChance        = stats.rouletteHitChance;
+            config.coinAmount       = stats.rouletteCoinAmount;
+            variantChance           = stats.variantChanceMultiplier;
+        }
 
         //--------------------------------------------------------------
         // チェッカーに入った分をためる（上限を超えた分は捨てる）。
@@ -127,7 +138,7 @@ namespace FruitMagic::ECS {
                 if(std::uniform_real_distribution<float>(0.0f, 1.0f)(m_rng) < config.hitChance) {
                     m_resultFruit = catalog.PickSpawnable(level, m_rng);
                     if(registry.HasContext<CollectionConfig>())
-                        m_resultVariant = registry.GetContext<CollectionConfig>().PickVariant(m_rng);
+                        m_resultVariant = registry.GetContext<CollectionConfig>().PickVariant(m_rng, variantChance);
                 } else if(std::uniform_real_distribution<float>(0.0f, 1.0f)(m_rng) < config.coinChance) {
                     // 果物が外れても、時々コインが当たる（手持ちが尽きにくいように）
                     m_resultCoins = config.coinAmount;

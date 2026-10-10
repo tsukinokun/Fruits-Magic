@@ -1,0 +1,18 @@
+{
+  "id": "pear",
+  "name": "洋なし",
+  "shape": "sphere",
+  "radius": 4.0,
+  "mass": 3.0,
+  "value": 5,
+  "mana": 3,
+  "spawnWeight": 4.5,
+  "unlockTreeLevel": 2,
+  "color": {
+    "r": 0.75,
+    "g": 0.85,
+    "b": 0.3
+  },
+  "model": "Assets/Models/Kenney/FoodKit/pear.glb",
+  "tintBase": false
+}

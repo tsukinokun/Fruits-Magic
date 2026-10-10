@@ -1,0 +1,18 @@
+{
+  "id": "eggplant",
+  "name": "なす",
+  "shape": "sphere",
+  "radius": 4.0,
+  "mass": 3.0,
+  "value": 8,
+  "mana": 4,
+  "spawnWeight": 3,
+  "unlockTreeLevel": 3,
+  "color": {
+    "r": 0.35,
+    "g": 0.15,
+    "b": 0.45
+  },
+  "model": "Assets/Models/Kenney/FoodKit/eggplant.glb",
+  "tintBase": false
+}

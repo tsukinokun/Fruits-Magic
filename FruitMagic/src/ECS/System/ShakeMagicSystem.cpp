@@ -8,6 +8,7 @@
 #include <FruitMagic/ECS/Event/MagicCastEvent.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
 #include <FruitMagic/Game/MagicState.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/CameraComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/ImpulseRequestComponent.hpp>
@@ -53,7 +54,7 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         if(m_activeMagic < 0 && catalog.IsMagic(m_pendingCast, kMagicId)) {
             m_activeMagic = m_pendingCast;
-            m_timer       = catalog.Magics()[m_activeMagic].Param("duration", 1.2f);
+            m_timer       = catalog.Magics()[m_activeMagic].Param("duration", 1.2f) * (registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().magicDurationMultiplier : 1.0f);    // 強化「魔法の効果時間」で延びる
             m_pulseTimer  = 0.0f;
             m_elapsed     = 0.0f;
 
@@ -88,7 +89,7 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         m_elapsed += deltaTime;
         if(m_camera != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_camera)) {
-            const float duration  = def.Param("duration", 1.2f);
+            const float duration  = def.Param("duration", 1.2f) * (registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().magicDurationMultiplier : 1.0f);
             const float amplitude = def.Param("cameraShake", 0.6f) * std::max(0.0f, 1.0f - m_elapsed / duration);
             const float shakeSpeed        = def.Param("cameraShakeSpeed", 45.0f);              // 揺れの速さ（ラジアン/秒）
             const float verticalFrequency = def.Param("cameraShakeVerticalFrequency", 1.3f);   // 縦の揺れの速さ（横に対する倍率）

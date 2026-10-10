@@ -285,6 +285,13 @@ namespace FruitMagic {
             Json::Read(*upgrade, "rowsTop", upgradeRowsTop);
             Json::Read(*upgrade, "rowsBottom", upgradeRowsBottom);
             Json::Read(*upgrade, "rowPitch", upgradeRowPitch);
+            Json::Read(*upgrade, "tabY", upgradeTabY);
+            Json::ReadVec(*upgrade, "tabSize", upgradeTabSize);
+            Json::Read(*upgrade, "tabGap", upgradeTabGap);
+            Json::Read(*upgrade, "tabLabelScale", upgradeTabLabelScale);
+            Json::ReadColor(*upgrade, "tabColor", upgradeTabColor);
+            Json::ReadColor(*upgrade, "tabHoverColor", upgradeTabHoverColor);
+            Json::ReadColor(*upgrade, "tabSelectedColor", upgradeTabSelectedColor);
             Json::Read(*upgrade, "rowSpread", upgradeRowSpread);
             Json::Read(*upgrade, "listLeft", upgradeListLeft);
             Json::Read(*upgrade, "listRight", upgradeListRight);

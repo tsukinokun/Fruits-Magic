@@ -5,17 +5,20 @@
 #pragma once
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 
+#include <string>
+
 // 名前空間 : FruitMagic
 namespace FruitMagic {
     struct GameState;     // 前方宣言
     struct UpgradeDef;    // 前方宣言
+    class Texts;          // 前方宣言
 }
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
     //! 台の強化のシステムです。強化画面が開いている間、購入ボタンのクリックで
-    //! コインと果実を払ってレベルを上げ、画面の文字・ボタンの色を更新します。
+    //! コインか FP（強化ごとに決まっている方）を払ってレベルを上げ、画面の文字・ボタンの色を更新します。
     //! 効果の値が何に効くかは強化の id で決まります（"pusherStroke" → プッシャーの振幅 など）。
     class UpgradeSystem : public Tsukino::ECS::ISystem {
     public:
@@ -35,6 +38,13 @@ namespace FruitMagic::ECS {
         //! @param  [in] state プレイヤーの資源
         //! @return 買えれば true（最大レベルなら false）
         static bool CanAfford(const UpgradeDef& def, const GameState& state);
+
+        //! 強化の次のレベルの値段を「コイン 30」「FP 5」のような文字にします。
+        //! @param  [in] def   強化の定義
+        //! @param  [in] state プレイヤーの資源
+        //! @param  [in] texts 文言（"upgrade.costCoins"・"upgrade.costFruit"）
+        //! @return 値段の文字（最大レベルなら空）
+        static std::wstring CostText(const UpgradeDef& def, const GameState& state, const Texts& texts);
 
         //! 強化を1段階買います（強化画面の購入ボタンと、バランス計測の自動プレイが使う）。
         //! @param  [in] registry     レジストリ

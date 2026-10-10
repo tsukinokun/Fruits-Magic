@@ -102,41 +102,9 @@ namespace FruitMagic {
     //! 定義データを読み込みます。不正な果物は警告を出して読み飛ばします。
     //----------------------------------------------------------------------------
     bool FruitCatalog::Load(const std::string& dataRoot) {
-        m_ranks.clear();
         m_fruits.clear();
 
         const std::filesystem::path root(dataRoot);
-
-        //--------------------------------------------------------------
-        // ランク
-        //--------------------------------------------------------------
-        {
-            rj::Document doc;
-            if(!ParseJsonFile(root / "FruitRanks.json", doc))
-                return false;
-
-            auto ranks = doc.FindMember("ranks");
-            if(ranks == doc.MemberEnd() || !ranks->value.IsArray()) {
-                Tsukino::Core::Log::Warn("FruitCatalog: FruitRanks.json has no \"ranks\" array.");
-                return false;
-            }
-
-            for(const rj::Value& r : ranks->value.GetArray()) {
-                if(!r.IsObject())
-                    continue;
-                FruitRank rank;
-                rank.id    = GetString(r, "id", "");
-                rank.name  = Utf8ToWide(GetString(r, "name", rank.id));
-                rank.order = GetInt(r, "order", static_cast<int>(m_ranks.size()));
-                if(rank.id.empty()) {
-                    Tsukino::Core::Log::Warn("FruitCatalog: a rank without \"id\" was skipped.");
-                    continue;
-                }
-                m_ranks.push_back(rank);
-            }
-
-            std::stable_sort(m_ranks.begin(), m_ranks.end(), [](const FruitRank& a, const FruitRank& b) { return a.order < b.order; });
-        }
 
         //--------------------------------------------------------------
         // 果物（フォルダ内の *.json をすべて読む）
@@ -172,14 +140,6 @@ namespace FruitMagic {
             }
 
             def.name = Utf8ToWide(GetString(doc, "name", def.id));
-
-            const std::string rankId = GetString(doc, "rank", "");
-            auto rankIt = std::find_if(m_ranks.begin(), m_ranks.end(), [&](const FruitRank& r) { return r.id == rankId; });
-            if(rankIt == m_ranks.end()) {
-                Tsukino::Core::Log::Warn("FruitCatalog: unknown rank \"" + rankId + "\" in " + where + " was skipped.");
-                continue;
-            }
-            def.rankIndex = static_cast<int>(rankIt - m_ranks.begin());
 
             const std::string shape = GetString(doc, "shape", "sphere");
             if(shape == "sphere") {
@@ -244,15 +204,19 @@ namespace FruitMagic {
             m_fruits.push_back(def);
         }
 
-        // ランク順、同じランクの中は id 順（図鑑の並びにそのまま使える）。
+        // 出現する果樹の段階の順、同じ段階の中は価値の順、最後に id 順（図鑑の並びにそのまま使える。下ほど珍しい）。
         // id は重複を除いてあるので順序は一意に決まり、stable_sort は要らない
         // （FruitDef は16バイト境界の hlslpp::float3 を持つため、MSVC の stable_sort の一時領域が作れない）
         std::sort(m_fruits.begin(), m_fruits.end(), [](const FruitDef& a, const FruitDef& b) {
-            return (a.rankIndex != b.rankIndex) ? (a.rankIndex < b.rankIndex) : (a.id < b.id);
+            if(a.unlockTreeLevel != b.unlockTreeLevel)
+                return a.unlockTreeLevel < b.unlockTreeLevel;
+            if(a.value != b.value)
+                return a.value < b.value;
+            return a.id < b.id;
         });
 
-        Tsukino::Core::Log::Info("FruitCatalog: loaded " + std::to_string(m_fruits.size()) + " fruits, " + std::to_string(m_ranks.size()) + " ranks.");
-        return !m_ranks.empty() && !m_fruits.empty();
+        Tsukino::Core::Log::Info("FruitCatalog: loaded " + std::to_string(m_fruits.size()) + " fruits.");
+        return !m_fruits.empty();
     }
 
     //----------------------------------------------------------------------------

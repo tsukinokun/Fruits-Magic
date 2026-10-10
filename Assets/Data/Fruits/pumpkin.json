@@ -1,0 +1,18 @@
+{
+  "id": "pumpkin",
+  "name": "かぼちゃ",
+  "shape": "sphere",
+  "radius": 5.5,
+  "mass": 7.8,
+  "value": 12,
+  "mana": 5,
+  "spawnWeight": 2.5,
+  "unlockTreeLevel": 4,
+  "color": {
+    "r": 1.0,
+    "g": 0.55,
+    "b": 0.1
+  },
+  "model": "Assets/Models/Kenney/FoodKit/pumpkin.glb",
+  "tintBase": false
+}

@@ -1,14 +1,13 @@
 {
   "id": "melon",
   "name": "スイカ",
-  "rank": "large",
   "shape": "sphere",
   "radius": 6.5,
   "mass": 12.0,
-  "value": 8,
-  "mana": 4,
-  "spawnWeight": 3,
-  "unlockTreeLevel": 2,
+  "value": 15,
+  "mana": 6,
+  "spawnWeight": 2,
+  "unlockTreeLevel": 5,
   "color": {
     "r": 0.3,
     "g": 0.7,

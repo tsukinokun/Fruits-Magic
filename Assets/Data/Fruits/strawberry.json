@@ -1,7 +1,6 @@
 {
   "id": "strawberry",
   "name": "いちご",
-  "rank": "small",
   "shape": "sphere",
   "radius": 2.5,
   "mass": 1.5,

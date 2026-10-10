@@ -10,6 +10,7 @@
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/RecentHarvests.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
@@ -57,13 +58,14 @@ namespace FruitMagic::ECS {
             const bool isFirst = (counts[variantIndex] == 0);
             counts[variantIndex] += 1;
 
-            // 価値（価値 × バリエーションの倍率 × 大きくした倍率）を、転生用の合計と強化に使う果実の両方に足す
+            // 価値（価値 × バリエーションの倍率 × 大きくした倍率 × 強化「果物の価値」）を、転生用の合計と強化に使う FP の両方に足す
             long long value = 0;
             if(registry.HasContext<FruitCatalog>() && registry.HasContext<CollectionConfig>()) {
                 const auto& fruits   = registry.GetContext<FruitCatalog>().Fruits();
                 const auto& variants = registry.GetContext<CollectionConfig>().Variants();
                 if(fruitIndex < static_cast<int>(fruits.size()) && variantIndex < static_cast<int>(variants.size())) {
-                    value = static_cast<long long>(fruits[fruitIndex].value) * variants[variantIndex].valueMultiplier * std::max(1, pending.valueMultiplier);
+                    const float bonus = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().fruitValueMultiplier : 1.0f;
+                    value = std::llround(static_cast<double>(fruits[fruitIndex].value) * variants[variantIndex].valueMultiplier * std::max(1, pending.valueMultiplier) * bonus);
                     state.harvestValue += value;
                     state.fruitPoints += value;
                 }

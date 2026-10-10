@@ -5,6 +5,7 @@
 #include <FruitMagic/ECS/System/WalletSystem.hpp>
 
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
@@ -29,14 +30,25 @@ namespace FruitMagic::ECS {
             return;
         }
 
-        GameState& state = registry.GetContext<GameState>();
+        GameState& state      = registry.GetContext<GameState>();
+        const float refundRate = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().gutterRefundRate : 0.0f;
         for(const PrizeDroppedEvent& e : m_pendingDrops) {
-            // 手持ちに戻るのは払い出し口に落ちたコインだけ。
-            // 果物は HarvestSystem が収穫として記録し、左右の溝に落ちた物は失う（M3 でマナにする）
-            if(e.zone != DropZone::Payout || e.kind != PrizeKind::Coin)
+            // 手持ちに戻るのは払い出し口に落ちたコイン。
+            // 果物は HarvestSystem が収穫として記録し、左右の溝に落ちた物は失う（マナにはなる）
+            if(e.kind != PrizeKind::Coin)
                 continue;
+            if(e.zone == DropZone::Payout) {
+                state.coins += e.value;
+                continue;
+            }
 
-            state.coins += e.value;
+            //--------------------------------------------------------------
+            // 強化「溝のおまもり」: 溝に落ちたコインの一部が戻る。割合の端数は持ち越す（毎回切り捨てると少ない割合で何も戻らない）
+            //--------------------------------------------------------------
+            m_refundFraction += refundRate * static_cast<float>(e.value);
+            const int refund = static_cast<int>(m_refundFraction);
+            m_refundFraction -= static_cast<float>(refund);
+            state.coins += refund;
         }
         m_pendingDrops.clear();
     }

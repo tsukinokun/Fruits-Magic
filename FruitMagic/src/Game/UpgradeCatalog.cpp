@@ -74,16 +74,23 @@ namespace FruitMagic {
             Json::Read(u, "zeroText", def.zeroText);
             Json::Read(u, "base", def.baseValue);
 
+            // 払うもの（"coins" か "fp"）
+            std::string currency = "coins";
+            Json::Read(u, "currency", currency);
+            if(currency == "fp") {
+                def.currency = UpgradeCurrency::Fruit;
+            } else if(currency != "coins") {
+                Tsukino::Core::Log::Warn("UpgradeCatalog: upgrade \"" + def.id + "\" has unknown currency \"" + currency + "\". Coins are used.");
+            }
+
             if(const Json::Value* levels = Json::FindArray(u, "levels")) {
                 for(const Json::Value& l : levels->GetArray()) {
                     if(!l.IsObject())
                         continue;
                     UpgradeLevel level;
-                    Json::Read(l, "coins", level.coins);
-                    Json::Read(l, "fruit", level.fruit);
+                    Json::Read(l, "cost", level.cost);
                     Json::Read(l, "value", level.value);
-                    level.coins = std::max(0, level.coins);
-                    level.fruit = std::max(0, level.fruit);
+                    level.cost = std::max(0LL, level.cost);
                     def.levels.push_back(level);
                 }
             }

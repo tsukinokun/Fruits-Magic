@@ -8,6 +8,7 @@
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/ManaConfig.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
@@ -40,7 +41,9 @@ namespace FruitMagic::ECS {
 
         // 図鑑ボーナス: 登録した枠の数だけマナの獲得量が増える
         const float bonusPerEntry = registry.HasContext<CollectionConfig>() ? registry.GetContext<CollectionConfig>().ManaBonusPerEntry() : 0.0f;
-        const float multiplier    = 1.0f + bonusPerEntry * static_cast<float>(state.RegisteredCount());
+        // 強化「マナの獲得」の倍率も掛ける
+        const float upgrade       = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().manaMultiplier : 1.0f;
+        const float multiplier    = (1.0f + bonusPerEntry * static_cast<float>(state.RegisteredCount())) * upgrade;
 
         for(const PrizeDroppedEvent& e : m_pendingDrops) {
             int gain = 0;

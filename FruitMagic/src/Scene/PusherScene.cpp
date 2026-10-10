@@ -126,6 +126,7 @@
 #include <Tsukino/BuiltIn/ECS/Component/ScreenModelComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/AmbientParticleComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/UIClipComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/UIVisibilityComponent.hpp>
 
 #include <Tsukino/Core/IO/FileSystem.hpp>
 #include <Tsukino/Core/Path.hpp>
@@ -442,7 +443,9 @@ namespace FruitMagic {
         // 位置の差分から速度を求め、乗っている景品を押す
         //--------------------------------------------------------------
         if(m_pusherEntity != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_pusherEntity)) {
-            m_pusherTime = std::fmod(m_pusherTime + simulationStep, layout.pusherPeriod);
+            // 往復のどこまで進んだか（0〜1）。周期は速さの強化で変わるので、時間ではなく割合で持つ（変えた瞬間に位置が跳ばない）
+            const float period = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().pusherPeriod : layout.pusherPeriod;
+            m_pusherTime       = std::fmod(m_pusherTime + simulationStep / std::max(period, 0.01f), 1.0f);
 
             // 押し幅の強化と魔法「ふくらむ」は、振幅を少しずつ近づけて反映する（一気に変えると速度が跳ねて景品を弾き飛ばす）
             if(registry.HasContext<TableStats>()) {
@@ -453,7 +456,7 @@ namespace FruitMagic {
             }
 
             // 最も引っ込んだ位置は振幅によらず同じで、振幅が増えた分だけ前に出る
-            const float phase = 2.0f * kPi * m_pusherTime / layout.pusherPeriod;
+            const float phase = 2.0f * kPi * m_pusherTime;
 
             auto& t    = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_pusherEntity);
             t.position = hlslpp::float3(0.0f, layout.PusherCenterY(), layout.PusherCenterZ(m_pusherAmplitude) + std::sin(phase) * m_pusherAmplitude);
@@ -1332,11 +1335,16 @@ namespace FruitMagic {
             buildSlot(ui.slot, false);
             buildSlot(ui.jackpotSlot, true);
 
-            // ふだんのスロットの下の「のこり」の玉（ためている回転の数）
-            const int   lamps     = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>().maxStock : 4;
-            const float lampLeft  = float(ui.slot.center.x) - ui.slotLampGap * static_cast<float>(lamps - 1) * 0.5f;
+            //--------------------------------------------------------------
+            // ふだんのスロットの下の「のこり」の玉（ためている回転の数）。
+            // ためられる数は強化で増えるので、強化しきったときの数だけ作っておき、
+            // 今ためられる数だけを SlotMachineSystem が並べて見せる
+            //--------------------------------------------------------------
+            int lamps = registry.HasContext<RouletteConfig>() ? registry.GetContext<RouletteConfig>().maxStock : 4;
+            if(const UpgradeDef* stock = registry.GetContext<UpgradeCatalog>().Find("rouletteStock"))
+                lamps = std::max(lamps, static_cast<int>(stock->ValueAt(stock->MaxLevel())));
             for(int i = 0; i < lamps; ++i) {
-                const hlslpp::float2 center(lampLeft + ui.slotLampGap * static_cast<float>(i), float(ui.slot.center.y) + ui.slotLampOffsetY);
+                const hlslpp::float2 center(float(ui.slot.center.x), float(ui.slot.center.y) + ui.slotLampOffsetY);
                 addPart(createPanel(center, hlslpp::float2(ui.slotLampSize, ui.slotLampSize), ui.slotLampOff, ui.slot.sortOrder + 1), false, ECS::SlotPart::Lamp, i,
                         ui.slotLampOff);
             }
@@ -1384,12 +1392,15 @@ namespace FruitMagic {
             float                left    = 0.0f;          // 枠の左端（画面ピクセル）
             float                top     = 0.0f;          // 枠の上端（画面ピクセル）
         };
-        auto createScrollList = [&](MenuKind menu, float left, float top, float right, float bottom, float contentHeight, const hlslpp::float4& thumbColor) {
+        // group を渡すと、枠とスクロールバーをその子にする（group は画面の原点に置いた親。タブの中身をまとめて隠すのに使う）
+        auto createScrollList = [&](MenuKind menu, float left, float top, float right, float bottom, float contentHeight, const hlslpp::float4& thumbColor,
+                                    Tsukino::ECS::Entity group = entt::null) {
             const float width  = right - left;
             const float height = bottom - top;
 
             Tsukino::ECS::Entity                       view          = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& viewTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(view);
+            viewTransform.parent                                     = group;
             viewTransform.position                                   = hlslpp::float3(left + width * 0.5f, top + height * 0.5f, 0.0f);
             viewTransform.dirty                                      = true;
             registry.AddComponent<Tsukino::BuiltIn::ECS::UIClipComponent>(view).size = hlslpp::float2(width, height);
@@ -1405,6 +1416,10 @@ namespace FruitMagic {
             const float          barX  = menuRight - ui.scrollBarInset;
             Tsukino::ECS::Entity track = createPanel(hlslpp::float2(barX, top + height * 0.5f), hlslpp::float2(ui.scrollBarWidth, height), ui.scrollTrackColor, 21);
             Tsukino::ECS::Entity thumb = createPanel(hlslpp::float2(barX, top), hlslpp::float2(ui.scrollBarWidth, ui.scrollBarWidth), thumbColor, 22);
+            if(group != entt::null) {
+                registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(track).parent = group;
+                registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(thumb).parent = group;
+            }
 
             // 画面のパネルと同じく、スクロールバーの上のクリックでコインが投入されないよう受け止める
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(track);
@@ -1519,37 +1534,80 @@ namespace FruitMagic {
             addElement(createFontText(hlslpp::float2(ui.menuCenter.x, menuTop + ui.upgradeWalletOffsetY), ui.upgradeWallet, kCenter, 22, inside(ui.menuSize.x)),
                        ECS::UpgradeElementKind::Wallet);
 
-            // 行（強化が増えて枠に収まらなくなったらスクロールする。行の高さは変えない）
-            const float      rowsTop = menuTop + ui.upgradeRowsTop;
-            const float      pitch   = ui.upgradeRowPitch;
-            const float      buttonX = menuRight - ui.upgradeButtonRight - ui.upgradeButtonWidth * 0.5f;
-            const float      nameX   = menuLeft + ui.upgradeNameX;
-            const float      effectX = menuLeft + ui.upgradeEffectX;
-            const ScrollList list    = createScrollList(MenuKind::Upgrade, menuLeft + ui.upgradeListLeft, rowsTop, menuRight - ui.upgradeListRight,
-                                                        menuBottom - ui.upgradeRowsBottom, pitch * static_cast<float>(rows), ui.upgradeThumbColor);
+            //--------------------------------------------------------------
+            // タブ（「コインで強化」「FP で強化」）。手持ちの下に横に並べる。
+            // タブごとに中身の親（UIVisibilityComponent）を作り、選んでいるタブの親だけを UpgradeSystem が見せる
+            //--------------------------------------------------------------
+            struct Tab {
+                UpgradeCurrency currency;
+                const char*     title;
+            };
+            const Tab   tabs[]    = {{UpgradeCurrency::Coins, "upgrade.coinSection"}, {UpgradeCurrency::Fruit, "upgrade.fruitSection"}};
+            const int   tabCount  = static_cast<int>(std::size(tabs));
+            const float tabsWidth = ui.upgradeTabSize.x * static_cast<float>(tabCount) + ui.upgradeTabGap * static_cast<float>(tabCount - 1);
+            const UpgradeCurrency selected = registry.GetContext<MenuState>().upgradeTab;
+
+            const float rowsTop = menuTop + ui.upgradeRowsTop;
+            const float pitch   = ui.upgradeRowPitch;
+            const float buttonX = menuRight - ui.upgradeButtonRight - ui.upgradeButtonWidth * 0.5f;
+            const float nameX   = menuLeft + ui.upgradeNameX;
+            const float effectX = menuLeft + ui.upgradeEffectX;
             // 名前と説明は効果の列まで、効果と価格は購入ボタンの左端まで
             const float nameWidth   = effectX - nameX - ui.textPadding;
             const float effectWidth = buttonX - ui.upgradeButtonWidth * 0.5f - effectX - ui.textPadding;
-            for(int u = 0; u < rows; ++u) {
-                const UpgradeDef& def = upgrades.Upgrades()[u];
-                const float       y   = rowsTop + pitch * (static_cast<float>(u) + 0.5f);
-                const float       dy  = pitch * ui.upgradeRowSpread;    // 1行の中の上段・下段のずれ
 
-                // 名前とレベル（上段）・説明（下段）
-                addElement(attach(list, createFontText(hlslpp::float2(nameX, y - dy), ui.upgradeName, kLeft, 22, nameWidth)), ECS::UpgradeElementKind::Name, u);
-                addPage(attach(list, createFontText(hlslpp::float2(nameX, y + dy), ui.upgradeDescription, kLeft, 22, nameWidth)), MenuKind::Upgrade, def.description);
+            for(int t = 0; t < tabCount; ++t) {
+                const Tab& tab = tabs[t];
 
-                // 効果（上段）・価格（下段。色は UpgradeSystem が買えるかどうかで変える）
-                addElement(attach(list, createFontText(hlslpp::float2(effectX, y - dy), ui.upgradeEffect, kLeft, 22, effectWidth)), ECS::UpgradeElementKind::Effect, u);
-                addElement(attach(list, createText(hlslpp::float2(effectX, y + dy), ui.upgradeCostScale, kLeft, ui.upgradeAffordableColor, 22, false, effectWidth)),
-                           ECS::UpgradeElementKind::Cost, u);
+                // タブのボタン（色は UpgradeSystem が選んでいるかどうかで変える）
+                const hlslpp::float2 tabCenter(float(ui.menuCenter.x) - tabsWidth * 0.5f + ui.upgradeTabSize.x * 0.5f + (ui.upgradeTabSize.x + ui.upgradeTabGap) * static_cast<float>(t),
+                                               menuTop + ui.upgradeTabY);
+                Tsukino::ECS::Entity tabButton = createPanel(tabCenter, ui.upgradeTabSize, ui.upgradeTabColor, 21);
+                registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(tabButton);
+                addElement(tabButton, ECS::UpgradeElementKind::Tab);
+                registry.GetComponent<ECS::UpgradeElementComponent>(tabButton).currency = tab.currency;
+                addPage(createText(tabCenter, ui.upgradeTabLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeTabSize.x)), MenuKind::Upgrade, texts.Get(tab.title));
 
-                // 購入ボタン（色は UpgradeSystem が買えるかどうかで変える）
-                Tsukino::ECS::Entity button = attach(list, createPanel(hlslpp::float2(buttonX, y), hlslpp::float2(ui.upgradeButtonWidth, ui.upgradeButtonHeight),
-                                                                       ui.upgradeCannotBuyColor, 21));
-                registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
-                addElement(button, ECS::UpgradeElementKind::BuyButton, u);
-                addElement(attach(list, createText(hlslpp::float2(buttonX, y), ui.upgradeLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeButtonWidth))), ECS::UpgradeElementKind::BuyLabel, u);
+                // 中身の親（画面の原点に置く。子の位置は画面の座標のまま）
+                Tsukino::ECS::Entity                       group          = m_scene.CreateEntity();
+                Tsukino::BuiltIn::ECS::TransformComponent& groupTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(group);
+                groupTransform.dirty                                      = true;
+                registry.AddComponent<Tsukino::BuiltIn::ECS::UIVisibilityComponent>(group).visible = (tab.currency == selected);
+                ECS::UpgradeElementComponent& groupElement = registry.AddComponent<ECS::UpgradeElementComponent>(group);
+                groupElement.kind                          = ECS::UpgradeElementKind::TabGroup;
+                groupElement.currency                      = tab.currency;
+
+                // このタブの強化（定義の順のまま）。増えて枠に収まらなくなったらスクロールする。行の高さは変えない
+                std::vector<int> order;
+                for(int u = 0; u < rows; ++u) {
+                    if(upgrades.Upgrades()[u].currency == tab.currency)
+                        order.push_back(u);
+                }
+                const ScrollList list = createScrollList(MenuKind::Upgrade, menuLeft + ui.upgradeListLeft, rowsTop, menuRight - ui.upgradeListRight,
+                                                         menuBottom - ui.upgradeRowsBottom, pitch * static_cast<float>(order.size()), ui.upgradeThumbColor, group);
+
+                for(size_t row = 0; row < order.size(); ++row) {
+                    const int         u   = order[row];
+                    const UpgradeDef& def = upgrades.Upgrades()[u];
+                    const float       y   = rowsTop + pitch * (static_cast<float>(row) + 0.5f);
+                    const float       dy  = pitch * ui.upgradeRowSpread;    // 1行の中の上段・下段のずれ
+
+                    // 名前とレベル（上段）・説明（下段）
+                    addElement(attach(list, createFontText(hlslpp::float2(nameX, y - dy), ui.upgradeName, kLeft, 22, nameWidth)), ECS::UpgradeElementKind::Name, u);
+                    addPage(attach(list, createFontText(hlslpp::float2(nameX, y + dy), ui.upgradeDescription, kLeft, 22, nameWidth)), MenuKind::Upgrade, def.description);
+
+                    // 効果（上段）・価格（下段。色は UpgradeSystem が買えるかどうかで変える）
+                    addElement(attach(list, createFontText(hlslpp::float2(effectX, y - dy), ui.upgradeEffect, kLeft, 22, effectWidth)), ECS::UpgradeElementKind::Effect, u);
+                    addElement(attach(list, createText(hlslpp::float2(effectX, y + dy), ui.upgradeCostScale, kLeft, ui.upgradeAffordableColor, 22, false, effectWidth)),
+                               ECS::UpgradeElementKind::Cost, u);
+
+                    // 購入ボタン（色は UpgradeSystem が買えるかどうかで変える）
+                    Tsukino::ECS::Entity button = attach(list, createPanel(hlslpp::float2(buttonX, y), hlslpp::float2(ui.upgradeButtonWidth, ui.upgradeButtonHeight),
+                                                                           ui.upgradeCannotBuyColor, 21));
+                    registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+                    addElement(button, ECS::UpgradeElementKind::BuyButton, u);
+                    addElement(attach(list, createText(hlslpp::float2(buttonX, y), ui.upgradeLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeButtonWidth))), ECS::UpgradeElementKind::BuyLabel, u);
+                }
             }
         }
 

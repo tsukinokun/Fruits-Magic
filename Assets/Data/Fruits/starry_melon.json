@@ -1,0 +1,18 @@
+{
+  "id": "starry_melon",
+  "name": "星空のスイカ",
+  "shape": "sphere",
+  "radius": 6.5,
+  "mass": 12.9,
+  "value": 60,
+  "mana": 15,
+  "spawnWeight": 0.4,
+  "unlockTreeLevel": 7,
+  "color": {
+    "r": 0.35,
+    "g": 0.4,
+    "b": 1.0
+  },
+  "model": "Assets/Models/Kenney/FoodKit/watermelon.glb",
+  "tintBase": true
+}

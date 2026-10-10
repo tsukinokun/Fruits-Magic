@@ -1,0 +1,18 @@
+{
+  "id": "ruby_cherry",
+  "name": "ルビーのさくらんぼ",
+  "shape": "sphere",
+  "radius": 2.5,
+  "mass": 1.0,
+  "value": 35,
+  "mana": 10,
+  "spawnWeight": 0.8,
+  "unlockTreeLevel": 6,
+  "color": {
+    "r": 1.0,
+    "g": 0.1,
+    "b": 0.35
+  },
+  "model": "Assets/Models/Kenney/FoodKit/cherries.glb",
+  "tintBase": true
+}

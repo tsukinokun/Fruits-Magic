@@ -121,7 +121,7 @@
   "zukan": {
     "title": "図鑑",
     "normalVariant": "通常",
-    "rowName": "【{rank}】{name}",
+    "rowName": "{name}",
     "unknown": "？？？",
     "count": "×{n}",
     "footer": "登録 {registered} / {total}     マナ獲得 +{bonus}%"
@@ -160,8 +160,10 @@
     "name": "{name}   Lv {level} / {max}",
     "effectMax": "{now}（最大）",
     "effectNext": "{now} → {next}",
+    "coinSection": "コインで強化",
+    "fruitSection": "FP で強化",
     "costCoins": "コイン {n}",
-    "costFruit": "   FP {n}",
+    "costFruit": "FP {n}",
     "maxed": "最大",
     "buy": "強化する",
     "short": "足りない"

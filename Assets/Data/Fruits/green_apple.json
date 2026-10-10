@@ -1,0 +1,18 @@
+{
+  "id": "green_apple",
+  "name": "青りんご",
+  "shape": "sphere",
+  "radius": 4.0,
+  "mass": 3.0,
+  "value": 16,
+  "mana": 6,
+  "spawnWeight": 1.8,
+  "unlockTreeLevel": 5,
+  "color": {
+    "r": 0.55,
+    "g": 0.95,
+    "b": 0.35
+  },
+  "model": "Assets/Models/Kenney/FoodKit/apple.glb",
+  "tintBase": true
+}
