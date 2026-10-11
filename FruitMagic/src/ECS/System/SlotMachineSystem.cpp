@@ -22,6 +22,7 @@
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/UI/UICanvas.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
+#include <Tsukino/Core/Math/Easing.hpp>
 #include <Tsukino/Core/Window.hpp>
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 
@@ -33,17 +34,6 @@
 namespace FruitMagic::ECS {
     namespace {
         constexpr float kPi = 3.14159265358979323846f;
-
-        //--------------------------------------------------------------
-        //! 少し行き過ぎて戻る動き（0〜1 → 0〜1。行き過ぎの強さ overshoot）を返します。
-        //! @param  [in] t         進み具合（0〜1）
-        //! @param  [in] overshoot 行き過ぎの強さ（0 なら行き過ぎない）
-        //! @return 動きの進み具合
-        //--------------------------------------------------------------
-        float EaseOutBack(float t, float overshoot) {
-            const float u = std::clamp(t, 0.0f, 1.0f) - 1.0f;
-            return 1.0f + (overshoot + 1.0f) * u * u * u + overshoot * u * u;
-        }
 
         //--------------------------------------------------------------
         //! 値を長さ length で折り返し、-length/2〜length/2 に収めます（リールの絵柄の縦の位置）。
@@ -234,7 +224,7 @@ namespace FruitMagic::ECS {
                 // 回転が終わって段階が進んでいたら、止まりきったことにする
                 const bool  sameSpin = (reel.spinId == state.spinId) && spinning;
                 const float u        = sameSpin ? (state.spinTime - reel.stopStart) / layout.stopSeconds : 1.0f;
-                reel.scroll          = reel.stopFrom + reel.stopDistance * EaseOutBack(u, layout.overshoot);
+                reel.scroll          = reel.stopFrom + reel.stopDistance * Tsukino::Core::Math::Easing::OutBack(u, layout.overshoot);
                 if(u >= 1.0f) {
                     reel.scroll = reel.stopFrom + reel.stopDistance;
                     reel.motion = SlotReelMotion::Stopped;

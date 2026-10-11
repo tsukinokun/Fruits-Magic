@@ -38,6 +38,7 @@
 | `FruitMagic/*/Scene/PusherScene.*` | プッシャー台のシーン |
 | `FruitMagic/*/ECS/System/SlotMachineSystem.*` | ルーレットの表示（3リールのスロット）。結果は `RouletteSystem` が決め、`RouletteState` の止める絵柄と時刻に合わせてリールを止めるだけ |
 | `FruitMagic/*/Game/FruitIcon.*` | 画面に出す 3D の果物（図鑑・左のパネル・「ゲット！」・カットイン）。置き台を `CreateFruitIconHolder` で作り、`SetFruitIcon` で中身を入れる（エンジンの `ScreenModelComponent` で UI の層に描く） |
+| `FruitMagic/*/Game/UiMotion.*` | UI の動き（ボタンの手ごたえ・ポップイン・画面を開くポップ・スライドイン・呼吸・弾み・フェードアウト・お金のマークの裏返り・数のカウントアップ `CountUpValue`）。中身はエンジンの `UITweenComponent`・`UIMotionComponent`（見た目だけのずれ。`source` で別エンティティの動きを写す）・`UICanvasGroupComponent`（子孫ごと透明に）・`UIButtonFeedbackComponent`。数値は `Ui.json` の `"motion"`。`UITweenSystem` と2つ目の `TransformSystem` を UI のシステムの後に置き、同じフレームに反映する |
 | `Assets/` | ゲームのアセット。パスはリポジトリルート相対（例 `Assets/Models/Block.fbx`） |
 | `Assets/Data/` | 果物・ルーレット・魔法・図鑑・強化・放置・ジャックポット・コインのやりくり（Economy）・演出（Effects）・効果音（Sounds）の定義 JSON。果物は `Fruits/<id>.json` を足すだけで増える（コード変更不要）。台の寸法と景品の物理（Table）・屋台と周りの景色（地面・置き物）と光とカメラとトゥーンの陰影（Stage。`"toon"`。PrizeFactory が作るモデルに MaterialPropertyBlock で付ける）・UI の配置と色と表示時間（Ui。画面の左右のパネルも）・画面の文言（Texts。`{n}` などを差し込む）もここ。調整値はコードに直書きせず JSON に置く（読み込みは `Game/JsonReader.hpp`）。Table.json の寸法が矛盾していると Warn を出して既定の台に戻る |
 

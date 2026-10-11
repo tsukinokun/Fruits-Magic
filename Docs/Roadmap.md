@@ -48,6 +48,16 @@
 - 計測結果（M7 調整後、Release 10 分）: 払い出し率（払い出し ÷ 投入）は 72%→86%、手持ちは 15〜37 枚で推移、強化は 0:00 妖精・0:21 押し幅・3:14 チェッカー・7:17 果樹、収穫 36／溝落ち 20、ふくらむ解放 8:26、ジャックポットチャンス 6 回で当たり 1 回
 - 果物の飾り: 果物 JSON の `"parts"`（`shape` sphere/box・`offset`・`size`・`rotation`・`color`・`glow`）。位置と大きさは果物の半サイズに対する比率で、果物を親（`TransformComponent::parent`）にした見た目だけのエンティティ。親のスケールが「見た目の半サイズ ÷ モデルの半サイズ」なので、ローカルはモデルの半サイズで書く（`PrizeFactory::AttachParts`）。エンジンは親を消しても子を消さないので、景品は必ず `PrizeFactory::DestroyPrize` で消す
 - 演出: 光の粒はワールド空間の加算スプライト（`SpriteSpace::World` はカメラを向く板。大きさは「画像のピクセル数 × スケール」cm）。粒の数・色・速さ・画面の光は `Assets/Data/Effects.json` のプリセットで、出したいシステムが `EffectEvent{プリセット名, 位置}` を発行する（魔法は `cast_<id>`、バリエーションは `variant_<id>` を自動で探す）。落ちたときのポップは `WorldAnchorComponent`（ワールドの一点に追従する画面の文字）
+- UI の動き: 止まっている UI をなくすため、よくあるパターンをまとめて入れた（`Game/UiMotion`。中身はエンジンの UITween / UIMotion / UICanvasGroup / UIButtonFeedback）
+  - ボタン：ホバーで拡大、押して縮む、クリックで弾む
+  - 画面と確認ウィンドウ：開くとポップしながらフェードイン（閉じるのは即時）
+  - 左右のパネル：端から行ごとにスライドイン
+  - 一時表示：ポップインとフェードアウト
+  - コイン・FP・マナ：カウントアップして弾む
+  - ゲージ：なめらかに追いつく
+  - 押せる物（撃てる魔法・買える強化）：呼吸
+  - お金のマーク：ときどき裏返る
+  - 調整値は `Ui.json` の `"motion"`
 - カットイン: 図鑑に初めて載ったとき・色違いと金色が取れたときに、画面の中ほどの帯に果物の 3D モデルと名前を出す（`CutInSystem`。帯の大きさ・時間は `Ui.json` の `cutIn`、文言は `Texts.json` の `cutin`、オプションでオン/オフ）。3D モデルを UI の層に描くのはエンジンの `ScreenModelComponent`（付けたエンティティと子のモデルを、画面スプライト・文字と同じ層に `sortOrder` の順で描く。位置は画面ピクセル、大きさは `pixelsPerUnit`。影と点光源は効かない）。果物の見た目だけは `PrizeFactory::CreateFruitVisual`
 - 画面の果物: 図鑑・左のパネル・「〇〇 ゲット！」・カットインの果物は、色の四角ではなく本物の 3D の果物（`Game/FruitIcon.hpp` の `CreateFruitIconHolder`・`SetFruitIcon`。中身が変わったときだけ作り直し、`FruitIconSystem` が回す）。図鑑のまだ取っていない枠は黒いシルエット。スクロールの中の果物は、エンジンの `ScreenModelComponent::anchor` に行の中の部品を指定して、行と一緒に動かし、枠で切り取る（重ね順の違うモデルどうしは奥行きを分けて描くので、互いに隠れない）
 - ルーレット: 3リールのスロット（`SlotMachineSystem`。上の真ん中に小さく常に出す）。結果は今までどおり `RouletteSystem` が先に抽選し、各列の止める絵柄（当たりは3つそろい、ハズレはそろわない並び。ときどきハズレのリーチ）と止まる時刻を `RouletteState` に書き、表示はそれに合わせて止める。1・2列目がそろうとリーチで3列目を長く・ゆっくり回す。当たりの果物はスロットから台へ飛び、着いてから本物を出す。ジャックポットチャンスは真ん中に金色の大きなスロット。時間は `Roulette.json`・`Jackpot.json` の `reelStopSeconds` など、見た目は `Ui.json` の `slot`・`jackpotSlot`

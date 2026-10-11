@@ -5,6 +5,8 @@
 #pragma once
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 
+#include <cstddef>
+
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
@@ -19,5 +21,12 @@ namespace FruitMagic::ECS {
         //! @param  [in] registry  レジストリ
         //! @param  [in] deltaTime 前フレームからの経過時間（秒）
         void Update(Tsukino::ECS::Registry& registry, float deltaTime) override;
+
+    private:
+
+        bool        m_wasVisible     = false;    // 前のフレームにパネルを出していたか（出した瞬間に端からスライドインさせる）
+        std::size_t m_recentAdded    = 0;        // 前のフレームまでに見た、最近とれた果物の記録の件数（増えたら先頭の行をポップ）
+        float       m_zukanRatio     = -1.0f;    // 図鑑の進み具合のバーに出している割合（-1 はまだ出していない。実際の割合へ追いつかせる）
+        int         m_lastRegistered = -1;       // 前のフレームの図鑑の登録数（増えたら数を弾ませる。-1 はまだ数えていない）
     };
 }    // namespace FruitMagic::ECS

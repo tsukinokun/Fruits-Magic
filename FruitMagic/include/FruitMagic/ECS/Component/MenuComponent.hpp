@@ -22,6 +22,7 @@ namespace FruitMagic::ECS {
         MenuKind       menu      = MenuKind::Zukan;                     // 属する画面
         hlslpp::float3 openScale = hlslpp::float3(1.0f, 1.0f, 1.0f);    // 開いているときのスケール（スプライト用）
         std::wstring   text;                                            // 決まった文字（タイトル・見出し）。空なら各画面のシステムが書く
+        bool           motionRoot = false;                              // 画面の板か（開いたときにポップさせる。ほかの部品はこの動きを写す）
     };
 
     //! 画面を開閉するボタンです。SpriteComponent と PointerTargetComponent と一緒に付けます。

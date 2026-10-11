@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------------
 #pragma once
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
+#include <FruitMagic/Game/UiMotion.hpp>
 
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 #include <Tsukino/Core/ECS/Event/ScopedConnection.hpp>
@@ -38,10 +39,11 @@ namespace FruitMagic::ECS {
 
     private:
 
-        //! マナゲージの中身のバーの幅を、今のマナに合わせます。
-        //! @param  [in] registry レジストリ
-        //! @param  [in] state    プレイヤーの資源
-        void UpdateManaGauge(Tsukino::ECS::Registry& registry, const GameState& state);
+        //! マナゲージの中身のバーの幅を、今のマナへなめらかに追いつかせます。満タンになった瞬間は弾ませます。
+        //! @param  [in] registry  レジストリ
+        //! @param  [in] state     プレイヤーの資源
+        //! @param  [in] deltaTime 前フレームからの経過時間（秒）
+        void UpdateManaGauge(Tsukino::ECS::Registry& registry, const GameState& state, float deltaTime);
 
         //! おすそわけ待ちのリングを、待っている間だけ出し、次の1枚までの進み具合で塗ります。
         //! @param  [in] registry レジストリ
@@ -73,5 +75,18 @@ namespace FruitMagic::ECS {
         std::wstring                   m_noticeText;              // 表示中のお知らせ
         float                          m_noticeTimer  = 0.0f;     // お知らせを消すまでの残り時間（秒）
         int                            m_lastUnlocked = -1;       // 前のフレームの解放済みの魔法の数（-1 はまだ数えていない）
+
+        //--------------------------------------------------------------
+        // UI の動き
+        //--------------------------------------------------------------
+        CountUpValue m_coinsShown;                // 画面に出しているコインの枚数（実際の数へ追いつかせる）
+        CountUpValue m_fruitShown;                // 画面に出している FP
+        CountUpValue m_manaShown;                 // 画面に出しているマナ
+        float        m_manaRatio   = -1.0f;       // マナゲージに出している割合（-1 はまだ出していない）
+        bool         m_manaFull    = false;       // 前のフレームにマナが満タンだったか（満タンになった瞬間にゲージを弾ませる）
+        bool         m_wasWaiting  = false;       // 前のフレームにおすそわけを待っていたか（待ち始めにリングをポップさせる）
+        bool         m_payoutStarted  = false;    // 払い出しの表示を出し直した（次の Update でポップさせる）
+        bool         m_harvestStarted = false;    // 収穫の表示を出し直した（同上）
+        bool         m_noticeStarted  = false;    // お知らせを出し直した（同上）
     };
 }    // namespace FruitMagic::ECS

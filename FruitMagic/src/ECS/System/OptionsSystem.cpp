@@ -12,6 +12,7 @@
 #include <FruitMagic/Game/Settings.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
+#include <FruitMagic/Game/UiMotion.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
@@ -47,6 +48,16 @@ namespace FruitMagic::ECS {
 
         // 確認の回が変わったら、消すボタンを押せるまでの待ちを数え直す
         if(state.confirmStep != m_shownStep) {
+            // 出すたびに（回が進んだときも）ウィンドウをポップさせ、最初に出したときは暗い板をフェードインさせる
+            if(state.confirmStep > 0) {
+                const bool firstShown = m_shownStep == 0;
+                registry.View<OptionsDialogComponent>().each([&](Tsukino::ECS::Entity entity, OptionsDialogComponent& part) {
+                    if(part.part == OptionsDialogPart::Window)
+                        PlayPanelOpen(registry, entity);
+                    else if(part.part == OptionsDialogPart::Dimmer && firstShown)
+                        PlayFadeIn(registry, entity);
+                });
+            }
             m_shownStep = state.confirmStep;
             m_stepTimer = 0.0f;
         }

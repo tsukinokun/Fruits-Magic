@@ -333,5 +333,16 @@
     "frameColor": { "r": 0.05, "g": 0.02, "b": 0.08, "a": 1.0 },
     "fillColor":  { "r": 1.0,  "g": 0.75, "b": 0.35, "a": 1.0 },
     "text": { "scale": 1.1, "color": { "r": 1.0, "g": 0.92, "b": 0.85, "a": 1.0 }, "bold": true }
+  },
+  "motion": {
+    "button": { "hoverScale": 1.06, "pressScale": 0.94, "clickPunch": 0.12, "speed": 20 },
+    "pulse": { "scale": 1.05, "seconds": 0.7 },
+    "pop": { "seconds": 0.32, "fromScale": 0.5 },
+    "panel": { "seconds": 0.28, "fromScale": 0.9 },
+    "slide": { "distance": 60, "seconds": 0.35, "stagger": 0.04 },
+    "countUp": { "speed": 10, "punchScale": 0.18, "punchSeconds": 0.35 },
+    "gaugeSpeed": 8,
+    "fadeOutSeconds": 0.3,
+    "iconFlip": { "seconds": 0.6, "interval": 4.0 }
   }
 }

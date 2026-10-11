@@ -21,6 +21,7 @@
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
+#include <Tsukino/Core/Math/Easing.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,25 +29,9 @@
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
     namespace {
-        //--------------------------------------------------------------
-        //! 出だしが速く、終わりがゆっくりな動き（0〜1 → 0〜1）を返します。
-        //! @param  [in] t 進み具合（0〜1）
-        //! @return 動きの進み具合
-        //--------------------------------------------------------------
-        float EaseOut(float t) {
-            const float u = 1.0f - std::clamp(t, 0.0f, 1.0f);
-            return 1.0f - u * u * u;
-        }
-
-        //--------------------------------------------------------------
-        //! 出だしがゆっくりで、終わりが速い動き（0〜1 → 0〜1）を返します。
-        //! @param  [in] t 進み具合（0〜1）
-        //! @return 動きの進み具合
-        //--------------------------------------------------------------
-        float EaseIn(float t) {
-            const float u = std::clamp(t, 0.0f, 1.0f);
-            return u * u * u;
-        }
+        // 出だしが速く終わりがゆっくりな動きと、その逆（エンジンのイージング。3次）
+        using Tsukino::Core::Math::Easing::InCubic;
+        using Tsukino::Core::Math::Easing::OutCubic;
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -116,13 +101,13 @@ namespace FruitMagic::ECS {
         //--------------------------------------------------------------
         const float inRate  = m_playing ? std::clamp(m_time / ui.cutInInSeconds, 0.0f, 1.0f) : 0.0f;
         const float outRate = m_playing ? std::clamp((m_time - ui.cutInInSeconds - ui.cutInHoldSeconds) / ui.cutInOutSeconds, 0.0f, 1.0f) : 1.0f;
-        const float slideX  = (EaseOut(inRate) - 1.0f + EaseIn(outRate)) * ui.screenWidth;    // 帯をずらす量（左の画面外 → 0 → 右の画面外）
+        const float slideX  = (OutCubic(inRate) - 1.0f + InCubic(outRate)) * ui.screenWidth;    // 帯をずらす量（左の画面外 → 0 → 右の画面外）
         const float opacity = std::min(inRate, 1.0f - outRate);                               // 文字の濃さ
 
         constexpr float kPopPeak = 0.6f;    // 入る時間のうち、一番大きくなるまでの割合
-        float           pop      = (inRate < kPopPeak) ? ui.cutInPopScale * EaseOut(inRate / kPopPeak)
-                                                       : ui.cutInPopScale + (1.0f - ui.cutInPopScale) * EaseOut((inRate - kPopPeak) / (1.0f - kPopPeak));
-        pop *= 1.0f - EaseIn(outRate);
+        float           pop      = (inRate < kPopPeak) ? ui.cutInPopScale * OutCubic(inRate / kPopPeak)
+                                                       : ui.cutInPopScale + (1.0f - ui.cutInPopScale) * OutCubic((inRate - kPopPeak) / (1.0f - kPopPeak));
+        pop *= 1.0f - InCubic(outRate);
 
         registry.View<CutInElementComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
             [&](Tsukino::ECS::Entity entity, CutInElementComponent& element, Tsukino::BuiltIn::ECS::TransformComponent& transform) {

@@ -7,6 +7,7 @@
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
 #include <FruitMagic/Game/OptionsState.hpp>
+#include <FruitMagic/Game/UiMotion.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
@@ -74,6 +75,14 @@ namespace FruitMagic::ECS {
                     scroll.ScrollToTop();
                 scroll.enabled = open && !confirming;    // 確認中は止める（確認を閉じたら同じ位置から）
             });
+
+        // 開いた画面の板をポップさせる（ほかの部品は板の動きを写すので一緒に動く）
+        if(justOpened && state.open != MenuKind::None) {
+            registry.View<MenuPageComponent>().each([&](Tsukino::ECS::Entity entity, MenuPageComponent& page) {
+                if(page.motionRoot && state.IsOpen(page.menu))
+                    PlayPanelOpen(registry, entity);
+            });
+        }
 
         //--------------------------------------------------------------
         // 画面の要素の表示・非表示

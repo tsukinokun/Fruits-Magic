@@ -35,6 +35,7 @@
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
 #include <FruitMagic/Game/UiFonts.hpp>
+#include <FruitMagic/Game/UiMotion.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 #include <FruitMagic/ECS/Component/CheckerComponent.hpp>
 #include <FruitMagic/ECS/Component/CoinLauncherComponent.hpp>
@@ -106,6 +107,7 @@
 #include <Tsukino/EngineIntegration/ECS/System/SpriteRendererSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/AmbientParticleSystem.hpp>
 #include <Tsukino/EngineIntegration/ECS/System/WorldAnchorSystem.hpp>
+#include <Tsukino/EngineIntegration/ECS/System/UITweenSystem.hpp>
 #ifdef _DEBUG
 #include <Tsukino/EngineIntegration/ECS/System/DebugCameraSystem.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/DebugCameraComponent.hpp>
@@ -142,6 +144,7 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <unordered_map>
 
 // 名前空間 : FruitMagic
 namespace FruitMagic {
@@ -264,6 +267,8 @@ namespace FruitMagic {
             CutIn,               // 果物が取れたときのカットイン（このフレームの収穫・図鑑登録で出す）
             SlotMachine,         // ルーレットのスロット（このフレームの RouletteState に合わせてリールを止める）
             FruitIcon,           // 画面に出す果物（図鑑・パネル・ゲット！）を回す
+            UiTween,             // UI の動き（このフレームに UI のシステムが再生したポップ・ボタンの手ごたえなど）
+            UiTransform,         // UI の動きを今フレームの worldMatrix に反映する（Transform は物理の前にしか無いため、ここでもう一度）
             Stats,               // このフレームの出来事を累計に足す（セーブの前）
             BalanceProbe,
             Save,
@@ -325,6 +330,8 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::CutInSystem>(eventBus), (int)SystemPriority::CutIn);
         m_scene.AddSystem(std::make_shared<ECS::SlotMachineSystem>(), (int)SystemPriority::SlotMachine);
         m_scene.AddSystem(std::make_shared<ECS::FruitIconSystem>(), (int)SystemPriority::FruitIcon);
+        m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::UITweenSystem>(), (int)SystemPriority::UiTween);
+        m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::TransformSystem>(), (int)SystemPriority::UiTransform);
         m_scene.AddSystem(std::make_shared<ECS::StatsSystem>(eventBus), (int)SystemPriority::Stats);
         m_scene.AddSystem(std::make_shared<ECS::SaveSystem>(), (int)SystemPriority::Save);
 
@@ -967,9 +974,15 @@ namespace FruitMagic {
                 sprite.textureHandle                           = context->assetManager->Load(Tsukino::Core::Path(path));
                 sprite.tintColor                               = hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f);
                 sprite.sortOrder                               = 1;
+                return e;
             };
-            createIcon(AssetPaths::kCoinIconTexture, ui.coinIconCenter, ui.coinIconSize);
-            createIcon(AssetPaths::kFpIconTexture, ui.fpIconCenter, ui.fpIconSize);
+            // ときどきくるっと裏返る。増えたときに弾ませるので、どちらのマークかを HUD の文字と同じ種類で覚えておく
+            Tsukino::ECS::Entity coinIcon = createIcon(AssetPaths::kCoinIconTexture, ui.coinIconCenter, ui.coinIconSize);
+            Tsukino::ECS::Entity fpIcon   = createIcon(AssetPaths::kFpIconTexture, ui.fpIconCenter, ui.fpIconSize);
+            PlayIconFlip(registry, coinIcon);
+            PlayIconFlip(registry, fpIcon);
+            registry.AddComponent<ECS::MoneyIconComponent>(coinIcon).kind = ECS::HudTextKind::Coins;
+            registry.AddComponent<ECS::MoneyIconComponent>(fpIcon).kind   = ECS::HudTextKind::FruitPoints;
         }
 
         //--------------------------------------------------------------
@@ -1035,6 +1048,7 @@ namespace FruitMagic {
             ECS::MagicButtonComponent& magicButton = registry.AddComponent<ECS::MagicButtonComponent>(button);
             magicButton.slot                       = slot;
             magicButton.label                      = label;
+            AddButtonMotion(registry, button, label);
         }
 
         //--------------------------------------------------------------
@@ -1097,6 +1111,7 @@ namespace FruitMagic {
             menuButton.label      = createText(hlslpp::float2(ui.menuButtonX, spec.y), ui.menuLabelScale, kCenter, kWhite, 11, true, inside(ui.menuButtonWidth));
             menuButton.closedText = texts.Get(spec.closedText);
             menuButton.openText   = texts.Get(spec.openText);
+            AddButtonMotion(registry, button, menuButton.label);
         }
 
         //--------------------------------------------------------------
@@ -1208,6 +1223,7 @@ namespace FruitMagic {
                 ECS::MenuButtonComponent& menuButton = registry.AddComponent<ECS::MenuButtonComponent>(button);
                 menuButton.menu                      = MenuKind::Upgrade;
                 menuButton.key                       = Tsukino::Input::KeyCode::None;    // キー（U）は右上のボタンが受け持つ
+                AddButtonMotion(registry, button, entt::null);
             }
             right.y += ui.sideSectionGap;
 
@@ -1359,11 +1375,21 @@ namespace FruitMagic {
         // 画面の要素にする（開閉に合わせて MenuSystem が表示を切り替える）。
         // text は決まった文字（タイトル・見出し・説明）。空なら画面ごとのシステムが書く
         //--------------------------------------------------------------
+        // 画面ごとの板。開いたときに板をポップさせ、親の無いほかの部品はその動きを写す（親のある部品は親と一緒に動く）
+        std::unordered_map<MenuKind, Tsukino::ECS::Entity> menuPanels;
         auto addPage = [&](Tsukino::ECS::Entity e, MenuKind menu, const std::wstring& text = L"") {
             ECS::MenuPageComponent& page = registry.AddComponent<ECS::MenuPageComponent>(e);
             page.menu                    = menu;
             page.openScale               = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).scale;
             page.text                    = text;
+
+            const auto panel = menuPanels.find(menu);
+            if(panel != menuPanels.end()) {
+                if(panel->second == e)
+                    page.motionRoot = true;
+                else if(const Tsukino::ECS::Entity parent = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).parent; parent == entt::null)
+                    FollowUiMotion(registry, e, panel->second);
+            }
             return e;
         };
 
@@ -1377,6 +1403,7 @@ namespace FruitMagic {
         auto createMenuPanel = [&](MenuKind menu, const std::wstring& title) {
             Tsukino::ECS::Entity panel = createPanel(ui.menuCenter, ui.menuSize, ui.menuColor, 20);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
+            menuPanels[menu] = panel;
             addPage(panel, menu);
 
             addPage(createFontText(hlslpp::float2(ui.menuCenter.x, menuTop + ui.menuTitleOffsetY), ui.menuTitle, kCenter, 22, inside(ui.menuSize.x)), menu, title);
@@ -1419,6 +1446,10 @@ namespace FruitMagic {
             if(group != entt::null) {
                 registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(track).parent = group;
                 registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(thumb).parent = group;
+            } else if(const auto panel = menuPanels.find(menu); panel != menuPanels.end()) {
+                // 親が無いので、画面の板の動きを写す
+                FollowUiMotion(registry, track, panel->second);
+                FollowUiMotion(registry, thumb, panel->second);
             }
 
             // 画面のパネルと同じく、スクロールバーの上のクリックでコインが投入されないよう受け止める
@@ -1566,12 +1597,15 @@ namespace FruitMagic {
                 registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(tabButton);
                 addElement(tabButton, ECS::UpgradeElementKind::Tab);
                 registry.GetComponent<ECS::UpgradeElementComponent>(tabButton).currency = tab.currency;
-                addPage(createText(tabCenter, ui.upgradeTabLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeTabSize.x)), MenuKind::Upgrade, texts.Get(tab.title));
+                Tsukino::ECS::Entity tabLabel =
+                    addPage(createText(tabCenter, ui.upgradeTabLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeTabSize.x)), MenuKind::Upgrade, texts.Get(tab.title));
+                AddButtonMotion(registry, tabButton, tabLabel);
 
-                // 中身の親（画面の原点に置く。子の位置は画面の座標のまま）
+                // 中身の親（画面の原点に置く。子の位置は画面の座標のまま）。画面の板の動きを写し、子もそれと一緒に動く
                 Tsukino::ECS::Entity                       group          = m_scene.CreateEntity();
                 Tsukino::BuiltIn::ECS::TransformComponent& groupTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(group);
                 groupTransform.dirty                                      = true;
+                FollowUiMotion(registry, group, menuPanels[MenuKind::Upgrade]);
                 registry.AddComponent<Tsukino::BuiltIn::ECS::UIVisibilityComponent>(group).visible = (tab.currency == selected);
                 ECS::UpgradeElementComponent& groupElement = registry.AddComponent<ECS::UpgradeElementComponent>(group);
                 groupElement.kind                          = ECS::UpgradeElementKind::TabGroup;
@@ -1606,7 +1640,9 @@ namespace FruitMagic {
                                                                            ui.upgradeCannotBuyColor, 21));
                     registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
                     addElement(button, ECS::UpgradeElementKind::BuyButton, u);
-                    addElement(attach(list, createText(hlslpp::float2(buttonX, y), ui.upgradeLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeButtonWidth))), ECS::UpgradeElementKind::BuyLabel, u);
+                    Tsukino::ECS::Entity buyLabel = attach(list, createText(hlslpp::float2(buttonX, y), ui.upgradeLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeButtonWidth)));
+                    addElement(buyLabel, ECS::UpgradeElementKind::BuyLabel, u);
+                    AddButtonMotion(registry, button, buyLabel);
                 }
             }
         }
@@ -1623,6 +1659,7 @@ namespace FruitMagic {
 
             Tsukino::ECS::Entity panel = createPanel(ui.menuCenter, ui.welcomeSize, ui.welcomeColor, 30);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
+            menuPanels[MenuKind::Welcome] = panel;
             addPage(panel, MenuKind::Welcome);
 
             auto addLine = [&](float y, const UiFont& style, const std::wstring& text) {
@@ -1656,6 +1693,7 @@ namespace FruitMagic {
             close.label                     = addPage(createText(buttonCenter, ui.welcomeLabelScale, kCenter, kWhite, 32, true, inside(ui.welcomeButtonSize.x)), MenuKind::Welcome);
             close.openText                  = texts.Get("welcome.close");
             close.canOpen                   = false;
+            AddButtonMotion(registry, button, close.label);
         }
 
         //--------------------------------------------------------------
@@ -1770,6 +1808,7 @@ namespace FruitMagic {
                 ECS::OptionsElementComponent& element = registry.AddComponent<ECS::OptionsElementComponent>(button);
                 element.kind                          = kind;
                 element.label = addPage(attach(list, createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 22, true, inside(size.x))), MenuKind::Options);
+                AddButtonMotion(registry, button, element.label);
             };
 
             //--------------------------------------------------------------
@@ -1833,17 +1872,23 @@ namespace FruitMagic {
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(window);
             addPart(window, ECS::OptionsDialogPart::Window);
 
-            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmStepY), ui.confirmStep, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Step);
-            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmMessageY), ui.confirmMessage, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Message);
-            addPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmNoteY), ui.confirmNote, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Note);
+            // ウィンドウの中の部品（出すときにウィンドウと一緒にポップする）
+            auto addWindowPart = [&](Tsukino::ECS::Entity e, ECS::OptionsDialogPart part) {
+                FollowUiMotion(registry, e, window);
+                return addPart(e, part);
+            };
+            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmStepY), ui.confirmStep, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Step);
+            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmMessageY), ui.confirmMessage, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Message);
+            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmNoteY), ui.confirmNote, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Note);
 
             auto addButton = [&](ECS::OptionsDialogPart part, float offsetX) {
                 const hlslpp::float2 center(ui.menuCenter.x + offsetX, bottom - ui.confirmButtonOffsetY);
                 Tsukino::ECS::Entity button = createPanel(center, ui.confirmButtonSize, ui.confirmNoColor, 42);
                 registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
-                addPart(button, part);
+                addWindowPart(button, part);
                 Tsukino::ECS::Entity label = addPart(createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 43, true, inside(ui.confirmButtonSize.x)), ECS::OptionsDialogPart::ButtonLabel);
                 registry.GetComponent<ECS::OptionsDialogComponent>(button).label = label;
+                AddButtonMotion(registry, button, label);
             };
             addButton(ECS::OptionsDialogPart::Yes, ui.confirmYesOffsetX);
             addButton(ECS::OptionsDialogPart::No, ui.confirmNoOffsetX);

@@ -24,8 +24,10 @@ project "FruitMagic"
     language "C++"
     cppdialect "C++20"
 
+    -- /bigobj: UI を組み立てる PusherScene.cpp はテンプレート（ECS のコンポーネント）の実体化が多く、
+    -- 既定の .obj のセクション数の上限を超えるため
     filter "action:vs*"
-        buildoptions { "/permissive-" }
+        buildoptions { "/permissive-", "/bigobj" }
     filter {}
 
     targetdir ("bin/%{cfg.buildcfg}")

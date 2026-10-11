@@ -3,6 +3,8 @@
 //! @brief  台の強化の購入と、強化の効果を台に反映するシステム
 //----------------------------------------------------------------------------
 #pragma once
+#include <FruitMagic/Game/UiMotion.hpp>
+
 #include <Tsukino/Core/ECS/System/ISystem.hpp>
 
 #include <string>
@@ -51,5 +53,11 @@ namespace FruitMagic::ECS {
         //! @param  [in] upgradeIndex 強化の添字
         //! @return 買えたら true（最大レベル・手持ち不足なら false）
         static bool Purchase(Tsukino::ECS::Registry& registry, int upgradeIndex);
+
+    private:
+
+        CountUpValue m_walletCoins;        // 手持ちの表示に出しているコイン（買うと減っていく）
+        CountUpValue m_walletFruit;        // 手持ちの表示に出している FP
+        bool         m_wasOpen = false;    // 前のフレームに強化画面が開いていたか（開いた瞬間に表示をそろえる）
     };
 }    // namespace FruitMagic::ECS

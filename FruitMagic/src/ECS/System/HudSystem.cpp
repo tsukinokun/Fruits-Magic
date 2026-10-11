@@ -29,10 +29,12 @@
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
+#include <Tsukino/Core/Math/Easing.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <utility>
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
@@ -69,6 +71,7 @@ namespace FruitMagic::ECS {
                     m_harvestVariant = e.variantIndex;
                     m_harvestIsNew   = false;
                     m_harvestTimer   = m_harvestPopupSeconds;
+                    m_harvestStarted = true;
                 }
                 return;
             }
@@ -78,7 +81,8 @@ namespace FruitMagic::ECS {
             } else {
                 m_recentGutter += 1;
             }
-            m_popupTimer = m_payoutPopupSeconds;
+            m_popupTimer    = m_payoutPopupSeconds;
+            m_payoutStarted = true;
         });
 
         m_zukanConnection = eventBus.Subscribe<ZukanRegisteredEvent>([this](const ZukanRegisteredEvent& e) {
@@ -86,11 +90,13 @@ namespace FruitMagic::ECS {
             m_harvestVariant = e.variantIndex;
             m_harvestIsNew   = true;
             m_harvestTimer   = m_registeredPopupSeconds;
+            m_harvestStarted = true;
         });
 
         m_noticeConnection = eventBus.Subscribe<NoticeEvent>([this](const NoticeEvent& e) {
-            m_noticeText  = e.text;
-            m_noticeTimer = e.seconds;
+            m_noticeText    = e.text;
+            m_noticeTimer   = e.seconds;
+            m_noticeStarted = true;
         });
     }
 
@@ -133,26 +139,55 @@ namespace FruitMagic::ECS {
         CheckMagicUnlocks(registry, state);
 
         //--------------------------------------------------------------
+        // UI の動きのきっかけ。一時表示は出し直したらポップさせ、消える少し前から薄くする。
+        // コイン・FP・マナの数は実際の数へ追いつかせ（カウントアップ）、増えたら文字とマークを弾ませる
+        //--------------------------------------------------------------
+        const UiMotionStyle& motion         = ui.motion;
+        const bool           payoutStarted  = std::exchange(m_payoutStarted, false);
+        const bool           harvestStarted = std::exchange(m_harvestStarted, false);
+        const bool           noticeStarted  = std::exchange(m_noticeStarted, false);
+
+        // 一時表示の動き（出し直したらポップ、残り時間が短くなったらフェードアウト）
+        auto animateTimed = [&](Tsukino::ECS::Entity entity, bool started, float timer) {
+            if(started)
+                PlayPopIn(registry, entity);
+            else if(timer > 0.0f && timer < motion.fadeOutSeconds)
+                PlayFadeOut(registry, entity, timer);
+        };
+
+        const long long shownCoins = m_coinsShown.Update(state.coins, motion.countUpSpeed, deltaTime);
+        const long long shownFruit = m_fruitShown.Update(state.fruitPoints, motion.countUpSpeed, deltaTime);
+        const long long shownMana  = m_manaShown.Update(state.mana, motion.countUpSpeed, deltaTime);
+        registry.View<MoneyIconComponent>().each([&](Tsukino::ECS::Entity entity, MoneyIconComponent& icon) {
+            if((icon.kind == HudTextKind::Coins && m_coinsShown.Increased()) || (icon.kind == HudTextKind::FruitPoints && m_fruitShown.Increased()))
+                PlayPunch(registry, entity);
+        });
+
+        //--------------------------------------------------------------
         // 「〇〇 ゲット！」の左の果物（3D）。収穫の表示が出ている間だけ見せる
         //--------------------------------------------------------------
         registry.View<HarvestIconComponent>().each([&](Tsukino::ECS::Entity entity, HarvestIconComponent& icon) {
             if(m_harvestFruit >= 0)
                 SetFruitIcon(registry, entity, m_harvestFruit, m_harvestVariant, false, icon.sizePixels);
             SetFruitIconVisible(registry, entity, m_harvestFruit >= 0);
+            animateTimed(entity, harvestStarted, m_harvestTimer);
         });
 
         //--------------------------------------------------------------
         // 各テキストの更新
         //--------------------------------------------------------------
         auto view = registry.View<HudTextComponent, Tsukino::BuiltIn::ECS::FontComponent>();
-        view.each([&](Tsukino::ECS::Entity, HudTextComponent& hud, Tsukino::BuiltIn::ECS::FontComponent& font) {
+        view.each([&](Tsukino::ECS::Entity entity, HudTextComponent& hud, Tsukino::BuiltIn::ECS::FontComponent& font) {
+            const bool wasEmpty = font.text.empty();
             switch(hud.kind) {
                 case HudTextKind::Coins:
-                    font.text = texts.Format("hud.coins", {{"n", std::to_wstring(state.coins)}});
+                    font.text = texts.Format("hud.coins", {{"n", std::to_wstring(shownCoins)}});
+                    if(m_coinsShown.Increased())
+                        PlayPunch(registry, entity);
                     break;
 
                 case HudTextKind::Mana:
-                    font.text = texts.Format("hud.mana", {{"mana", std::to_wstring(state.mana)}, {"max", std::to_wstring(state.maxMana)}});
+                    font.text = texts.Format("hud.mana", {{"mana", std::to_wstring(shownMana)}, {"max", std::to_wstring(state.maxMana)}});
                     break;
 
                 case HudTextKind::DropPopup: {
@@ -162,11 +197,14 @@ namespace FruitMagic::ECS {
                     if(m_recentGutter > 0)
                         text += texts.Format("hud.gutter", {{"n", std::to_wstring(m_recentGutter)}});
                     font.text = text;
+                    animateTimed(entity, payoutStarted, m_popupTimer);
                     break;
                 }
 
                 case HudTextKind::FruitPoints:
-                    font.text = texts.Format("hud.fruitPoints", {{"n", std::to_wstring(state.fruitPoints)}});
+                    font.text = texts.Format("hud.fruitPoints", {{"n", std::to_wstring(shownFruit)}});
+                    if(m_fruitShown.Increased())
+                        PlayPunch(registry, entity);
                     break;
 
                 case HudTextKind::HarvestPopup:
@@ -176,6 +214,7 @@ namespace FruitMagic::ECS {
                         font.text = texts.Format("hud.registered", {{"name", FruitName(registry, m_harvestFruit, m_harvestVariant)}});
                     else
                         font.text = texts.Format("hud.harvested", {{"name", FruitName(registry, m_harvestFruit, m_harvestVariant)}});
+                    animateTimed(entity, harvestStarted, m_harvestTimer);
                     break;
 
                 case HudTextKind::Roulette: {
@@ -204,8 +243,14 @@ namespace FruitMagic::ECS {
                         default:
                             break;
                     }
-                    // ためている回数はスロットの下の玉で見せる
+                    // ためている回数はスロットの下の玉で見せる。文字が変わったらポップさせる
+                    if(!text.empty() && text != font.text)
+                        PlayPopIn(registry, entity);
                     font.text = text;
+
+                    // リーチの間は呼吸させて盛り上げる
+                    const bool reach = roulette.phase == RoulettePhase::Spinning && roulette.reach && roulette.reelsStopped >= kReelCount - 1;
+                    SetPulse(registry, entity, reach);
 
                     // ジャックポットチャンスの間は金色に
                     const bool jackpot = roulette.phase == RoulettePhase::JackpotSpin || roulette.phase == RoulettePhase::JackpotResult;
@@ -222,11 +267,15 @@ namespace FruitMagic::ECS {
                     }
                     const int seconds = std::max(1, static_cast<int>(std::ceil(relief->secondsRemaining)));
                     font.text         = texts.Format("hud.relief", {{"n", std::to_wstring(seconds)}});
+                    // 秒数は毎秒変わるので、出始めたときだけポップさせる
+                    if(wasEmpty)
+                        PlayPopIn(registry, entity);
                     break;
                 }
 
                 case HudTextKind::Notice:
                     font.text = m_noticeText;
+                    animateTimed(entity, noticeStarted, m_noticeTimer);
                     break;
 
                 case HudTextKind::ControlsHint:
@@ -244,7 +293,7 @@ namespace FruitMagic::ECS {
             }
         });
 
-        UpdateManaGauge(registry, state);
+        UpdateManaGauge(registry, state, deltaTime);
         UpdateReliefGauge(registry);
         UpdateMagicButtons(registry, state);
     }
@@ -252,11 +301,24 @@ namespace FruitMagic::ECS {
     //----------------------------------------------------------------------------
     //! マナゲージの中身のバーの幅を、今のマナに合わせます。
     //----------------------------------------------------------------------------
-    void HudSystem::UpdateManaGauge(Tsukino::ECS::Registry& registry, const GameState& state) {
-        const float ratio = (state.maxMana > 0) ? std::clamp(static_cast<float>(state.mana) / static_cast<float>(state.maxMana), 0.0f, 1.0f) : 0.0f;
+    void HudSystem::UpdateManaGauge(Tsukino::ECS::Registry& registry, const GameState& state, float deltaTime) {
+        const float target = (state.maxMana > 0) ? std::clamp(static_cast<float>(state.mana) / static_cast<float>(state.maxMana), 0.0f, 1.0f) : 0.0f;
+
+        // 実際の割合へなめらかに追いつかせる（最初は実際の割合から）
+        m_manaRatio = (m_manaRatio < 0.0f) ? target : Tsukino::Core::Math::Easing::Damp(m_manaRatio, target, GetUiConfig(registry).motion.gaugeSpeed, deltaTime);
+        if(std::abs(m_manaRatio - target) < 0.001f)
+            m_manaRatio = target;
+        const float ratio = m_manaRatio;
+
+        // 満タンになった瞬間に弾ませる
+        const bool full      = state.maxMana > 0 && state.mana >= state.maxMana;
+        const bool becameFull = full && !m_manaFull;
+        m_manaFull            = full;
 
         registry.View<ManaGaugeComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
-            [&](Tsukino::ECS::Entity, ManaGaugeComponent& gauge, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+            [&](Tsukino::ECS::Entity entity, ManaGaugeComponent& gauge, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+                if(becameFull)
+                    PlayPunch(registry, entity);
                 // 画面スプライトの位置は中心なので、左端を固定するには幅の半分だけずらす
                 const float width  = gauge.fullWidth * ratio;
                 transform.position = hlslpp::float3(gauge.left + width * 0.5f, float(transform.position.y), 0.0f);
@@ -274,9 +336,15 @@ namespace FruitMagic::ECS {
         const float progress = (waiting && interval > 0.0f) ? std::clamp(1.0f - registry.GetContext<ReliefState>().secondsRemaining / interval, 0.0f, 1.0f)
                                                             : 0.0f;
 
+        // 待ち始めた瞬間にポップさせる
+        const bool startedWaiting = waiting && !m_wasWaiting;
+        m_wasWaiting              = waiting;
+
         registry.View<ReliefGaugeComponent, Tsukino::BuiltIn::ECS::SpriteComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
-            [&](Tsukino::ECS::Entity, ReliefGaugeComponent& gauge, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
+            [&](Tsukino::ECS::Entity entity, ReliefGaugeComponent& gauge, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
                 Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+                if(startedWaiting)
+                    PlayPopIn(registry, entity);
                 // 待っていない間は拡大率 0 で隠す（拡大率 0 のスプライトは描かれない）
                 const float scale = waiting ? gauge.shownScale : 0.0f;
                 transform.scale   = hlslpp::float3(scale, scale, 1.0f);
@@ -301,10 +369,15 @@ namespace FruitMagic::ECS {
         const Texts&        texts      = GetTexts(registry);
 
         registry.View<MagicButtonComponent, Tsukino::BuiltIn::ECS::SpriteComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
-            [&](Tsukino::ECS::Entity, MagicButtonComponent& button, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
+            [&](Tsukino::ECS::Entity entity, MagicButtonComponent& button, Tsukino::BuiltIn::ECS::SpriteComponent& sprite,
                 Tsukino::BuiltIn::ECS::PointerTargetComponent& pointer) {
                 const int       index = catalog.FindBySlot(button.slot);
                 const MagicDef* def   = (index >= 0) ? &catalog.Magics()[index] : nullptr;
+
+                // 撃てる間だけ手ごたえを出し、呼吸させて撃てることを知らせる
+                const bool castable = def && catalog.IsUnlocked(index, registered) && !magic.IsActive(index) && state.mana >= def->cost;
+                SetButtonInteractable(registry, entity, castable);
+                SetPulse(registry, entity, castable);
 
                 std::wstring   text;
                 hlslpp::float4 color;
@@ -364,8 +437,9 @@ namespace FruitMagic::ECS {
 
         // 起動直後（セーブを読んだ分）は出さず、プレイ中に増えたときだけ
         if(m_lastUnlocked >= 0 && unlocked > m_lastUnlocked) {
-            m_noticeText  = GetTexts(registry).Format("notice.magicLearned", {{"name", newest}});
-            m_noticeTimer = GetUiConfig(registry).magicLearnedSeconds;
+            m_noticeText    = GetTexts(registry).Format("notice.magicLearned", {{"name", newest}});
+            m_noticeTimer   = GetUiConfig(registry).magicLearnedSeconds;
+            m_noticeStarted = true;
         }
         m_lastUnlocked = unlocked;
     }

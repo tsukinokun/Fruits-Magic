@@ -25,6 +25,11 @@ namespace FruitMagic::ECS {
         HudTextKind kind = HudTextKind::Coins;    // 表示する内容
     };
 
+    //! お金のマーク（コイン・FP の数の左）です。数が増えたときに HudSystem が弾ませます。
+    struct MoneyIconComponent {
+        HudTextKind kind = HudTextKind::Coins;    // どの数のマークか（Coins か FruitPoints）
+    };
+
     //! 「〇〇 ゲット！」の左に出す果物の置き台です。FruitIconComponent と一緒に付け、HudSystem が中身と表示を決めます。
     struct HarvestIconComponent {
         float sizePixels = 36.0f;    // 出す大きさ（果物の外形のいちばん長い向きのピクセル数）

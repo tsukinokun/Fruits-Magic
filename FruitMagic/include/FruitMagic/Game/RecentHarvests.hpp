@@ -22,11 +22,13 @@ namespace FruitMagic {
     //! 最近収穫した果物の記録です。Registry のコンテキストに置きます。
     struct RecentHarvests {
         std::deque<RecentHarvest> entries;         // 新しい順
-        std::size_t               capacity = 5;    // 覚えておく件数
+        std::size_t               capacity   = 5;    // 覚えておく件数
+        std::size_t               addedCount = 0;    // これまでに足した件数（増えたら新しい記録が来た印。画面の横のパネルが行をポップさせる）
 
         //! 記録を1件足します。件数を超えたら古いものから消します。
         //! @param  [in] harvest 収穫した果物
         void Add(const RecentHarvest& harvest) {
+            ++addedCount;
             entries.push_front(harvest);
             while(entries.size() > capacity)
                 entries.pop_back();

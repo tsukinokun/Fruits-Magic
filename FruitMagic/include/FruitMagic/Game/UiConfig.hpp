@@ -62,8 +62,33 @@ namespace FruitMagic {
         int            sortOrder     = 2;                                                 // 重ね順（板。窓・絵柄・縁はこれより上に順に重ねる）
     };
 
+    //! 画面の UI の動き（ボタンの手ごたえ・ポップ・スライド・呼吸・カウントアップ）の調整値です（Ui.json の "motion"）。
+    struct UiMotionStyle {
+        float buttonHoverScale  = 1.06f;    // ボタンにカーソルが重なっている間の拡大率
+        float buttonPressScale  = 0.94f;    // ボタンを押している間の拡大率
+        float buttonClickPunch  = 0.12f;    // クリックで弾む強さ（拡大率に足す最大の量）
+        float buttonSpeed       = 20.0f;    // ボタンの拡大率が目標に近づく速さ（1秒あたりの減衰率）
+        float pulseScale        = 1.05f;    // 押せる物の呼吸でいちばん大きくなる拡大率
+        float pulseSeconds      = 0.7f;     // 呼吸の片道の秒数
+        float popSeconds        = 0.32f;    // 文字のポップインの秒数
+        float popFromScale      = 0.5f;     // ポップインの始めの拡大率（少し行き過ぎて 1 になる）
+        float panelSeconds      = 0.28f;    // 画面を開くときのポップの秒数
+        float panelFromScale    = 0.9f;     // 画面を開くときの始めの拡大率
+        float slideDistance     = 60.0f;    // 左右のパネルがスライドインするときの距離（ピクセル）
+        float slideSeconds      = 0.35f;    // スライドインの秒数
+        float slideStagger      = 0.04f;    // スライドインで行ごとにずらす秒数
+        float countUpSpeed      = 10.0f;    // 数字のカウントアップの速さ（1秒あたりの減衰率）
+        float punchScale        = 0.18f;    // 数字が増えたときやゲージが満タンになったときに弾む強さ
+        float punchSeconds      = 0.35f;    // 弾む秒数
+        float gaugeSpeed        = 8.0f;     // ゲージの幅が追いつく速さ（1秒あたりの減衰率）
+        float fadeOutSeconds    = 0.3f;     // 一時表示の文字が消える前に薄くなる秒数
+        float iconFlipSeconds   = 0.6f;     // お金のマークがくるっと裏返る秒数
+        float iconFlipInterval  = 4.0f;     // お金のマークが裏返る間隔（秒）
+    };
+
     //! 画面の UI の配置・色・表示時間です。Registry のコンテキストに置きます。
     struct UiConfig {
+        UiMotionStyle motion;    // UI の動き
         //--------------------------------------------------------------
         // 画面
         //--------------------------------------------------------------

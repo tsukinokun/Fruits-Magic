@@ -434,6 +434,42 @@ namespace FruitMagic {
             Json::ReadColor(*loading, "fillColor", loadingFillColor);
             ReadFont(*loading, "text", loadingText);
         }
+        if(const Json::Value* m = Json::FindObject(doc, "motion")) {
+            if(const Json::Value* button = Json::FindObject(*m, "button")) {
+                Json::Read(*button, "hoverScale", motion.buttonHoverScale);
+                Json::Read(*button, "pressScale", motion.buttonPressScale);
+                Json::Read(*button, "clickPunch", motion.buttonClickPunch);
+                Json::Read(*button, "speed", motion.buttonSpeed);
+            }
+            if(const Json::Value* pulse = Json::FindObject(*m, "pulse")) {
+                Json::Read(*pulse, "scale", motion.pulseScale);
+                Json::Read(*pulse, "seconds", motion.pulseSeconds);
+            }
+            if(const Json::Value* pop = Json::FindObject(*m, "pop")) {
+                Json::Read(*pop, "seconds", motion.popSeconds);
+                Json::Read(*pop, "fromScale", motion.popFromScale);
+            }
+            if(const Json::Value* panel = Json::FindObject(*m, "panel")) {
+                Json::Read(*panel, "seconds", motion.panelSeconds);
+                Json::Read(*panel, "fromScale", motion.panelFromScale);
+            }
+            if(const Json::Value* slide = Json::FindObject(*m, "slide")) {
+                Json::Read(*slide, "distance", motion.slideDistance);
+                Json::Read(*slide, "seconds", motion.slideSeconds);
+                Json::Read(*slide, "stagger", motion.slideStagger);
+            }
+            if(const Json::Value* count = Json::FindObject(*m, "countUp")) {
+                Json::Read(*count, "speed", motion.countUpSpeed);
+                Json::Read(*count, "punchScale", motion.punchScale);
+                Json::Read(*count, "punchSeconds", motion.punchSeconds);
+            }
+            Json::Read(*m, "gaugeSpeed", motion.gaugeSpeed);
+            Json::Read(*m, "fadeOutSeconds", motion.fadeOutSeconds);
+            if(const Json::Value* flip = Json::FindObject(*m, "iconFlip")) {
+                Json::Read(*flip, "seconds", motion.iconFlipSeconds);
+                Json::Read(*flip, "interval", motion.iconFlipInterval);
+            }
+        }
         return true;
     }
 }    // namespace FruitMagic

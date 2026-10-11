@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/SidePanelSystem.hpp>
 
+#include <FruitMagic/ECS/Component/MenuComponent.hpp>
 #include <FruitMagic/ECS/Component/PrizeComponent.hpp>
 #include <FruitMagic/ECS/Component/SidePanelElementComponent.hpp>
 #include <FruitMagic/ECS/System/UpgradeSystem.hpp>
@@ -18,13 +19,16 @@
 #include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
+#include <FruitMagic/Game/UiMotion.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/ScreenModelComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
+#include <Tsukino/Core/Math/Easing.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -164,12 +168,14 @@ namespace FruitMagic::ECS {
     //----------------------------------------------------------------------------
     //! パネルの文字と色を更新します。
     //----------------------------------------------------------------------------
-    void SidePanelSystem::Update(Tsukino::ECS::Registry& registry, float /*deltaTime*/) {
+    void SidePanelSystem::Update(Tsukino::ECS::Registry& registry, float deltaTime) {
         const UiConfig& ui    = GetUiConfig(registry);
         const Texts&    texts = GetTexts(registry);
 
         // 画面（図鑑・強化・おかえり・オプション）を開いている間は隠す（画面の後ろで文字が重ならないように）
-        const bool visible = !registry.HasContext<MenuState>() || registry.GetContext<MenuState>().open == MenuKind::None;
+        const bool visible   = !registry.HasContext<MenuState>() || registry.GetContext<MenuState>().open == MenuKind::None;
+        const bool justShown = visible && !m_wasVisible;    // 出した瞬間（起動時と、画面を閉じたとき）
+        m_wasVisible         = visible;
 
         //--------------------------------------------------------------
         // 出す情報を集める（隠している間は集めない）
@@ -203,8 +209,52 @@ namespace FruitMagic::ECS {
         auto hasRecent = [&](int row) { return row >= 0 && row < static_cast<int>(recent.entries.size()); };
         auto hasTable  = [&](int row) { return row >= 0 && row < static_cast<int>(table.size()); };
 
+        //--------------------------------------------------------------
+        // 動きのきっかけ。新しくとれた果物（先頭の行をポップ）、図鑑の登録が増えた（数を弾ませる）、
+        // 図鑑のバーは実際の割合へなめらかに追いつかせる
+        //--------------------------------------------------------------
+        const bool newRecent = recent.addedCount != m_recentAdded;
+        m_recentAdded        = recent.addedCount;
+
+        const bool zukanIncreased = visible && m_lastRegistered >= 0 && registered > m_lastRegistered;
+        if(visible)
+            m_lastRegistered = registered;
+
+        const float zukanTarget = total > 0 ? std::clamp(static_cast<float>(registered) / static_cast<float>(total), 0.0f, 1.0f) : 0.0f;
+        if(visible) {
+            m_zukanRatio = (m_zukanRatio < 0.0f) ? zukanTarget : Tsukino::Core::Math::Easing::Damp(m_zukanRatio, zukanTarget, ui.motion.gaugeSpeed, deltaTime);
+            if(std::abs(m_zukanRatio - zukanTarget) < 0.001f)
+                m_zukanRatio = zukanTarget;
+        }
+        const bool zukanFilled = zukanIncreased && zukanTarget >= 1.0f;    // 図鑑がうまった瞬間はバーも弾ませる
+
+        //--------------------------------------------------------------
+        // 出した瞬間のスライドイン。左のパネルは左から、右のパネルは右から、上の行から順に少しずつずらして出す
+        //--------------------------------------------------------------
+        auto slideIn = [&](Tsukino::ECS::Entity entity, const SidePanelElementComponent& element, const Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+            // 画面に出す果物は画面の位置を ScreenModelComponent で持つ（Transform はワールドの置き場所）
+            hlslpp::float2 position(transform.position.xy);
+            if(const auto* model = registry.try_get<Tsukino::BuiltIn::ECS::ScreenModelComponent>(entity))
+                position = model->screenPosition;
+
+            const bool  left      = float(position.x) < ui.ScreenCenter().x;
+            const float top       = left ? float(ui.sideLeftPosition.y) : float(ui.sideRightPosition.y);
+            const bool  isBackground = element.kind == SidePanelElementKind::Static && registry.HasComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(entity);
+            const float rowIndex  = isBackground ? 0.0f : std::max(0.0f, (float(position.y) - top) / std::max(ui.sideRowPitch, 1.0f));
+            PlaySlideIn(registry, entity, left ? -1.0f : 1.0f, rowIndex * ui.motion.slideStagger);
+        };
+
         registry.View<SidePanelElementComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
             [&](Tsukino::ECS::Entity entity, SidePanelElementComponent& element, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+                if(justShown) {
+                    slideIn(entity, element, transform);
+                } else if(visible && newRecent && element.row == 0
+                          && (element.kind == SidePanelElementKind::RecentFruit || element.kind == SidePanelElementKind::RecentName
+                              || element.kind == SidePanelElementKind::RecentValue)) {
+                    // 新しくとれた果物は先頭の行に入るので、その行をポップさせる
+                    PlayPopIn(registry, entity);
+                }
+
                 //--------------------------------------------------------------
                 // 行頭の果物（3D）。行の中身が変わったときだけ作り直し、行が空のときとパネルを隠している間は隠す
                 //--------------------------------------------------------------
@@ -233,9 +283,11 @@ namespace FruitMagic::ECS {
                     hlslpp::float3 scale = element.shownScale;
                     switch(element.kind) {
                         case SidePanelElementKind::ZukanBar: {
-                            // 左端を固定したまま、登録した割合だけ伸ばす
-                            const float ratio  = total > 0 ? std::clamp(static_cast<float>(registered) / static_cast<float>(total), 0.0f, 1.0f) : 0.0f;
+                            // 左端を固定したまま、登録した割合（へ追いついていく割合）だけ伸ばす
+                            const float ratio  = std::max(m_zukanRatio, 0.0f);
                             shown              = shown && ratio > 0.0f;
+                            if(zukanFilled)
+                                PlayPunch(registry, entity);
                             scale              = hlslpp::float3(float(element.shownScale.x) * ratio, float(element.shownScale.y), 1.0f);
                             transform.position = hlslpp::float3(element.barLeft + element.barWidth * ratio * 0.5f, float(transform.position.y), 0.0f);
                             break;
@@ -245,6 +297,9 @@ namespace FruitMagic::ECS {
                             shown               = shown && upgrade.def != nullptr;
                             const auto* pointer = registry.try_get<Tsukino::BuiltIn::ECS::PointerTargetComponent>(entity);
                             sprite->tintColor   = (pointer && pointer->hovered) ? ui.sideButtonHoverColor : upgrade.canBuy ? ui.sideButtonReadyColor : ui.sideButtonColor;
+                            // 押すと強化の画面が開く。買えるときは呼吸させて知らせる
+                            SetButtonInteractable(registry, entity, upgrade.def != nullptr);
+                            SetPulse(registry, entity, visible && upgrade.canBuy);
                             break;
                         }
 
@@ -319,6 +374,8 @@ namespace FruitMagic::ECS {
 
                     case SidePanelElementKind::ZukanCount:
                         font->text = texts.Format("side.zukanCount", {{"registered", std::to_wstring(registered)}, {"total", std::to_wstring(total)}});
+                        if(zukanIncreased)
+                            PlayPunch(registry, entity);
                         break;
 
                     case SidePanelElementKind::ZukanNext:
@@ -362,5 +419,11 @@ namespace FruitMagic::ECS {
                         break;
                 }
             });
+
+        // 右上の「強化」ボタンも、おすすめの強化が買える間は呼吸させる（パネルのおすすめの板は上で扱った）
+        registry.View<MenuButtonComponent>().each([&](Tsukino::ECS::Entity entity, MenuButtonComponent& button) {
+            if(button.menu == MenuKind::Upgrade && !registry.HasComponent<SidePanelElementComponent>(entity))
+                SetPulse(registry, entity, visible && upgrade.canBuy);
+        });
     }
 }    // namespace FruitMagic::ECS

@@ -13,6 +13,7 @@
 #include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
+#include <FruitMagic/Game/UiMotion.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
@@ -31,10 +32,13 @@ namespace FruitMagic::ECS {
     //----------------------------------------------------------------------------
     //! 購入の入力を読み、強化画面を更新します。
     //----------------------------------------------------------------------------
-    void UpgradeSystem::Update(Tsukino::ECS::Registry& registry, float /*deltaTime*/) {
+    void UpgradeSystem::Update(Tsukino::ECS::Registry& registry, float deltaTime) {
         if(!registry.HasContext<MenuState>() || !registry.HasContext<GameState>() || !registry.HasContext<UpgradeCatalog>())
             return;
-        if(!registry.GetContext<MenuState>().IsOpen(MenuKind::Upgrade))
+        const bool open = registry.GetContext<MenuState>().IsOpen(MenuKind::Upgrade);
+        const bool justOpened = open && !m_wasOpen;
+        m_wasOpen             = open;
+        if(!open)
             return;
 
         const UpgradeCatalog& catalog = registry.GetContext<UpgradeCatalog>();
@@ -70,10 +74,21 @@ namespace FruitMagic::ECS {
         const GameState& state = registry.GetContext<GameState>();
         const UiConfig&  ui    = GetUiConfig(registry);
         const Texts&     texts = GetTexts(registry);
+
+        // 手持ちの表示は、買ったときに減っていく様子が見えるよう実際の数へ追いつかせる（開いた瞬間はそろえる）
+        if(justOpened) {
+            m_walletCoins.Snap(state.coins);
+            m_walletFruit.Snap(state.fruitPoints);
+        }
+        const long long shownCoins = m_walletCoins.Update(state.coins, ui.motion.countUpSpeed, deltaTime);
+        const long long shownFruit = m_walletFruit.Update(state.fruitPoints, ui.motion.countUpSpeed, deltaTime);
+
         registry.View<UpgradeElementComponent>().each([&](Tsukino::ECS::Entity entity, UpgradeElementComponent& element) {
             if(element.kind == UpgradeElementKind::Wallet) {
                 if(auto* font = registry.try_get<Tsukino::BuiltIn::ECS::FontComponent>(entity))
-                    font->text = texts.Format("upgrade.wallet", {{"coins", std::to_wstring(state.coins)}, {"fruit", std::to_wstring(state.fruitPoints)}});
+                    font->text = texts.Format("upgrade.wallet", {{"coins", std::to_wstring(shownCoins)}, {"fruit", std::to_wstring(shownFruit)}});
+                if(m_walletCoins.Increased() || m_walletFruit.Increased())
+                    PlayPunch(registry, entity);
                 return;
             }
             if(element.kind == UpgradeElementKind::Tab) {
@@ -101,6 +116,9 @@ namespace FruitMagic::ECS {
                 auto* pointer = registry.try_get<Tsukino::BuiltIn::ECS::PointerTargetComponent>(entity);
                 if(sprite)
                     sprite->tintColor = maxed ? ui.upgradeMaxedColor : !canBuy ? ui.upgradeCannotBuyColor : (pointer && pointer->hovered) ? ui.upgradeBuyHoverColor : ui.upgradeBuyColor;
+                // 買える間だけ手ごたえを出し、呼吸させて押せることを知らせる
+                SetButtonInteractable(registry, entity, !maxed && canBuy);
+                SetPulse(registry, entity, !maxed && canBuy);
                 return;
             }
 
