@@ -10,7 +10,7 @@
   "hud": {
     "coins": "{n}",
     "fruitPoints": "{n}",
-    "mana": "マナ {mana} / {max}",
+    "mana": "{mana}",
     "payout": "+{n}  ",
     "gutter": "溝 {n}",
     "registered": "図鑑に登録！ {name}",
@@ -29,10 +29,11 @@
     "jackpotLose": "おしい…"
   },
   "magicButton": {
-    "empty": "{slot}  ？",
-    "locked": "{slot}  ？  図鑑{zukan}",
-    "active": "{slot} {name}  {n}秒",
-    "ready": "{slot} {name}  {cost}"
+    "key": "{slot}",
+    "empty": "？",
+    "locked": "図鑑 {zukan}",
+    "active": "{name}  {n}秒",
+    "ready": "{name}  {cost}"
   },
   "notice": {
     "magicLearned": "新しい魔法「{name}」を覚えた！",
@@ -83,7 +84,7 @@
     "recordClose": "閉じる (P)",
     "upgradeButton": "強化 (U)",
     "upgradeClose": "閉じる (U)",
-    "optionsButton": "オプション (Esc)",
+    "optionsButton": "設定 (Esc)",
     "optionsClose": "閉じる (Esc)"
   },
   "options": {

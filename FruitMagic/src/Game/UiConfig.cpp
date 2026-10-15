@@ -72,7 +72,49 @@ namespace FruitMagic {
             if(Json::Read(value, "align", align))
                 out.align = (align == "center") ? UiAlign::Center : (align == "right") ? UiAlign::Right : UiAlign::Left;
         }
+
+        //--------------------------------------------------------------
+        //! 項目があれば傾けて置く板 {center, size, angle, skin} を読み込みます。
+        //! @param  [in]     obj 読み込み元のオブジェクト
+        //! @param  [in]     key 項目名
+        //! @param  [in,out] out 読み込み先（無い要素はそのまま）
+        //--------------------------------------------------------------
+        void ReadBoard(const Json::Value& obj, const char* key, UiBoard& out) {
+            if(const Json::Value* board = Json::FindObject(obj, key)) {
+                Json::ReadVec(*board, "center", out.center);
+                Json::ReadVec(*board, "size", out.size);
+                Json::Read(*board, "angle", out.angle);
+                Json::Read(*board, "skin", out.skin);
+            }
+        }
     }    // namespace
+
+    //----------------------------------------------------------------------------
+    //! 画面の板の見た目を返します。
+    //----------------------------------------------------------------------------
+    const UiMenuStyle& UiConfig::MenuStyleOf(MenuKind menu) const {
+        static const UiMenuStyle kFallback;
+        const char*              name = "";
+        switch(menu) {
+            case MenuKind::Zukan: name = "zukan"; break;
+            case MenuKind::Record: name = "record"; break;
+            case MenuKind::Upgrade: name = "upgrade"; break;
+            case MenuKind::Welcome: name = "welcome"; break;
+            case MenuKind::Options: name = "options"; break;
+            default: break;
+        }
+        auto it = menuStyles.find(name);
+        return (it != menuStyles.end()) ? it->second : kFallback;
+    }
+
+    //----------------------------------------------------------------------------
+    //! 板の絵を名前で引きます。
+    //----------------------------------------------------------------------------
+    const UiSkin& UiConfig::Skin(const std::string& name) const {
+        static const UiSkin kFallback;
+        auto it = skins.find(name);
+        return (it != skins.end()) ? it->second : kFallback;
+    }
 
     //----------------------------------------------------------------------------
     //! 既定の HUD の文字の置き方を入れます。
@@ -141,14 +183,37 @@ namespace FruitMagic {
             Json::Read(*icon, "spinSpeed", harvestIconSpinSpeed);
         }
 
-        if(const Json::Value* mana = Json::FindObject(doc, "manaGauge")) {
-            Json::Read(*mana, "left", manaGaugeLeft);
-            Json::Read(*mana, "centerY", manaGaugeCenterY);
-            Json::Read(*mana, "width", manaGaugeWidth);
-            Json::Read(*mana, "height", manaGaugeHeight);
-            Json::Read(*mana, "padding", manaGaugePadding);
-            Json::ReadColor(*mana, "backColor", manaGaugeBackColor);
-            Json::ReadColor(*mana, "fillColor", manaGaugeFillColor);
+        if(const Json::Value* mana = Json::FindObject(doc, "manaOrb")) {
+            Json::ReadVec(*mana, "center", manaOrbCenter);
+            Json::Read(*mana, "size", manaOrbSize);
+            Json::Read(*mana, "ringSize", manaRingSize);
+            Json::ReadColor(*mana, "color", manaOrbColor);
+            Json::ReadColor(*mana, "ringBackColor", manaRingBackColor);
+            Json::ReadColor(*mana, "ringFillColor", manaRingFillColor);
+        }
+
+        //--------------------------------------------------------------
+        // 板の絵（名前 → {texture, border, sliceScale, tint}）と、HUD の看板
+        //--------------------------------------------------------------
+        if(const Json::Value* skinList = Json::FindObject(doc, "skins")) {
+            for(auto it = skinList->MemberBegin(); it != skinList->MemberEnd(); ++it) {
+                if(!it->value.IsObject())
+                    continue;
+                UiSkin& skin = skins[it->name.GetString()];
+                Json::Read(it->value, "texture", skin.texture);
+                float border[4] = {0.0f, 0.0f, 0.0f, 0.0f};    // [左, 上, 右, 下]
+                if(Json::ReadFloats(it->value, "border", border, 4))
+                    skin.border = hlslpp::float4(border[0], border[1], border[2], border[3]);
+                Json::Read(it->value, "sliceScale", skin.sliceScale);
+                Json::ReadColor(it->value, "tint", skin.tint);
+            }
+        }
+        if(const Json::Value* boards = Json::FindObject(doc, "hudBoards")) {
+            ReadBoard(*boards, "coin", coinBoard);
+            ReadBoard(*boards, "fp", fpBoard);
+            Json::Read(*boards, "ropeTexture", ropeTexture);
+            Json::Read(*boards, "ropeWidth", ropeWidth);
+            Json::Read(*boards, "ropeSpread", ropeSpread);
         }
         if(const Json::Value* ring = Json::FindObject(doc, "reliefRing")) {
             Json::Read(*ring, "diameter", reliefRingDiameter);
@@ -167,11 +232,30 @@ namespace FruitMagic {
             }
         }
         if(const Json::Value* magic = Json::FindObject(doc, "magicButtons")) {
-            Json::Read(*magic, "width", magicButtonWidth);
-            Json::Read(*magic, "height", magicButtonHeight);
-            Json::Read(*magic, "gap", magicButtonGap);
-            Json::Read(*magic, "y", magicButtonY);
+            Json::Read(*magic, "centerX", magicCenterX);
+            Json::Read(*magic, "baseY", magicBaseY);
+            Json::Read(*magic, "spacing", magicSpacing);
+            Json::Read(*magic, "curve", magicCurve);
+            if(const Json::Value* sizes = Json::FindArray(*magic, "sizes")) {
+                magicSizes.clear();
+                for(const Json::Value& size : sizes->GetArray()) {
+                    if(size.IsNumber())
+                        magicSizes.push_back(std::max(8.0f, size.GetFloat()));
+                }
+            }
+            Json::Read(*magic, "iconRatio", magicIconRatio);
+            Json::Read(*magic, "ringRatio", magicRingRatio);
+            Json::Read(*magic, "labelGap", magicLabelGap);
             Json::Read(*magic, "labelScale", magicLabelScale);
+            Json::Read(*magic, "keyScale", magicKeyScale);
+            if(const Json::Value* icons = Json::FindObject(*magic, "icons")) {
+                for(auto it = icons->MemberBegin(); it != icons->MemberEnd(); ++it) {
+                    if(it->value.IsString())
+                        magicIcons[it->name.GetString()] = it->value.GetString();
+                }
+            }
+            Json::Read(*magic, "lockedIcon", magicLockedIcon);
+            Json::ReadColor(*magic, "ringColor", magicRingColor);
             Json::ReadColor(*magic, "labelOutline", magicLabelOutline);
             Json::ReadColor(*magic, "lockedColor", magicLockedColor);
             Json::ReadColor(*magic, "activeColor", magicActiveColor);
@@ -180,18 +264,23 @@ namespace FruitMagic {
             Json::ReadColor(*magic, "readyColor", magicReadyColor);
         }
         if(const Json::Value* buttons = Json::FindObject(doc, "menuButtons")) {
-            Json::Read(*buttons, "x", menuButtonX);
-            Json::Read(*buttons, "zukanY", zukanButtonY);
-            Json::Read(*buttons, "recordY", recordButtonY);
-            Json::ReadColor(*buttons, "recordColor", recordButtonColor);
-            Json::Read(*buttons, "upgradeY", upgradeButtonY);
-            Json::Read(*buttons, "width", menuButtonWidth);
-            Json::Read(*buttons, "height", menuButtonHeight);
+            auto readButton = [&](const char* key, UiRoundButton& out) {
+                if(const Json::Value* button = Json::FindObject(*buttons, key)) {
+                    Json::ReadVec(*button, "center", out.center);
+                    Json::Read(*button, "size", out.size);
+                    Json::ReadColor(*button, "color", out.color);
+                    Json::Read(*button, "icon", out.icon);
+                }
+            };
+            readButton("zukan", zukanButton);
+            readButton("record", recordButton);
+            readButton("upgrade", upgradeButton);
+            readButton("options", optionsButton);
+            Json::Read(*buttons, "iconRatio", menuIconRatio);
             Json::Read(*buttons, "labelScale", menuLabelScale);
-            Json::ReadColor(*buttons, "zukanColor", zukanButtonColor);
-            Json::ReadColor(*buttons, "upgradeColor", upgradeButtonColor);
-            Json::Read(*buttons, "optionsY", optionsButtonY);
-            Json::ReadColor(*buttons, "optionsColor", optionsButtonColor);
+            Json::Read(*buttons, "labelGap", menuLabelGap);
+            Json::Read(*buttons, "alertSize", upgradeAlertSize);
+            Json::Read(*buttons, "alertTexture", upgradeAlertTexture);
         }
         if(const Json::Value* side = Json::FindObject(doc, "sidePanels")) {
             Json::ReadVec(*side, "leftPosition", sideLeftPosition);
@@ -208,7 +297,24 @@ namespace FruitMagic {
             Json::Read(*side, "tableRows", sideTableRows);
             Json::Read(*side, "barHeight", sideBarHeight);
             Json::Read(*side, "buttonInset", sideButtonInset);
-            Json::ReadColor(*side, "color", sideColor);
+            auto readCard = [&](const char* key, UiSideCard& out) {
+                if(const Json::Value* card = Json::FindObject(*side, key)) {
+                    Json::Read(*card, "skin", out.skin);
+                    Json::Read(*card, "angle", out.angle);
+                    Json::Read(*card, "pin", out.pin);
+                    Json::Read(*card, "pinOffsetX", out.pinOffsetX);
+                }
+            };
+            readCard("leftCard", sideLeftCard);
+            readCard("zukanCard", sideZukanCard);
+            readCard("upgradeCard", sideUpgradeCard);
+            readCard("fairyCard", sideFairyCard);
+            Json::Read(*side, "pinTexture", sidePinTexture);
+            Json::Read(*side, "pinSize", sidePinSize);
+            Json::Read(*side, "bubbleTailTexture", sideBubbleTailTexture);
+            Json::ReadVec(*side, "bubbleTailSize", sideBubbleTailSize);
+            Json::ReadColor(*side, "outlineColor", sideOutlineColor);
+            Json::Read(*side, "outlineWidth", sideOutlineWidth);
             Json::ReadColor(*side, "barBackColor", sideBarBackColor);
             Json::ReadColor(*side, "barFillColor", sideBarFillColor);
             Json::ReadColor(*side, "buttonColor", sideButtonColor);
@@ -256,12 +362,40 @@ namespace FruitMagic {
             Json::Read(*menu, "scrollBarWidth", scrollBarWidth);
             Json::Read(*menu, "scrollBarInset", scrollBarInset);
             Json::ReadColor(*menu, "scrollTrackColor", scrollTrackColor);
+            Json::ReadVec(*menu, "ribbonSize", menuRibbonSize);
+            Json::Read(*menu, "ribbonOffsetY", menuRibbonOffsetY);
+            Json::Read(*menu, "closeTexture", menuCloseTexture);
+            Json::Read(*menu, "closeSize", menuCloseSize);
+            Json::Read(*menu, "closeInset", menuCloseInset);
+            Json::ReadColor(*menu, "closeColor", menuCloseColor);
+            if(const Json::Value* styles = Json::FindObject(*menu, "styles")) {
+                for(auto it = styles->MemberBegin(); it != styles->MemberEnd(); ++it) {
+                    if(!it->value.IsObject())
+                        continue;
+                    UiMenuStyle& style = menuStyles[it->name.GetString()];
+                    Json::Read(it->value, "skin", style.skin);
+                    Json::Read(it->value, "coverSkin", style.coverSkin);
+                    Json::ReadColor(it->value, "coverTint", style.coverTint);
+                    Json::Read(it->value, "coverPadding", style.coverPadding);
+                    Json::ReadColor(it->value, "ribbonTint", style.ribbonTint);
+                }
+            }
         }
         if(const Json::Value* zukan = Json::FindObject(doc, "zukan")) {
             Json::Read(*zukan, "columnsLeft", zukanColumnsLeft);
             Json::Read(*zukan, "columnsRight", zukanColumnsRight);
             Json::Read(*zukan, "headerOffsetY", zukanHeaderOffsetY);
             ReadFont(*zukan, "header", zukanHeader);
+            Json::ReadVec(*zukan, "headerTabSize", zukanHeaderTabSize);
+            Json::Read(*zukan, "headerTabAngle", zukanHeaderTabAngle);
+            if(const Json::Value* colors = Json::FindArray(*zukan, "headerTabColors")) {
+                zukanHeaderTabColors.clear();
+                for(const Json::Value& color : colors->GetArray()) {
+                    hlslpp::float4 value(1.0f, 1.0f, 1.0f, 1.0f);
+                    Json::ReadColorValue(color, value);
+                    zukanHeaderTabColors.push_back(value);
+                }
+            }
             Json::Read(*zukan, "rowsGap", zukanRowsGap);
             Json::Read(*zukan, "rowsBottom", zukanRowsBottom);
             Json::Read(*zukan, "rowPitch", zukanRowPitch);
@@ -302,6 +436,10 @@ namespace FruitMagic {
             Json::Read(*upgrade, "effectX", upgradeEffectX);
             ReadFont(*upgrade, "effect", upgradeEffect);
             Json::Read(*upgrade, "costScale", upgradeCostScale);
+            Json::ReadVec(*upgrade, "costTagSize", upgradeCostTagSize);
+            Json::Read(*upgrade, "costTagLeft", upgradeCostTagLeft);
+            Json::Read(*upgrade, "costTagTextX", upgradeCostTagTextX);
+            Json::Read(*upgrade, "costTagAngle", upgradeCostTagAngle);
             Json::Read(*upgrade, "buttonRight", upgradeButtonRight);
             Json::Read(*upgrade, "buttonWidth", upgradeButtonWidth);
             Json::Read(*upgrade, "buttonHeight", upgradeButtonHeight);

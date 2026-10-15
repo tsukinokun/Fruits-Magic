@@ -13,6 +13,7 @@ namespace FruitMagic::ECS {
         Name,         // 強化の名前とレベル（「果樹   Lv 1 / 3」）。説明文は決まった文字なので MenuPageComponent::text で出す
         Effect,       // 効果の今の値と次の値（「12cm → 14cm」）
         Cost,         // 次のレベルの価格（「コイン 40」「FP 5」）
+        CostTag,      // 価格の値札（UIVisibilityComponent を持つ。最大レベルになったら隠す）
         BuyButton,    // 購入ボタン（スプライト。PointerTargetComponent と一緒に付ける）
         BuyLabel,     // 購入ボタンの文字（「強化する」「足りない」「最大」）
         Wallet,       // 手持ちのコインと FP

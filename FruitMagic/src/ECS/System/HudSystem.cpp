@@ -8,6 +8,8 @@
 #include <FruitMagic/ECS/Component/MagicButtonComponent.hpp>
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/ReliefGaugeComponent.hpp>
+#include <FruitMagic/ECS/Component/UpgradeAlertComponent.hpp>
+#include <FruitMagic/ECS/System/UpgradeSystem.hpp>
 #include <FruitMagic/ECS/Event/NoticeEvent.hpp>
 #include <FruitMagic/ECS/Event/ZukanRegisteredEvent.hpp>
 #include <FruitMagic/Game/CollectionConfig.hpp>
@@ -20,13 +22,16 @@
 #include <FruitMagic/Game/ReliefState.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
 #include <FruitMagic/Game/Settings.hpp>
+#include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/Texts.hpp>
 #include <FruitMagic/Game/UiConfig.hpp>
+#include <FruitMagic/Game/UpgradeCatalog.hpp>
 
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/PointerTargetComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/TransformComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/UIVisibilityComponent.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 #include <Tsukino/Core/Math/Easing.hpp>
@@ -296,10 +301,26 @@ namespace FruitMagic::ECS {
         UpdateManaGauge(registry, state, deltaTime);
         UpdateReliefGauge(registry);
         UpdateMagicButtons(registry, state);
+
+        //--------------------------------------------------------------
+        // 強化のボタンの「!」の印。買える強化があるときだけ見せて呼吸させる（出始めはポップ）
+        //--------------------------------------------------------------
+        bool affordable = false;
+        if(registry.HasContext<UpgradeCatalog>()) {
+            for(const UpgradeDef& def : registry.GetContext<UpgradeCatalog>().Upgrades())
+                affordable = affordable || UpgradeSystem::CanAfford(def, state);
+        }
+        registry.View<UpgradeAlertComponent, Tsukino::BuiltIn::ECS::UIVisibilityComponent>().each(
+            [&](Tsukino::ECS::Entity entity, UpgradeAlertComponent& alert, Tsukino::BuiltIn::ECS::UIVisibilityComponent& visibility) {
+                if(affordable && !alert.shown)
+                    PlayPopIn(registry, entity);
+                visibility.visible = affordable;
+                alert.shown        = affordable;
+            });
     }
 
     //----------------------------------------------------------------------------
-    //! マナゲージの中身のバーの幅を、今のマナに合わせます。
+    //! マナの玉の周りの輪を、今のマナの割合だけ塗ります。
     //----------------------------------------------------------------------------
     void HudSystem::UpdateManaGauge(Tsukino::ECS::Registry& registry, const GameState& state, float deltaTime) {
         const float target = (state.maxMana > 0) ? std::clamp(static_cast<float>(state.mana) / static_cast<float>(state.maxMana), 0.0f, 1.0f) : 0.0f;
@@ -315,15 +336,12 @@ namespace FruitMagic::ECS {
         const bool becameFull = full && !m_manaFull;
         m_manaFull            = full;
 
-        registry.View<ManaGaugeComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
-            [&](Tsukino::ECS::Entity entity, ManaGaugeComponent& gauge, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+        registry.View<ManaGaugeComponent, Tsukino::BuiltIn::ECS::SpriteComponent>().each(
+            [&](Tsukino::ECS::Entity entity, ManaGaugeComponent& gauge, Tsukino::BuiltIn::ECS::SpriteComponent& sprite) {
                 if(becameFull)
                     PlayPunch(registry, entity);
-                // 画面スプライトの位置は中心なので、左端を固定するには幅の半分だけずらす
-                const float width  = gauge.fullWidth * ratio;
-                transform.position = hlslpp::float3(gauge.left + width * 0.5f, float(transform.position.y), 0.0f);
-                transform.scale    = hlslpp::float3(width / gauge.textureSize, gauge.height / gauge.textureSize, 1.0f);
-                transform.dirty    = true;
+                sprite.fillStartAngle = gauge.startAngle;
+                sprite.fillAmount     = ratio;
             });
     }
 
@@ -385,6 +403,8 @@ namespace FruitMagic::ECS {
                     // 割り当てが無い枠
                     text  = texts.Format("magicButton.empty", {{"slot", std::to_wstring(button.slot)}});
                     color = ui.magicLockedColor;
+                    if(auto* icon = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(button.icon))
+                        icon->textureHandle = button.lockedTexture;
                 } else if(!catalog.IsUnlocked(index, registered)) {
                     // 未解放。あと何枠で覚えるかの目安に、必要な図鑑の登録数を出す
                     text  = texts.Format("magicButton.locked", {{"slot", std::to_wstring(button.slot)}, {"zukan", std::to_wstring(def->unlockZukan)}});
@@ -408,6 +428,23 @@ namespace FruitMagic::ECS {
 
                 if(button.label != entt::null && registry.HasComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label)) {
                     registry.GetComponent<Tsukino::BuiltIn::ECS::FontComponent>(button.label).text = text;
+                }
+
+                //--------------------------------------------------------------
+                // アイコン（覚えるまでは鍵）と、効果中の残り時間の輪（効果の長さに対する残りの割合だけ塗る）
+                //--------------------------------------------------------------
+                const bool unlocked = def && catalog.IsUnlocked(index, registered);
+                if(auto* icon = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(button.icon)) {
+                    icon->textureHandle = unlocked ? button.iconTexture : button.lockedTexture;
+                    icon->tintColor     = unlocked ? hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f) : hlslpp::float4(1.0f, 1.0f, 1.0f, 0.6f);
+                }
+                const bool active = def && magic.IsActive(index);
+                if(auto* visibility = registry.try_get<Tsukino::BuiltIn::ECS::UIVisibilityComponent>(button.ring))
+                    visibility->visible = active;
+                if(auto* ring = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(button.ring); ring && active) {
+                    const float durationScale = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().magicDurationMultiplier : 1.0f;
+                    const float duration      = def->Param("duration", 0.0f) * durationScale;
+                    ring->fillAmount          = (duration > 0.0f) ? std::clamp(magic.remaining[index] / duration, 0.0f, 1.0f) : 1.0f;
                 }
             });
     }

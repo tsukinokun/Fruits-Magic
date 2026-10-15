@@ -5,10 +5,13 @@
 //!         描画の重なり順（sortOrder）は UI の層の決まりなのでコードに残します。無い項目は既定値（調整済みの値）のままです。
 //----------------------------------------------------------------------------
 #pragma once
+#include <FruitMagic/Game/MenuState.hpp>
+
 #include <hlsl++.h>
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 // 名前空間 : Tsukino::ECS
 namespace Tsukino::ECS {
@@ -60,6 +63,47 @@ namespace FruitMagic {
         float          stopSeconds   = 0.25f;                                             // 止まり始めてから止まるまで（少し行き過ぎて戻る）
         float          overshoot     = 1.6f;                                              // 止まるときの行き過ぎの強さ（0 なら行き過ぎない）
         int            sortOrder     = 2;                                                 // 重ね順（板。窓・絵柄・縁はこれより上に順に重ねる）
+    };
+
+    //! 板の絵（木の板・紙・黒板など）です（Ui.json の "skins"）。9 スライスで、角や縁を歪めずに大きさを変えて使います。
+    struct UiSkin {
+        std::string    texture;                                        // 画像（リポジトリルート相対）
+        hlslpp::float4 border     = hlslpp::float4(0.0f, 0.0f, 0.0f, 0.0f);    // 伸ばさない四辺の帯（画像のピクセル。左・上・右・下）
+        float          sliceScale = 1.0f;                              // 四隅を描く倍率
+        hlslpp::float4 tint       = hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f);    // 掛ける色（白なら画像の色のまま）
+    };
+
+    //! 傾けて置く板（看板・札）です。中心・大きさ・角度と、使う板の絵の名前を持ちます。
+    struct UiBoard {
+        hlslpp::float2 center = hlslpp::float2(0.0f, 0.0f);    // 中心（画面ピクセル）
+        hlslpp::float2 size   = hlslpp::float2(100.0f, 50.0f);  // 大きさ
+        float          angle  = 0.0f;                           // 傾き（度。画面上で時計回りが正）
+        std::string    skin;                                    // 板の絵（UiConfig::skins の名前）
+    };
+
+    //! 画面（図鑑・強化など）の板の見た目です。
+    struct UiMenuStyle {
+        std::string    skin         = "wood";                                   // 板の絵
+        std::string    coverSkin;                                               // 後ろに敷く表紙の絵（空なら敷かない）
+        hlslpp::float4 coverTint    = hlslpp::float4(0.8f, 0.3f, 0.3f, 1.0f);   // 表紙に掛ける色
+        float          coverPadding = 14.0f;                                    // 表紙が板からはみ出す幅
+        hlslpp::float4 ribbonTint   = hlslpp::float4(0.85f, 0.3f, 0.35f, 1.0f); // タイトルのリボンの色
+    };
+
+    //! 画面の左右のパネルの紙1枚の見た目です。
+    struct UiSideCard {
+        std::string skin       = "paper";    // 板の絵（UiConfig::skins の名前）
+        float       angle      = 0.0f;       // 傾き（度。画面上で時計回りが正。紙だけを傾け、文字はまっすぐ）
+        bool        pin        = false;      // 上に画びょうを刺すか
+        float       pinOffsetX = 0.0f;       // 画びょうの位置（紙の中心からの横のずれ）
+    };
+
+    //! 丸いボタン（右上の画面の開閉ボタン）です。
+    struct UiRoundButton {
+        hlslpp::float2 center = hlslpp::float2(0.0f, 0.0f);                // 中心
+        float          size   = 64.0f;                                     // 直径
+        hlslpp::float4 color  = hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f);    // ボタンの色
+        std::string    icon;                                               // アイコンの画像
     };
 
     //! 画面の UI の動き（ボタンの手ごたえ・ポップ・スライド・呼吸・カウントアップ）の調整値です（Ui.json の "motion"）。
@@ -128,13 +172,27 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // マナゲージ
         //--------------------------------------------------------------
-        float          manaGaugeLeft    = 28.0f;     // 左端
-        float          manaGaugeCenterY = 162.0f;    // 中心の高さ
-        float          manaGaugeWidth   = 220.0f;    // 全幅
-        float          manaGaugeHeight  = 14.0f;     // 高さ
-        float          manaGaugePadding = 4.0f;      // 背景の、中身より大きい分
-        hlslpp::float4 manaGaugeBackColor = hlslpp::float4(0.1f, 0.05f, 0.15f, 0.8f);
-        hlslpp::float4 manaGaugeFillColor = hlslpp::float4(0.75f, 0.45f, 1.0f, 1.0f);
+        hlslpp::float2 manaOrbCenter    = hlslpp::float2(300.0f, 100.0f);    // マナの玉の中心
+        float          manaOrbSize      = 64.0f;     // 玉の直径
+        float          manaRingSize     = 84.0f;     // 玉の周りのゲージ（輪）の直径
+        hlslpp::float4 manaOrbColor     = hlslpp::float4(0.32f, 0.18f, 0.48f, 1.0f);
+        hlslpp::float4 manaRingBackColor = hlslpp::float4(0.1f, 0.05f, 0.15f, 0.7f);
+        hlslpp::float4 manaRingFillColor = hlslpp::float4(0.8f, 0.5f, 1.0f, 1.0f);
+
+        //--------------------------------------------------------------
+        // 屋台の看板（HUD のお金）。コインの看板は画面の上から吊り紐で下がり、FP の看板はその下に吊るす
+        //--------------------------------------------------------------
+        std::unordered_map<std::string, UiSkin> skins;    // 板の絵（名前 → 絵）
+        UiBoard        coinBoard     = {hlslpp::float2(150.0f, 52.0f), hlslpp::float2(220.0f, 64.0f), -2.5f, "capsule"};
+        UiBoard        fpBoard       = {hlslpp::float2(150.0f, 124.0f), hlslpp::float2(170.0f, 50.0f), 2.0f, "capsule"};
+        std::string    ropeTexture   = "Assets/Textures/UI/Rope.png";
+        float          ropeWidth     = 10.0f;     // 吊り紐の太さ
+        float          ropeSpread    = 0.32f;     // 吊り紐の位置（板の幅に対する、中心からの割合）
+
+        //! 板の絵を名前で引きます。
+        //! @param  [in] name 名前
+        //! @return 板の絵（無ければ白い四角の既定）
+        const UiSkin& Skin(const std::string& name) const;
 
         //--------------------------------------------------------------
         // おすそわけ待ちのリング
@@ -153,13 +211,21 @@ namespace FruitMagic {
         float          fpIconSize     = 40.0f;
 
         //--------------------------------------------------------------
-        // 魔法ボタン（画面下に横並び）
+        // 魔法ボタン（画面下に扇形。真ん中ほど大きく高い）。丸ボタンの上にアイコン、左上に数字キーの札、下に名前とマナ
         //--------------------------------------------------------------
-        float          magicButtonWidth    = 200.0f;
-        float          magicButtonHeight   = 46.0f;
-        float          magicButtonGap      = 16.0f;
-        float          magicButtonY        = 640.0f;    // 中心の高さ（横は画面の中央に揃える）
-        float          magicLabelScale     = 0.72f;     // 「4 おおきくなーれ 60」がボタンに収まる大きさ
+        float              magicCenterX      = 640.0f;     // 扇の真ん中の x
+        float              magicBaseY        = 640.0f;     // 真ん中のボタンの中心の高さ
+        float              magicSpacing      = 112.0f;     // ボタンの横の間隔
+        float              magicCurve        = 8.0f;       // 真ん中から1つ離れるごとに下がる量（2乗で効く）
+        std::vector<float> magicSizes        = {64.0f, 74.0f, 86.0f, 74.0f, 64.0f};    // 左から順のボタンの直径
+        float              magicIconRatio    = 0.55f;      // ボタンの直径に対するアイコンの大きさ
+        float              magicRingRatio    = 1.22f;      // ボタンの直径に対する、残り時間の輪の大きさ
+        float              magicLabelGap     = 10.0f;      // ボタンの下端から名前までの間
+        float              magicLabelScale   = 0.62f;
+        float              magicKeyScale     = 0.6f;       // 数字キーの札の文字
+        std::unordered_map<std::string, std::string> magicIcons;    // 魔法の id → アイコンの画像
+        std::string        magicLockedIcon   = "Assets/Textures/UI/Icons/locked.png";
+        hlslpp::float4     magicRingColor    = hlslpp::float4(1.0f, 0.85f, 0.4f, 1.0f);    // 効果中の残り時間の輪
         hlslpp::float4 magicLabelOutline   = hlslpp::float4(0.15f, 0.05f, 0.2f, 1.0f);
         hlslpp::float4 magicLockedColor    = hlslpp::float4(0.35f, 0.35f, 0.4f, 0.8f);     // 未解放・割り当てなし
         hlslpp::float4 magicActiveColor    = hlslpp::float4(0.55f, 0.35f, 0.75f, 0.9f);    // 効果中
@@ -168,20 +234,17 @@ namespace FruitMagic {
         hlslpp::float4 magicReadyColor     = hlslpp::float4(0.85f, 0.45f, 0.95f, 1.0f);    // 撃てる
 
         //--------------------------------------------------------------
-        // 画面（図鑑・記録・強化・オプション）の開閉ボタン（右上）
+        // 画面（図鑑・記録・強化・オプション）の開閉ボタン（右上に大小の丸を房にする。下に小さく名前とキー）
         //--------------------------------------------------------------
-        float          menuButtonX      = 1170.0f;
-        float          zukanButtonY     = 40.0f;
-        float          recordButtonY    = 90.0f;
-        hlslpp::float4 recordButtonColor = hlslpp::float4(0.95f, 0.7f, 0.35f, 1.0f);
-        float          upgradeButtonY   = 140.0f;
-        float          menuButtonWidth  = 170.0f;
-        float          menuButtonHeight = 42.0f;
-        float          menuLabelScale   = 0.85f;
-        hlslpp::float4 zukanButtonColor   = hlslpp::float4(0.95f, 0.55f, 0.65f, 1.0f);
-        hlslpp::float4 upgradeButtonColor = hlslpp::float4(0.45f, 0.75f, 0.4f, 1.0f);
-        float          optionsButtonY     = 190.0f;
-        hlslpp::float4 optionsButtonColor = hlslpp::float4(0.55f, 0.6f, 0.85f, 1.0f);
+        UiRoundButton  zukanButton    = {hlslpp::float2(1100.0f, 56.0f), 70.0f, hlslpp::float4(0.95f, 0.55f, 0.65f, 1.0f), "Assets/Textures/UI/Icons/menuGrid.png"};
+        UiRoundButton  recordButton   = {hlslpp::float2(1112.0f, 150.0f), 62.0f, hlslpp::float4(0.95f, 0.7f, 0.35f, 1.0f), "Assets/Textures/UI/Icons/leaderboardsSimple.png"};
+        UiRoundButton  upgradeButton  = {hlslpp::float2(1200.0f, 72.0f), 92.0f, hlslpp::float4(0.45f, 0.75f, 0.4f, 1.0f), "Assets/Textures/UI/Icons/wrench.png"};
+        UiRoundButton  optionsButton  = {hlslpp::float2(1244.0f, 172.0f), 48.0f, hlslpp::float4(0.55f, 0.6f, 0.85f, 1.0f), "Assets/Textures/UI/Icons/gear.png"};
+        float          menuIconRatio  = 0.55f;    // ボタンの直径に対するアイコンの大きさ
+        float          menuLabelScale = 0.6f;     // ボタンの下の名前とキー
+        float          menuLabelGap   = 9.0f;     // ボタンの下端から名前まで
+        float          upgradeAlertSize = 30.0f;  // 買える強化があるときの「!」の印の大きさ（強化のボタンの右上）
+        std::string    upgradeAlertTexture = "Assets/Textures/UI/AlertBadge.png";
 
         //--------------------------------------------------------------
         // 画面の左右のパネル（左: 台のようす、右: 進み具合とおすすめ）。
@@ -201,7 +264,16 @@ namespace FruitMagic {
         int            sideTableRows       = 3;         // 台の上の果物の行の数
         float          sideBarHeight       = 10.0f;     // 図鑑の進み具合のバーの高さ
         float          sideButtonInset     = 4.0f;      // おすすめの強化の板の、パネルの内側の余白からのはみ出し
-        hlslpp::float4 sideColor           = hlslpp::float4(0.08f, 0.04f, 0.12f, 0.55f);    // 板
+        UiSideCard     sideLeftCard        = {"paper", -1.5f, true, 0.0f};     // 左の紙（台のようす）
+        UiSideCard     sideZukanCard       = {"paper", 1.2f, true, 90.0f};     // 右の紙（図鑑の進み具合）
+        UiSideCard     sideUpgradeCard     = {"paper", -0.8f, false, 0.0f};    // 右の吹き出し（おすすめの強化）
+        UiSideCard     sideFairyCard       = {"paper", 1.0f, true, -90.0f};    // 右の紙（妖精とおるすばん）
+        std::string    sidePinTexture      = "Assets/Textures/UI/Pushpin.png";
+        float          sidePinSize         = 22.0f;
+        std::string    sideBubbleTailTexture = "Assets/Textures/UI/BubbleTail.png";
+        hlslpp::float2 sideBubbleTailSize  = hlslpp::float2(30.0f, 24.0f);
+        hlslpp::float4 sideOutlineColor    = hlslpp::float4(1.0f, 1.0f, 1.0f, 0.6f);    // 紙の上の文字の縁取り
+        float          sideOutlineWidth    = 0.0f;
         hlslpp::float4 sideBarBackColor    = hlslpp::float4(0.1f, 0.05f, 0.15f, 0.8f);
         hlslpp::float4 sideBarFillColor    = hlslpp::float4(0.95f, 0.6f, 0.75f, 1.0f);
         hlslpp::float4 sideButtonColor     = hlslpp::float4(0.3f, 0.45f, 0.3f, 0.7f);       // おすすめの強化の板（買えない）
@@ -244,6 +316,18 @@ namespace FruitMagic {
         hlslpp::float2 menuSize         = hlslpp::float2(900.0f, 540.0f);
         hlslpp::float4 menuColor        = hlslpp::float4(0.08f, 0.04f, 0.12f, 0.9f);
         float          menuTitleOffsetY = 32.0f;    // 画面の上端からタイトルまで
+        std::unordered_map<std::string, UiMenuStyle> menuStyles;    // 画面ごとの板の見た目（"zukan" / "record" / "upgrade" / "options" / "welcome"）
+        hlslpp::float2 menuRibbonSize    = hlslpp::float2(380.0f, 64.0f);    // タイトルのリボンの大きさ
+        float          menuRibbonOffsetY = 4.0f;     // 画面の上端からリボンの中心まで（小さいほど上辺からはみ出す）
+        std::string    menuCloseTexture  = "Assets/Textures/UI/CloseButton.png";
+        float          menuCloseSize     = 44.0f;    // 閉じる「×」の大きさ
+        float          menuCloseInset    = 6.0f;     // 画面の右上の角から「×」の中心まで（小さいほど角からはみ出す）
+        hlslpp::float4 menuCloseColor    = hlslpp::float4(0.85f, 0.35f, 0.35f, 1.0f);
+
+        //! 画面の板の見た目を返します。
+        //! @param  [in] menu 画面の種類
+        //! @return 板の見た目（Ui.json に無ければ木の板）
+        const UiMenuStyle& MenuStyleOf(MenuKind menu) const;
         UiFont         menuTitle        = {1.3f, hlslpp::float4(1.0f, 0.85f, 0.95f, 1.0f), true};
         float          scrollBarWidth   = 10.0f;
         float          scrollBarInset   = 22.0f;    // 画面の右端からスクロールバーの中心まで
@@ -256,6 +340,9 @@ namespace FruitMagic {
         float          zukanColumnsRight   = 40.0f;     // 列の終わりから画面の右端まで
         float          zukanHeaderOffsetY  = 78.0f;     // 画面の上端から列の見出しまで
         UiFont         zukanHeader         = {0.85f, hlslpp::float4(0.9f, 0.8f, 1.0f, 1.0f), true};
+        hlslpp::float2 zukanHeaderTabSize  = hlslpp::float2(130.0f, 46.0f);    // 列の見出しの栞（板の絵 "tab"）
+        float          zukanHeaderTabAngle = 3.0f;                              // 栞の傾き（度。列ごとに向きを入れ替える）
+        std::vector<hlslpp::float4> zukanHeaderTabColors;                       // 栞の色（列の順。足りなければ最後の色）
         float          zukanRowsGap        = 30.0f;     // 列の見出しから行の始まりまで
         float          zukanRowsBottom     = 56.0f;     // 行の終わりから画面の下端まで
         float          zukanRowPitch       = 44.0f;     // 行の高さ（行が多ければスクロールする）
@@ -297,6 +384,10 @@ namespace FruitMagic {
         float          upgradeEffectX       = 445.0f;    // 画面の左端から効果・価格まで
         UiFont         upgradeEffect        = {0.75f, hlslpp::float4(0.7f, 1.0f, 0.75f, 1.0f)};
         float          upgradeCostScale     = 0.7f;
+        hlslpp::float2 upgradeCostTagSize   = hlslpp::float2(150.0f, 34.0f);    // 価格の値札（板の絵 "tag"）
+        float          upgradeCostTagLeft   = 8.0f;      // 値札の左端が価格の文字より左に出る幅
+        float          upgradeCostTagTextX  = 22.0f;     // 値札の左端から価格の文字まで（穴をよける）
+        float          upgradeCostTagAngle  = 3.0f;      // 値札の傾き（度。行ごとに向きを入れ替える）
         float          upgradeButtonRight   = 40.0f;     // 購入ボタンの右端から画面の右端まで
         float          upgradeButtonWidth   = 150.0f;
         float          upgradeButtonHeight  = 46.0f;

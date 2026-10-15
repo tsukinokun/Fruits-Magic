@@ -1,18 +1,15 @@
 //----------------------------------------------------------------------------
 //! @file   ManaGaugeComponent.hpp
-//! @brief  マナゲージの中身のバーを表すコンポーネント
+//! @brief  マナの玉の周りの輪（ゲージの中身）を表すコンポーネント
 //----------------------------------------------------------------------------
 #pragma once
 
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
-    //! マナゲージの中身のバーです。SpriteComponent と一緒に付け、HudSystem が幅を変えます。
-    //! @note 画面スプライトの位置は中心なので、左端を固定したまま伸び縮みさせるため左端と全幅を持つ
+    //! マナの玉の周りの輪（ゲージの中身）です。円形の塗り（SpriteFillMode::Radial）の SpriteComponent と一緒に付け、
+    //! HudSystem がマナの割合だけ真上から時計回りに塗ります。
     struct ManaGaugeComponent {
-        float left        = 0.0f;    // バーの左端（画面ピクセル）
-        float fullWidth   = 0.0f;    // 満タンのときの幅（画面ピクセル）
-        float height      = 0.0f;    // バーの高さ（画面ピクセル）
-        float textureSize = 1.0f;    // 使っているテクスチャの1辺のピクセル数（スケールの換算用）
+        float startAngle = 0.0f;    // 塗り始めの角度（度。0 が真上）
     };
 }    // namespace FruitMagic::ECS

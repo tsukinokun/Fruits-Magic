@@ -55,6 +55,8 @@
 
 単位はエンジン規約どおり 1unit ≒ 1cm。
 UI は 1280×720 の座標（`Ui.json` の `screen`）で置く。UI カメラの `referenceResolution` により、ウィンドウを広げると縦横比を保って拡大され、真ん中に寄る（エンジンの `UICanvas`）。画面全体を覆う板は `UiConfig::FullScreenCover()` の大きさにする（余白まで覆うため）。
+UI の部品の大きさはエンジンの `UIRectComponent` で持ち（`PusherScene` の `createSprite`）、Transform の scale は 1 のまま（動きと隠すのに使う）。
+文字の大きさは `FontComponent::scale`。ボタンのアイコンや文字・板の上の文字はその部品の子にする（`attachTo`）と、動きと傾きを一緒に受ける。
 
 ## ビルド・実行
 

@@ -111,6 +111,12 @@ namespace FruitMagic::ECS {
             const bool        maxed   = level >= def.MaxLevel();
             const bool        canBuy  = CanAfford(def, state);
 
+            if(element.kind == UpgradeElementKind::CostTag) {
+                if(auto* visibility = registry.try_get<Tsukino::BuiltIn::ECS::UIVisibilityComponent>(entity))
+                    visibility->visible = !maxed;
+                return;
+            }
+
             if(element.kind == UpgradeElementKind::BuyButton) {
                 auto* sprite  = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(entity);
                 auto* pointer = registry.try_get<Tsukino::BuiltIn::ECS::PointerTargetComponent>(entity);

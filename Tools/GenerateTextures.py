@@ -180,8 +180,297 @@ def fp_icon(u, v):
     return (0.92 + 0.06 * light, 0.38 + 0.12 * light, 0.58 + 0.1 * light, 1.0)
 
 
+# ---------------------------------------------------------------------------
+# 屋台の UI の部品（木の板・紙・黒板・カプセル・丸ボタン・リボン・値札・栞・画びょう・吊り紐・印）。
+# 板は 9 スライス（SpriteComponent::sliceBorder）で使うので、四辺の帯（SLICE_*）の中だけに角や縁を描き、
+# 真ん中は伸ばしても目立たない模様にする。色は実際の色で入れる（tintColor は白のまま。色を変えたいときだけ掛ける）。
+# 座標はピクセル（左上原点、y は下向き）
+# ---------------------------------------------------------------------------
+UI_DIR = os.path.join(OUT_DIR, "UI")
+UI_SAMPLES = 3
+
+
+def write_png_rect(path, width, height, pixel):
+    """pixel(x, y) -> (r, g, b, a)（0〜255）で幅×高さの RGBA の PNG を書く。"""
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)
+        for x in range(width):
+            raw.extend(pixel(x, y))
+
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    png = b"\x89PNG\r\n\x1a\n"
+    png += chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+    png += chunk(b"IDAT", zlib.compress(bytes(raw), 9))
+    png += chunk(b"IEND", b"")
+    with open(path, "wb") as f:
+        f.write(png)
+
+
+def write_shape(name, width, height, shade):
+    """shade(x, y) -> (r, g, b, a)（0〜1。x, y はピクセルの中の点）を、なめらかにして UI/<name>.png に書く。"""
+    def pixel(px, py):
+        acc = [0.0, 0.0, 0.0, 0.0]
+        for sy in range(UI_SAMPLES):
+            for sx in range(UI_SAMPLES):
+                r, g, b, a = shade(px + (sx + 0.5) / UI_SAMPLES, py + (sy + 0.5) / UI_SAMPLES)
+                acc[0] += r * a
+                acc[1] += g * a
+                acc[2] += b * a
+                acc[3] += a
+        a = acc[3] / (UI_SAMPLES * UI_SAMPLES)
+        if a <= 0.0:
+            return (0, 0, 0, 0)
+        return tuple(max(0, min(255, int(round(c / acc[3] * 255)))) for c in acc[:3]) + (max(0, min(255, int(round(a * 255)))),)
+    write_png_rect(os.path.join(UI_DIR, name + ".png"), width, height, pixel)
+
+
+CLEAR = (0.0, 0.0, 0.0, 0.0)
+
+
+def round_rect_distance(x, y, w, h, radius):
+    """角丸の四角の縁からの距離（内側が正）。"""
+    qx = min(x, w - x)
+    qy = min(y, h - y)
+    if qx < radius and qy < radius:
+        return radius - math.hypot(radius - qx, radius - qy)
+    return min(qx, qy)
+
+
+def mix(a, b, t):
+    return tuple(a[i] + (b[i] - a[i]) * t for i in range(len(a)))
+
+
+def wood_color(x, y, base):
+    """木目（横向きの筋。真ん中を伸ばしても目立たない程度にゆるやかにする）。"""
+    grain = 0.5 + 0.5 * math.sin(y * 0.55 + 2.2 * math.sin(x * 0.045 + y * 0.11))
+    ring = 0.5 + 0.5 * math.sin(y * 1.7 + math.sin(x * 0.02) * 4.0)
+    k = 0.9 + 0.07 * grain + 0.03 * ring
+    return tuple(min(1.0, c * k) for c in base)
+
+
+WOOD_LIGHT = rgb(214, 162, 104)
+WOOD_DARK = rgb(120, 74, 38)
+WOOD_EDGE = rgb(92, 54, 26)
+PAPER = rgb(253, 246, 228)
+PAPER_EDGE = rgb(214, 196, 160)
+BOARD = rgb(46, 74, 60)
+
+
+def wood_panel(x, y, w=128, h=128, radius=22, frame=10):
+    """木の板（濃い縁＋明るい木目の面）。9 スライスの帯は 32px。"""
+    d = round_rect_distance(x, y, w, h, radius)
+    if d <= 0.0:
+        return CLEAR
+    if d < 3.0:
+        return WOOD_EDGE + (1.0,)
+    if d < frame:
+        # 縁は面より暗く、上側だけ少し明るい（光が上から当たって見える）
+        return wood_color(x, y, mix(WOOD_DARK, WOOD_LIGHT, 0.25 if y < h * 0.5 else 0.0)) + (1.0,)
+    return wood_color(x, y, WOOD_LIGHT) + (1.0,)
+
+
+def paper_panel(x, y, w=128, h=128):
+    """紙（角が少し丸く、縁がうっすら焼けている）。9 スライスの帯は 24px。"""
+    d = round_rect_distance(x, y, w, h, 6)
+    if d <= 0.0:
+        return CLEAR
+    t = max(0.0, 1.0 - d / 10.0)
+    return mix(PAPER, PAPER_EDGE, t * 0.8) + (1.0,)
+
+
+def board_panel(x, y, w=128, h=128):
+    """黒板（木の枠＋深い緑の面。面にはうっすらチョークの跡）。9 スライスの帯は 32px。"""
+    d = round_rect_distance(x, y, w, h, 10)
+    if d <= 0.0:
+        return CLEAR
+    if d < 2.5:
+        return WOOD_EDGE + (1.0,)
+    if d < 16.0:
+        return wood_color(x, y, mix(WOOD_DARK, WOOD_LIGHT, 0.45)) + (1.0,)
+    if d < 18.0:
+        return rgb(30, 46, 38) + (1.0,)
+    chalk = 0.03 * (0.5 + 0.5 * math.sin(x * 0.21 + y * 0.07) * math.sin(y * 0.17))
+    return tuple(min(1.0, c + chalk) for c in BOARD) + (1.0,)
+
+
+def capsule(x, y, w=128, h=64):
+    """カプセル（両端が丸い木の札）。9 スライスの帯は左右 32px・上下 0px（高さはそのまま）。"""
+    r = h * 0.5
+    cx = min(max(x, r), w - r)
+    d = r - math.hypot(x - cx, y - r)
+    if d <= 0.0:
+        return CLEAR
+    if d < 3.0:
+        return WOOD_EDGE + (1.0,)
+    if d < 7.0:
+        return wood_color(x, y, WOOD_DARK) + (1.0,)
+    return wood_color(x, y, WOOD_LIGHT) + (1.0,)
+
+
+def round_button(x, y, size=128):
+    """丸ボタン（白〜灰。tintColor で色を付ける）。濃い縁・明るい面・上の光。"""
+    c = size * 0.5
+    r = math.hypot(x - c, y - c)
+    outer = c - 2.0
+    if r > outer:
+        return CLEAR
+    if r > outer - 6.0:
+        return (0.42, 0.42, 0.42, 1.0)
+    shine = max(0.0, 1.0 - math.hypot(x - c * 0.75, y - c * 0.6) / (c * 0.55))
+    v = 0.86 + 0.12 * shine - 0.1 * max(0.0, (y - c) / c)
+    return (v, v, v, 1.0)
+
+
+def pill(x, y, w=128, h=64):
+    """カプセルのボタン（白〜灰。tintColor で色を付ける）。濃い縁・明るい面・上の光。9 スライスの帯は 32px。"""
+    r = h * 0.5
+    cx = min(max(x, r), w - r)
+    d = r - math.hypot(x - cx, y - r)
+    if d <= 0.0:
+        return CLEAR
+    if d < 4.0:
+        return (0.42, 0.42, 0.42, 1.0)
+    v = 0.92 - 0.12 * (y / h) + (0.06 if y < h * 0.35 else 0.0)
+    return (v, v, v, 1.0)
+
+
+def alert_badge(x, y, size=64):
+    """「!」の印（赤い丸に白い「!」）。"""
+    c = size * 0.5
+    r = math.hypot(x - c, y - c)
+    if r > c - 1.0:
+        return CLEAR
+    if r > c - 5.0:
+        return (1.0, 1.0, 1.0, 1.0)
+    bar = abs(x - c) < 4.5 and 14.0 < y < 38.0
+    dot = math.hypot(x - c, y - 46.0) < 4.8
+    if bar or dot:
+        return (1.0, 1.0, 1.0, 1.0)
+    return rgb(226, 62, 62) + (1.0,)
+
+
+def pushpin(x, y, size=32):
+    """画びょう（赤い頭と光）。"""
+    c = size * 0.5
+    r = math.hypot(x - c, y - c)
+    if r > c - 1.0:
+        return CLEAR
+    if math.hypot(x - c * 0.8, y - c * 0.75) < c * 0.28:
+        return rgb(255, 190, 190) + (1.0,)
+    if r > c - 4.0:
+        return rgb(150, 30, 40) + (1.0,)
+    return rgb(214, 52, 64) + (1.0,)
+
+
+def rope(x, y, w=16, h=64):
+    """吊り紐（ねじった縄。縦に繰り返しても継ぎ目が出ない周期）。"""
+    if abs(x - w * 0.5) > 3.5:
+        return CLEAR
+    twist = 0.5 + 0.5 * math.sin((y + (x - w * 0.5) * 1.6) * (2.0 * math.pi / 8.0))
+    return mix(rgb(120, 86, 50), rgb(196, 160, 110), twist) + (1.0,)
+
+
+def ribbon(x, y, w=256, h=64):
+    """リボン（両端に切れ込み。白〜灰で作り tintColor で色を付ける）。9 スライスの帯は左右 48px。"""
+    notch = 18.0
+    body_top, body_bottom = 8.0, h - 8.0
+    if y < body_top or y > body_bottom:
+        return CLEAR
+    mid = h * 0.5
+    # 両端の V 字の切れ込み
+    depth = notch * (1.0 - abs(y - mid) / (mid - body_top))
+    if x < depth or x > w - depth:
+        return CLEAR
+    if y < body_top + 3.0 or y > body_bottom - 3.0:
+        return (0.62, 0.62, 0.62, 1.0)
+    fold = 0.06 if (x < 40.0 or x > w - 40.0) else 0.0    # 両端は折り返しで少し暗い
+    v = 0.95 - fold - 0.08 * ((y - body_top) / (body_bottom - body_top))
+    return (v, v, v, 1.0)
+
+
+def price_tag(x, y, w=128, h=64):
+    """値札（左が尖り、穴が開いている）。9 スライスの帯は左 40px・右 16px・上下 16px。"""
+    point = 26.0
+    mid = h * 0.5
+    if x < point:
+        if abs(y - mid) > (x / point) * mid:
+            return CLEAR
+    d = round_rect_distance(max(x, point), y, w, h, 8) if x >= point else min(y, h - y) - abs(y - mid) * 0.0
+    if d <= 0.0 and x >= point:
+        return CLEAR
+    if math.hypot(x - 18.0, y - mid) < 5.0:
+        return CLEAR    # 紐を通す穴
+    if math.hypot(x - 18.0, y - mid) < 7.0:
+        return rgb(176, 150, 110) + (1.0,)
+    edge = (x >= point and d < 2.5) or (x < point and abs(abs(y - mid) - (x / point) * mid) < 2.5)
+    if edge:
+        return rgb(176, 150, 110) + (1.0,)
+    return rgb(250, 238, 206) + (1.0,)
+
+
+def bookmark_tab(x, y, w=64, h=96):
+    """栞のタブ（上の角が丸く、下はまっすぐ。白〜灰で作り tintColor で色を付ける）。9 スライスの帯は 20px。"""
+    d = round_rect_distance(x, y, w, h + 30.0, 14)    # 下側の角は丸めない（高さを足して下にはみ出させる）
+    if d <= 0.0 or y > h:
+        return CLEAR
+    if d < 3.0:
+        return (0.6, 0.6, 0.6, 1.0)
+    v = 0.95 - 0.08 * (y / h)
+    return (v, v, v, 1.0)
+
+
+def close_button(x, y, size=64):
+    """閉じるボタン（丸に「×」。白〜灰で作り tintColor で色を付ける）。"""
+    c = size * 0.5
+    r = math.hypot(x - c, y - c)
+    if r > c - 1.0:
+        return CLEAR
+    if r > c - 5.0:
+        return (0.4, 0.4, 0.4, 1.0)
+    dx, dy = x - c, y - c
+    if abs(dx) < 15.0 and abs(dy) < 15.0 and (abs(dx - dy) < 4.5 or abs(dx + dy) < 4.5):
+        return (1.0, 1.0, 1.0, 1.0)
+    return (0.75, 0.75, 0.75, 1.0)
+
+
+def bubble_tail(x, y, w=48, h=40):
+    """吹き出しのしっぽ（下向きの三角。紙の色）。吹き出しの本体は紙の板を使う。"""
+    t = y / h
+    half = (1.0 - t) * w * 0.5
+    cx = w * 0.5 - t * w * 0.25    # 少し左へ曲がる
+    if abs(x - cx) > half:
+        return CLEAR
+    if abs(x - cx) > half - 2.5:
+        return PAPER_EDGE + (1.0,)
+    return PAPER + (1.0,)
+
+
+def generate_ui():
+    os.makedirs(UI_DIR, exist_ok=True)
+    write_shape("WoodPanel", 128, 128, lambda x, y: wood_panel(x, y))
+    write_shape("PaperPanel", 128, 128, lambda x, y: paper_panel(x, y))
+    write_shape("BoardPanel", 128, 128, lambda x, y: board_panel(x, y))
+    write_shape("Capsule", 128, 64, lambda x, y: capsule(x, y))
+    write_shape("RoundButton", 128, 128, lambda x, y: round_button(x, y))
+    write_shape("Pill", 128, 64, lambda x, y: pill(x, y))
+    write_shape("AlertBadge", 64, 64, lambda x, y: alert_badge(x, y))
+    write_shape("Pushpin", 32, 32, lambda x, y: pushpin(x, y))
+    write_shape("Rope", 16, 64, lambda x, y: rope(x, y))
+    write_shape("Ribbon", 256, 64, lambda x, y: ribbon(x, y))
+    write_shape("PriceTag", 128, 64, lambda x, y: price_tag(x, y))
+    write_shape("BookmarkTab", 64, 96, lambda x, y: bookmark_tab(x, y))
+    write_shape("CloseButton", 64, 64, lambda x, y: close_button(x, y))
+    write_shape("BubbleTail", 48, 40, lambda x, y: bubble_tail(x, y))
+    print("wrote UI parts to", UI_DIR)
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
+    generate_ui()
     write_png(os.path.join(OUT_DIR, "Glow.png"), SIZE, glow)
     write_png(os.path.join(OUT_DIR, "Sparkle.png"), SIZE, sparkle)
     write_png(os.path.join(OUT_DIR, "Ring.png"), SIZE, ring)
