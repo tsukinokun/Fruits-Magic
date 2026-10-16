@@ -1,0 +1,8 @@
+{
+  "name": "ピザ",
+  "model": "Assets/Models/Kenney/FoodKit/pizza.glb",
+  "rarity": 2,
+  "effect": "magicDuration",
+  "perLevel": 8,
+  "maxLevel": 4
+}

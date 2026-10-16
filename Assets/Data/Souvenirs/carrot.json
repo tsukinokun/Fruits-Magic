@@ -1,0 +1,8 @@
+{
+  "name": "にんじん",
+  "model": "Assets/Models/Kenney/FoodKit/carrot.glb",
+  "rarity": 0,
+  "effect": "fruitValue",
+  "perLevel": 2,
+  "maxLevel": 5
+}

@@ -9,6 +9,7 @@
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MoveConfig.hpp>
+#include <FruitMagic/Game/SouvenirCatalog.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
 
@@ -77,22 +78,76 @@ namespace FruitMagic::MoveRules {
     }
 
     //----------------------------------------------------------------------------
+    //! 今おひっこししたらもらえるおみやげを引き、レベルを上げます。
+    //----------------------------------------------------------------------------
+    std::vector<SouvenirGift> DrawSouvenirs(Tsukino::ECS::Registry& registry, std::mt19937& rng) {
+        std::vector<SouvenirGift> gifts;
+        if(!registry.HasContext<SouvenirCatalog>() || !registry.HasContext<GameState>())
+            return gifts;
+
+        const SouvenirCatalog& catalog = registry.GetContext<SouvenirCatalog>();
+        GameState&             state   = registry.GetContext<GameState>();
+        const auto&            defs    = catalog.Souvenirs();
+
+        // もらう数（収穫の価値が valuePerExtra 増えるごとに1つ多く。上限あり）
+        const int count = std::min(catalog.maxPerMove, 1 + static_cast<int>(static_cast<float>(std::max(0LL, state.harvestValue)) / catalog.valuePerExtra));
+
+        // 手持ちのコインが多いほど、レアなおみやげの重みを上げる（0〜1 の割合）
+        const float boost = std::clamp(static_cast<float>(state.coins) / catalog.coinsForFullBoost, 0.0f, 1.0f);
+        auto weightOf     = [&](int rarity) {
+            const float base  = rarity < static_cast<int>(catalog.rarityWeights.size()) ? catalog.rarityWeights[rarity] : 0.0f;
+            const float extra = rarity < static_cast<int>(catalog.rarityBoost.size()) ? catalog.rarityBoost[rarity] : 0.0f;
+            return base * (1.0f + extra * boost);
+        };
+
+        for(int n = 0; n < count; ++n) {
+            //--------------------------------------------------------------
+            // まだ上限でないおみやげの中から、レア度の重みで引く（同じレア度の中では同じ確率。
+            // 1つあたりの重みは「レア度の重み ÷ そのレア度のおみやげの数」なので、数が増えてもレア度の出やすさは変わらない）
+            //--------------------------------------------------------------
+            int perRarity[4] = {0, 0, 0, 0};
+            for(const SouvenirDef& def : defs) {
+                if(state.SouvenirLevelOf(def.id) < def.maxLevel)
+                    ++perRarity[def.rarity];
+            }
+            std::vector<double> weights(defs.size(), 0.0);
+            for(size_t i = 0; i < defs.size(); ++i) {
+                if(state.SouvenirLevelOf(defs[i].id) < defs[i].maxLevel)
+                    weights[i] = weightOf(defs[i].rarity) / static_cast<double>(perRarity[defs[i].rarity]);
+            }
+            if(std::all_of(weights.begin(), weights.end(), [](double w) { return w <= 0.0; }))
+                break;    // すべて上限
+
+            std::discrete_distribution<int> pick(weights.begin(), weights.end());
+            const int                       index = pick(rng);
+            int&                            level = state.souvenirLevels[defs[index].id];
+            ++level;
+            gifts.push_back({index, level, level == 1});
+            Tsukino::Core::Log::Info("MoveRules: souvenir " + defs[index].id + " -> Lv " + std::to_string(level) + " (coin boost " + std::to_string(boost) + ").");
+        }
+        return gifts;
+    }
+
+    //----------------------------------------------------------------------------
     //! おひっこしします。
     //----------------------------------------------------------------------------
-    long long Move(Tsukino::ECS::Registry& registry) {
+    MoveResult Move(Tsukino::ECS::Registry& registry) {
+        MoveResult result;
         if(!CanMove(registry))
-            return 0;
+            return result;
 
-        GameState&      state = registry.GetContext<GameState>();
-        const long long seeds = SeedsIfMovedNow(registry);
+        GameState& state = registry.GetContext<GameState>();
+        result.seeds     = SeedsIfMovedNow(registry);
 
         //--------------------------------------------------------------
-        // 受け取るもの
+        // 受け取るもの（おみやげは、手持ちのコインと収穫の価値を戻す前に引く）
         //--------------------------------------------------------------
-        state.starSeeds += seeds;
+        state.starSeeds += result.seeds;
         ++state.moveCount;
         ++state.stats.moves;
-        state.stats.seedsEarned += seeds;
+        state.stats.seedsEarned += result.seeds;
+        std::mt19937 rng(std::random_device{}());
+        result.gifts = DrawSouvenirs(registry, rng);
 
         //--------------------------------------------------------------
         // 戻すもの: 強化はコインと FP のものを消し、星のたねのものだけ残す（定義から消えた強化も消す）
@@ -112,14 +167,23 @@ namespace FruitMagic::MoveRules {
         if(fairyLevel > 0)
             state.upgradeLevels["fairy"] = fairyLevel;
 
-        const int startCoins = registry.HasContext<EconomyConfig>() ? registry.GetContext<EconomyConfig>().startCoins : EconomyConfig{}.startCoins;
-        state.coins          = startCoins + std::max(0, static_cast<int>(SeedUpgradeValue(registry, "startCoins")));
+        // 最初のコイン（Economy.json の値 + 星のたねの強化 + おみやげ）
+        int startCoins = registry.HasContext<EconomyConfig>() ? registry.GetContext<EconomyConfig>().startCoins : EconomyConfig{}.startCoins;
+        startCoins += std::max(0, static_cast<int>(SeedUpgradeValue(registry, "startCoins")));
+        if(registry.HasContext<SouvenirCatalog>()) {
+            for(const SouvenirDef& def : registry.GetContext<SouvenirCatalog>().Souvenirs()) {
+                if(def.effect == SouvenirEffect::StartCoins)
+                    startCoins += static_cast<int>(def.perLevel * static_cast<float>(state.SouvenirLevelOf(def.id)));
+            }
+        }
+        state.coins = startCoins;
         state.fruitPoints    = 0;
         state.mana           = 0;
         state.harvestValue   = 0;
         ECS::UpgradeSystem::ApplyUpgrades(registry);
 
-        Tsukino::Core::Log::Info("MoveRules: moved (#" + std::to_string(state.moveCount) + ", +" + std::to_string(seeds) + " seeds, total " + std::to_string(state.starSeeds) + ").");
-        return seeds;
+        Tsukino::Core::Log::Info("MoveRules: moved (#" + std::to_string(state.moveCount) + ", +" + std::to_string(result.seeds) + " seeds, total " +
+                                 std::to_string(state.starSeeds) + ", " + std::to_string(result.gifts.size()) + " souvenirs).");
+        return result;
     }
 }    // namespace FruitMagic::MoveRules

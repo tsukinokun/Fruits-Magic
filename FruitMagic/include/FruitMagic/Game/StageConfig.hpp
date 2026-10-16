@@ -6,6 +6,7 @@
 #pragma once
 #include <hlsl++.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,21 @@ namespace FruitMagic {
         hlslpp::float3 rotation = hlslpp::float3(0.0f, 0.0f, 0.0f);      // 向き（度。X → Y → Z の順に回す）
         hlslpp::float3 scale    = hlslpp::float3(1.0f, 1.0f, 1.0f);      // 拡大率
         RimGlowStyle   glow     = {hlslpp::float3(1.0f, 1.0f, 1.0f), 0.0f, 0.0f};    // 光り方（強さ 0 なら光らない）
+    };
+
+    //! 屋台の色の組み合わせ（テーマ）です。おひっこしのたびに次のテーマになります。
+    //! 書いていない色は Stage.json の cabinet・awning・post の色のままです。
+    struct StageTheme {
+        std::wstring                  name;           // 名前（「ミント」。画面では「ミントの屋台」）
+        std::optional<hlslpp::float3> floor;          // 床
+        std::optional<hlslpp::float3> sideWall;       // 側壁
+        std::optional<hlslpp::float3> backPanel;      // 背面パネル
+        std::optional<hlslpp::float3> pusher;         // プッシャー
+        std::optional<hlslpp::float3> tray;           // 手前の景品受け
+        std::optional<hlslpp::float3> gutter;         // 横の溝
+        std::optional<hlslpp::float3> awningStripe;   // 屋根のしま（濃い方。awning の redColor の代わり）
+        std::optional<hlslpp::float3> awningBase;     // 屋根のしま（明るい方。whiteColor の代わり）
+        std::optional<hlslpp::float3> post;           // 柱
     };
 
     //! 台と屋台の見た目・光・カメラの設定です。Registry のコンテキストに置きます。
@@ -171,10 +187,24 @@ namespace FruitMagic {
         float          swellGlowPulse   = 0.15f;                                // その脈打つ幅
         float          swellPulseSpeed  = 8.0f;                                 // 脈打つ速さ（ラジアン/秒）
 
+        //--------------------------------------------------------------
+        // 屋台の色の組み合わせ（おひっこしの回数で順番に使い、一周したら最初に戻る）
+        //--------------------------------------------------------------
+        std::vector<StageTheme> themes;    // Stage.json の "themes"（空ならいつも上の色）
+
         //! 設定ファイルを読み込みます。
         //! @param  [in] path 設定ファイル（Stage.json）
         //! @return 読み込めたら true（読めなくても既定値で動く）
         bool Load(const std::string& path);
+
+        //! おひっこしの回数に合うテーマの色を、台・屋根・柱の色に上書きします（台を作る前に呼ぶ）。
+        //! @param  [in] moveCount おひっこしした回数
+        void ApplyTheme(int moveCount);
+
+        //! おひっこしの回数に合うテーマの名前を返します。
+        //! @param  [in] moveCount おひっこしした回数
+        //! @return 名前（テーマが無ければ空）
+        std::wstring ThemeName(int moveCount) const;
     };
 
     //! レジストリに置いた見た目の設定を返します。

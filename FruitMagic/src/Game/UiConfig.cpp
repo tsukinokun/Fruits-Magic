@@ -100,6 +100,7 @@ namespace FruitMagic {
             case MenuKind::Record: name = "record"; break;
             case MenuKind::Upgrade: name = "upgrade"; break;
             case MenuKind::Welcome: name = "welcome"; break;
+            case MenuKind::Moved: name = "moved"; break;
             case MenuKind::Options: name = "options"; break;
             default: break;
         }
@@ -414,6 +415,31 @@ namespace FruitMagic {
             ReadFont(*zukan, "count", zukanCount);
             Json::Read(*zukan, "footerOffsetY", zukanFooterOffsetY);
             ReadFont(*zukan, "footer", zukanFooter);
+            Json::Read(*zukan, "tabLeft", zukanTabLeft);
+            Json::ReadVec(*zukan, "tabSize", zukanTabSize);
+            Json::Read(*zukan, "tabGap", zukanTabGap);
+        }
+        if(const Json::Value* souvenir = Json::FindObject(doc, "souvenir")) {
+            Json::Read(*souvenir, "columns", souvenirColumns);
+            Json::Read(*souvenir, "cardPitch", souvenirCardPitch);
+            Json::Read(*souvenir, "cardGap", souvenirCardGap);
+            Json::ReadColor(*souvenir, "cardColor", souvenirCardColor);
+            Json::Read(*souvenir, "iconSize", souvenirIconSize);
+            Json::Read(*souvenir, "iconOffsetY", souvenirIconOffsetY);
+            Json::Read(*souvenir, "nameOffsetY", souvenirNameOffsetY);
+            Json::Read(*souvenir, "levelOffsetY", souvenirLevelOffsetY);
+            Json::Read(*souvenir, "effectOffsetY", souvenirEffectOffsetY);
+            ReadFont(*souvenir, "name", souvenirName);
+            ReadFont(*souvenir, "level", souvenirLevel);
+            ReadFont(*souvenir, "effect", souvenirEffect);
+            if(const Json::Value* colors = Json::FindArray(*souvenir, "rarityColors")) {
+                souvenirRarityColors.clear();
+                for(const Json::Value& color : colors->GetArray()) {
+                    hlslpp::float4 value = souvenirName.color;
+                    Json::ReadColorValue(color, value);
+                    souvenirRarityColors.push_back(value);
+                }
+            }
             zukanRowPitch = std::max(1.0f, zukanRowPitch);
         }
         if(const Json::Value* upgrade = Json::FindObject(doc, "upgrade")) {
@@ -479,6 +505,18 @@ namespace FruitMagic {
             Json::ReadVec(*welcome, "buttonSize", welcomeButtonSize);
             Json::ReadColor(*welcome, "buttonColor", welcomeButtonColor);
             Json::Read(*welcome, "labelScale", welcomeLabelScale);
+        }
+        if(const Json::Value* moved = Json::FindObject(doc, "moved")) {
+            Json::ReadVec(*moved, "size", movedSize);
+            Json::Read(*moved, "titleY", movedTitleY);
+            Json::Read(*moved, "seedsY", movedSeedsY);
+            Json::Read(*moved, "giftTitleY", movedGiftTitleY);
+            Json::Read(*moved, "giftY", movedGiftY);
+            Json::Read(*moved, "giftSpacing", movedGiftSpacing);
+            Json::Read(*moved, "giftSize", movedGiftSize);
+            Json::Read(*moved, "giftNameOffsetY", movedGiftNameOffsetY);
+            Json::Read(*moved, "giftLevelOffsetY", movedGiftLevelOffsetY);
+            ReadFont(*moved, "giftLevel", movedGiftLevel);
         }
         if(const Json::Value* options = Json::FindObject(doc, "options")) {
             Json::Read(*options, "listTop", optionsListTop);

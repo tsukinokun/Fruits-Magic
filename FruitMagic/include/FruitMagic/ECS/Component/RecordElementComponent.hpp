@@ -27,6 +27,7 @@ namespace FruitMagic::ECS {
         Moves,            // おひっこしした回数
         SeedsEarned,      // おひっこしでもらった星のたね
         StarSeeds,        // 今の星のたね
+        Souvenirs,        // もらったおみやげの種類 / 全体
     };
 
     //! 記録画面の数の要素です。MenuPageComponent と一緒に付け、記録画面が開いている間 RecordSystem が書きます。

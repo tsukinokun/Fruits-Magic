@@ -188,6 +188,67 @@ namespace FruitMagic {
             Json::Read(*swell, "glowPulse", swellGlowPulse);
             Json::Read(*swell, "pulseSpeed", swellPulseSpeed);
         }
+
+        //--------------------------------------------------------------
+        // 屋台の色の組み合わせ。書き方は cabinet・awning・post と同じ（書いた色だけ上書きする）
+        //--------------------------------------------------------------
+        themes.clear();
+        if(const Json::Value* list = Json::FindArray(doc, "themes")) {
+            for(const Json::Value& item : list->GetArray()) {
+                if(!item.IsObject())
+                    continue;
+                StageTheme theme;
+                Json::Read(item, "name", theme.name);
+                auto color = [](const Json::Value* obj, const char* key, std::optional<hlslpp::float3>& out) {
+                    hlslpp::float3 value(0.0f, 0.0f, 0.0f);
+                    if(obj && Json::ReadColor(*obj, key, value))
+                        out = value;
+                };
+                const Json::Value* cabinet = Json::FindObject(item, "cabinet");
+                color(cabinet, "floor", theme.floor);
+                color(cabinet, "sideWall", theme.sideWall);
+                color(cabinet, "backPanel", theme.backPanel);
+                color(cabinet, "pusher", theme.pusher);
+                color(cabinet, "tray", theme.tray);
+                color(cabinet, "gutter", theme.gutter);
+                const Json::Value* awning = Json::FindObject(item, "awning");
+                color(awning, "redColor", theme.awningStripe);
+                color(awning, "whiteColor", theme.awningBase);
+                color(Json::FindObject(item, "post"), "color", theme.post);
+                themes.push_back(theme);
+            }
+        }
         return true;
+    }
+
+    //----------------------------------------------------------------------------
+    //! おひっこしの回数に合うテーマの色を、台・屋根・柱の色に上書きします。
+    //----------------------------------------------------------------------------
+    void StageConfig::ApplyTheme(int moveCount) {
+        if(themes.empty())
+            return;
+        const StageTheme& theme = themes[static_cast<size_t>(std::max(0, moveCount)) % themes.size()];
+        auto apply              = [](const std::optional<hlslpp::float3>& from, hlslpp::float3& to) {
+            if(from)
+                to = *from;
+        };
+        apply(theme.floor, floorColor);
+        apply(theme.sideWall, sideWallColor);
+        apply(theme.backPanel, backPanelColor);
+        apply(theme.pusher, pusherColor);
+        apply(theme.tray, trayColor);
+        apply(theme.gutter, gutterColor);
+        apply(theme.awningStripe, awningRedColor);
+        apply(theme.awningBase, awningWhiteColor);
+        apply(theme.post, postColor);
+    }
+
+    //----------------------------------------------------------------------------
+    //! おひっこしの回数に合うテーマの名前を返します。
+    //----------------------------------------------------------------------------
+    std::wstring StageConfig::ThemeName(int moveCount) const {
+        if(themes.empty())
+            return std::wstring();
+        return themes[static_cast<size_t>(std::max(0, moveCount)) % themes.size()].name;
     }
 }    // namespace FruitMagic

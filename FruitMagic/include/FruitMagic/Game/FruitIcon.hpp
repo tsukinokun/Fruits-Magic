@@ -10,6 +10,8 @@
 
 #include <hlsl++.h>
 
+#include <string>
+
 // 名前空間 : Tsukino::ECS
 namespace Tsukino::ECS {
     class Registry;    // 前方宣言
@@ -20,6 +22,9 @@ namespace FruitMagic {
 
     //! SetFruitIcon に果物の代わりに渡すと、コインを出す値です（-1 は空）。
     inline constexpr int kFruitIconCoin = -2;
+
+    //! 置き台が果物ではなくモデル（SetModelIcon）を出しているときの FruitIconComponent::fruitIndex です。
+    inline constexpr int kFruitIconModel = -3;
 
     //! 画面に出す果物の置き台を作ります（中身はまだ空。SetFruitIcon で果物を入れる）。
     //! @param  [in] registry       レジストリ
@@ -38,6 +43,16 @@ namespace FruitMagic {
     //! @param  [in] silhouette   黒いシルエットで出すか
     //! @param  [in] sizePixels   大きさ（果物の外形のいちばん長い向きのピクセル数）
     void SetFruitIcon(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity holder, int fruitIndex, int variantIndex, bool silhouette, float sizePixels);
+
+    //! 置き台に、果物の代わりに任意のモデル（おみやげなど）を出します。今と同じなら何もしません（毎フレーム呼んでよい）。
+    //! @param  [in] registry   レジストリ
+    //! @param  [in] holder     置き台
+    //! @param  [in] model      モデルのパス（リポジトリルート相対。空なら空にする）
+    //! @param  [in] rotation   向き（度）
+    //! @param  [in] silhouette 黒いシルエットで出すか
+    //! @param  [in] sizePixels 大きさ（外形のいちばん長い向きのピクセル数）
+    void SetModelIcon(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity holder, const std::string& model, const hlslpp::float3& rotation, bool silhouette,
+                      float sizePixels);
 
     //! 置き台の果物を見せるか隠すかを切り替えます。
     //! @param  [in] registry レジストリ

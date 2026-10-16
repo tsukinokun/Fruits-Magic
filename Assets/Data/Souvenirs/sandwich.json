@@ -1,0 +1,8 @@
+{
+  "name": "サンドイッチ",
+  "model": "Assets/Models/Kenney/FoodKit/sandwich.glb",
+  "rarity": 2,
+  "effect": "variant",
+  "perLevel": 6,
+  "maxLevel": 4
+}

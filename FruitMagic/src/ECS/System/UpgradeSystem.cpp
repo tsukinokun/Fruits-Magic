@@ -12,6 +12,7 @@
 #include <FruitMagic/Game/MoveConfig.hpp>
 #include <FruitMagic/Game/MoveRules.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
+#include <FruitMagic/Game/SouvenirCatalog.hpp>
 #include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
 #include <FruitMagic/Game/Texts.hpp>
@@ -332,6 +333,28 @@ namespace FruitMagic::ECS {
                 // おひっこしの時に MoveRules::Move が使う（台の性能には効かない）
             } else {
                 Tsukino::Core::Log::Warn("UpgradeSystem: upgrade \"" + def.id + "\" has no effect.");
+            }
+        }
+
+        //--------------------------------------------------------------
+        // おみやげ（おひっこしでもらう。レベル × 1レベルごとの量）。倍率は上の倍率に掛け、確率と時間は足す
+        //--------------------------------------------------------------
+        if(registry.HasContext<SouvenirCatalog>()) {
+            for(const SouvenirDef& def : registry.GetContext<SouvenirCatalog>().Souvenirs()) {
+                const int level = state.SouvenirLevelOf(def.id);
+                if(level <= 0)
+                    continue;
+                const float amount = def.perLevel * static_cast<float>(level);
+                switch(def.effect) {
+                    case SouvenirEffect::FruitValue: stats.fruitValueMultiplier *= 1.0f + amount / 100.0f; break;
+                    case SouvenirEffect::Mana: stats.manaMultiplier *= 1.0f + amount / 100.0f; break;
+                    case SouvenirEffect::Variant: stats.variantChanceMultiplier *= 1.0f + amount / 100.0f; break;
+                    case SouvenirEffect::SeedGain: stats.seedGainMultiplier *= 1.0f + amount / 100.0f; break;
+                    case SouvenirEffect::RouletteHit: stats.rouletteHitChance = std::min(1.0f, stats.rouletteHitChance + amount / 100.0f); break;
+                    case SouvenirEffect::MagicDuration: stats.magicDurationMultiplier *= 1.0f + amount / 100.0f; break;
+                    case SouvenirEffect::OfflineHours: stats.offlineMaxHours += amount; break;
+                    case SouvenirEffect::StartCoins: break;    // おひっこしの時に MoveRules::Move が足す
+                }
             }
         }
         state.mana = std::min(state.mana, state.maxMana);

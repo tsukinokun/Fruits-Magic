@@ -45,6 +45,50 @@ namespace FruitMagic {
                 }
             }
         }
+
+        //--------------------------------------------------------------
+        //! 作った見た目の仕上げ: シルエットなら形だけが分かるよう、すべての部品を黒くし、輪郭の光を消す。
+        //! 見せるかどうかも置き台の設定に合わせる。
+        //! @param  [in] registry   レジストリ
+        //! @param  [in] visual     見た目
+        //! @param  [in] silhouette 黒いシルエットにするか
+        //! @param  [in] visible    見せるか
+        //--------------------------------------------------------------
+        void FinishLook(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity visual, bool silhouette, bool visible) {
+            ForEachModel(registry, visual, [&](Tsukino::ECS::Entity e) {
+                if(silhouette) {
+                    if(registry.HasComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e)) {
+                        auto& block     = registry.HasComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(e)
+                                              ? registry.GetComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(e)
+                                              : registry.AddComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(e);
+                        block.baseColor = hlslpp::float4(0.03f, 0.02f, 0.05f, 1.0f);
+                        block.emissive  = hlslpp::float3(0.0f, 0.0f, 0.0f);
+                        block.metallic  = 0.0f;
+                        block.roughness = 1.0f;
+                    }
+                    if(auto* rim = registry.try_get<Tsukino::BuiltIn::ECS::RimGlowComponent>(e))
+                        rim->active = false;
+                }
+                if(auto* model = registry.try_get<Tsukino::BuiltIn::ECS::ModelComponent>(e))
+                    model->visible = visible;
+            });
+        }
+
+        //--------------------------------------------------------------
+        //! 置き台の今の見た目を消し、出す物の情報を書き換えます。
+        //--------------------------------------------------------------
+        void ResetIcon(Tsukino::ECS::Registry& registry, ECS::FruitIconComponent& icon, int fruitIndex, int variantIndex, const std::string& model, bool silhouette,
+                       float sizePixels) {
+            // 今の見た目を消す（飾りのパーツも一緒に）
+            if(icon.visual != entt::null && registry.IsValid(icon.visual))
+                PrizeFactory::DestroyPrize(registry, icon.visual);
+            icon.visual       = entt::null;
+            icon.fruitIndex   = fruitIndex;
+            icon.variantIndex = variantIndex;
+            icon.model        = model;
+            icon.silhouette   = silhouette;
+            icon.sizePixels   = sizePixels;
+        }
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -77,15 +121,7 @@ namespace FruitMagic {
         if(icon->fruitIndex == fruitIndex && icon->variantIndex == variantIndex && icon->silhouette == silhouette && icon->sizePixels == sizePixels
            && (fruitIndex < 0 || icon->visual != entt::null))
             return;
-
-        // 今の見た目を消す（飾りのパーツも一緒に）
-        if(icon->visual != entt::null && registry.IsValid(icon->visual))
-            PrizeFactory::DestroyPrize(registry, icon->visual);
-        icon->visual       = entt::null;
-        icon->fruitIndex   = fruitIndex;
-        icon->variantIndex = variantIndex;
-        icon->silhouette   = silhouette;
-        icon->sizePixels   = sizePixels;
+        ResetIcon(registry, *icon, fruitIndex, variantIndex, std::string(), silhouette, sizePixels);
 
         if(!registry.HasContext<PrizeFactory>())
             return;
@@ -139,27 +175,35 @@ namespace FruitMagic {
         if(auto* screen = registry.try_get<Tsukino::BuiltIn::ECS::ScreenModelComponent>(holder))
             screen->pixelsPerUnit = sizePixels / std::max(longest, 0.01f);
 
-        //--------------------------------------------------------------
-        // シルエット: 形だけが分かるよう、すべての部品を黒くし、輪郭の光を消す
-        //--------------------------------------------------------------
-        const bool visible = icon->visible;
-        ForEachModel(registry, visual, [&](Tsukino::ECS::Entity e) {
-            if(silhouette) {
-                if(registry.HasComponent<Tsukino::BuiltIn::ECS::ModelComponent>(e)) {
-                    auto& block     = registry.HasComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(e)
-                                          ? registry.GetComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(e)
-                                          : registry.AddComponent<Tsukino::BuiltIn::ECS::MaterialPropertyBlockComponent>(e);
-                    block.baseColor = hlslpp::float4(0.03f, 0.02f, 0.05f, 1.0f);
-                    block.emissive  = hlslpp::float3(0.0f, 0.0f, 0.0f);
-                    block.metallic  = 0.0f;
-                    block.roughness = 1.0f;
-                }
-                if(auto* rim = registry.try_get<Tsukino::BuiltIn::ECS::RimGlowComponent>(e))
-                    rim->active = false;
-            }
-            if(auto* model = registry.try_get<Tsukino::BuiltIn::ECS::ModelComponent>(e))
-                model->visible = visible;
-        });
+        FinishLook(registry, visual, silhouette, icon->visible);
+    }
+
+    //----------------------------------------------------------------------------
+    //! 置き台に、果物の代わりに任意のモデルを出します。
+    //----------------------------------------------------------------------------
+    void SetModelIcon(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity holder, const std::string& model, const hlslpp::float3& rotation, bool silhouette,
+                      float sizePixels) {
+        auto* icon = registry.try_get<ECS::FruitIconComponent>(holder);
+        if(!icon)
+            return;
+        const int index = model.empty() ? -1 : kFruitIconModel;
+        if(icon->fruitIndex == index && icon->model == model && icon->silhouette == silhouette && icon->sizePixels == sizePixels
+           && (model.empty() || icon->visual != entt::null))
+            return;
+        ResetIcon(registry, *icon, index, 0, model, silhouette, sizePixels);
+        if(model.empty() || !registry.HasContext<PrizeFactory>())
+            return;
+
+        // 外形のいちばん長い向きを 1 にして置き、1 を sizePixels ピクセルで描く
+        Tsukino::ECS::Entity visual    = registry.GetContext<PrizeFactory>().CreateIconModel(registry, model, rotation, 1.0f);
+        auto&                transform = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(visual);
+        transform.parent                = holder;
+        transform.dirty                 = true;
+        icon->visual                    = visual;
+        if(auto* screen = registry.try_get<Tsukino::BuiltIn::ECS::ScreenModelComponent>(holder))
+            screen->pixelsPerUnit = sizePixels;
+
+        FinishLook(registry, visual, silhouette, icon->visible);
     }
 
     //----------------------------------------------------------------------------

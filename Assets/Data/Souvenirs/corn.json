@@ -1,0 +1,8 @@
+{
+  "name": "とうもろこし",
+  "model": "Assets/Models/Kenney/FoodKit/corn.glb",
+  "rarity": 0,
+  "effect": "startCoins",
+  "perLevel": 20,
+  "maxLevel": 5
+}

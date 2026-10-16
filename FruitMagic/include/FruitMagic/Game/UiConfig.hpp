@@ -361,6 +361,24 @@ namespace FruitMagic {
         UiFont         zukanCount          = {0.85f, hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f)};
         float          zukanFooterOffsetY  = 28.0f;     // 画面の下端から集計まで
         UiFont         zukanFooter         = {0.9f, hlslpp::float4(0.85f, 1.0f, 0.85f, 1.0f)};
+        // 図鑑のタブ（「果物」「おみやげ」。左上の、果物の名前の列の上。色は強化画面のタブと同じ）
+        float          zukanTabLeft        = 30.0f;     // 画面の左端からタブの左端まで
+        hlslpp::float2 zukanTabSize        = hlslpp::float2(130.0f, 38.0f);
+        float          zukanTabGap         = 8.0f;
+        // おみやげのタブ（カードを格子に並べる）
+        int            souvenirColumns       = 4;        // 1行に並べるカードの数
+        float          souvenirCardPitch     = 150.0f;   // カードの行の間隔（高さ）
+        float          souvenirCardGap       = 14.0f;    // カードどうしのすき間
+        hlslpp::float4 souvenirCardColor     = hlslpp::float4(1.0f, 0.97f, 0.9f, 1.0f);
+        float          souvenirIconSize      = 64.0f;    // 3D の大きさ（外形のいちばん長い向きのピクセル数）
+        float          souvenirIconOffsetY   = -30.0f;   // カードの中心から 3D の中心まで
+        float          souvenirNameOffsetY   = 18.0f;    // カードの中心から各行まで
+        float          souvenirLevelOffsetY  = 40.0f;
+        float          souvenirEffectOffsetY = 58.0f;
+        UiFont         souvenirName          = {0.75f, hlslpp::float4(0.35f, 0.22f, 0.12f, 1.0f), true};
+        UiFont         souvenirLevel         = {0.6f, hlslpp::float4(0.55f, 0.4f, 0.25f, 1.0f)};
+        UiFont         souvenirEffect        = {0.6f, hlslpp::float4(0.25f, 0.5f, 0.3f, 1.0f)};
+        std::vector<hlslpp::float4> souvenirRarityColors;    // 名前の色（レア度ごと。足りなければ souvenirName の色）
 
         //--------------------------------------------------------------
         // 強化（行＝強化）
@@ -429,6 +447,20 @@ namespace FruitMagic {
         hlslpp::float2 welcomeButtonSize    = hlslpp::float2(200.0f, 50.0f);
         hlslpp::float4 welcomeButtonColor   = hlslpp::float4(0.35f, 0.78f, 0.45f, 1.0f);
         float          welcomeLabelScale    = 0.9f;
+
+        //--------------------------------------------------------------
+        // おひっこし直後の窓（文字の大きさと色・ボタンは「おかえり」の窓と同じ）
+        //--------------------------------------------------------------
+        hlslpp::float2 movedSize             = hlslpp::float2(760.0f, 380.0f);
+        float          movedTitleY           = 40.0f;    // 画面の上端から各行まで
+        float          movedSeedsY           = 88.0f;
+        float          movedGiftTitleY       = 128.0f;   // 「おみやげをもらいました」
+        float          movedGiftY            = 190.0f;   // おみやげの 3D の中心
+        float          movedGiftSpacing      = 170.0f;   // おみやげを並べる間隔
+        float          movedGiftSize         = 72.0f;    // 3D の大きさ（ピクセル）
+        float          movedGiftNameOffsetY  = 56.0f;    // 3D の中心から名前まで
+        float          movedGiftLevelOffsetY = 80.0f;    // 3D の中心から「NEW!」「Lv n」まで
+        UiFont         movedGiftLevel        = {0.7f, hlslpp::float4(1.0f, 0.85f, 0.3f, 1.0f), true};
 
         //--------------------------------------------------------------
         // オプション画面（x は画面の左端から。中身はスクロールする領域の中に並べ、y はその上端から）

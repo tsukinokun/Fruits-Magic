@@ -26,6 +26,7 @@ namespace FruitMagic {
         int                           maxMana      = 100;    // マナの上限
         long long                     starSeeds    = 0;      // 手持ちの星のたね（おひっこしでもらい、星のたねの強化に使う。おひっこしでも残る）
         int                           moveCount    = 0;      // おひっこしした回数
+        std::map<std::string, int>    souvenirLevels;        // おみやげのレベル [おみやげの id]（もらっていなければ無い。おひっこしでも残る）
         LifetimeStats                 stats;                 // これまでのプレイの累計（記録画面に出す）
 
         //! 強化のレベルを返します。
@@ -34,6 +35,14 @@ namespace FruitMagic {
         int UpgradeLevelOf(const std::string& id) const {
             auto it = upgradeLevels.find(id);
             return (it != upgradeLevels.end()) ? it->second : 0;
+        }
+
+        //! おみやげのレベルを返します。
+        //! @param  [in] id おみやげの識別子
+        //! @return レベル（もらっていなければ 0）
+        int SouvenirLevelOf(const std::string& id) const {
+            auto it = souvenirLevels.find(id);
+            return (it != souvenirLevels.end()) ? it->second : 0;
         }
 
         //! 図鑑に登録済みの枠（1回以上収穫した果物 × バリエーション）の数を返します。

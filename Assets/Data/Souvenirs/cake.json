@@ -1,0 +1,8 @@
+{
+  "name": "バースデーケーキ",
+  "model": "Assets/Models/Kenney/FoodKit/cake-birthday.glb",
+  "rarity": 3,
+  "effect": "seedGain",
+  "perLevel": 12,
+  "maxLevel": 3
+}

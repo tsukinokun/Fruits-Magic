@@ -1,0 +1,8 @@
+{
+  "name": "パン",
+  "model": "Assets/Models/Kenney/FoodKit/loaf.glb",
+  "rarity": 1,
+  "effect": "fruitValue",
+  "perLevel": 4,
+  "maxLevel": 5
+}

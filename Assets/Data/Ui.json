@@ -174,7 +174,8 @@
       "record":  { "skin": "paper", "coverSkin": "wood", "coverTint": { "r": 0.5,  "g": 0.62, "b": 0.85, "a": 1.0 }, "coverPadding": 16, "ribbonTint": { "r": 0.3,  "g": 0.45, "b": 0.8,  "a": 1.0 } },
       "upgrade": { "skin": "board", "ribbonTint": { "r": 0.95, "g": 0.6,  "b": 0.2,  "a": 1.0 } },
       "options": { "skin": "wood",  "ribbonTint": { "r": 0.45, "g": 0.5,  "b": 0.8,  "a": 1.0 } },
-      "welcome": { "skin": "wood",  "ribbonTint": { "r": 0.35, "g": 0.7,  "b": 0.45, "a": 1.0 } }
+      "welcome": { "skin": "wood",  "ribbonTint": { "r": 0.35, "g": 0.7,  "b": 0.45, "a": 1.0 } },
+      "moved":   { "skin": "wood",  "ribbonTint": { "r": 0.55, "g": 0.6,  "b": 0.95, "a": 1.0 } }
     },
     "scrollBarWidth": 10,
     "scrollBarInset": 22,
@@ -206,7 +207,42 @@
     "countOffsetY": 40,
     "count": { "scale": 0.85, "color": { "r": 0.5, "g": 0.35, "b": 0.2, "a": 1.0 } },
     "footerOffsetY": 28,
-    "footer": { "scale": 0.9, "color": { "r": 0.25, "g": 0.45, "b": 0.25, "a": 1.0 } }
+    "footer": { "scale": 0.9, "color": { "r": 0.25, "g": 0.45, "b": 0.25, "a": 1.0 } },
+    "tabLeft": 30,
+    "tabSize": { "x": 130, "y": 38 },
+    "tabGap": 8
+  },
+  "souvenir": {
+    "columns": 4,
+    "cardPitch": 150,
+    "cardGap": 14,
+    "cardColor": { "r": 1.0, "g": 0.96, "b": 0.88, "a": 1.0 },
+    "iconSize": 64,
+    "iconOffsetY": -30,
+    "nameOffsetY": 18,
+    "levelOffsetY": 40,
+    "effectOffsetY": 58,
+    "name": { "scale": 0.72, "color": { "r": 0.35, "g": 0.22, "b": 0.12, "a": 1.0 }, "bold": true },
+    "level": { "scale": 0.58, "color": { "r": 0.55, "g": 0.4, "b": 0.25, "a": 1.0 } },
+    "effect": { "scale": 0.58, "color": { "r": 0.22, "g": 0.48, "b": 0.28, "a": 1.0 } },
+    "rarityColors": [
+      { "r": 0.35, "g": 0.22, "b": 0.12, "a": 1.0 },
+      { "r": 0.2,  "g": 0.5,  "b": 0.25, "a": 1.0 },
+      { "r": 0.2,  "g": 0.38, "b": 0.75, "a": 1.0 },
+      { "r": 0.8,  "g": 0.5,  "b": 0.05, "a": 1.0 }
+    ]
+  },
+  "moved": {
+    "size": { "x": 760, "y": 380 },
+    "titleY": 40,
+    "seedsY": 88,
+    "giftTitleY": 128,
+    "giftY": 190,
+    "giftSpacing": 170,
+    "giftSize": 72,
+    "giftNameOffsetY": 56,
+    "giftLevelOffsetY": 80,
+    "giftLevel": { "scale": 0.7, "color": { "r": 1.0, "g": 0.85, "b": 0.3, "a": 1.0 }, "bold": true }
   },
   "upgrade": {
     "walletOffsetY": 74,

@@ -131,6 +131,16 @@ namespace FruitMagic {
         Tsukino::ECS::Entity CreateVisualModel(Tsukino::ECS::Registry& registry, const std::string& path, const hlslpp::float3& position,
                                                const hlslpp::float3& rotation, const hlslpp::float3& scale);
 
+        //! 見た目だけのモデルを、外接の箱の中心が原点に来て、いちばん長い向きが longest になるよう置きます（画面に出すアイコン用）。
+        //! 向きを持つ親（モデルの無いエンティティ）の子にモデルを置き、親を返します。子は FruitPartsComponent に入れるので、
+        //! DestroyPrize で一緒に消えます。
+        //! @param  [in] registry 生成先のレジストリ
+        //! @param  [in] path     モデルのパス（リポジトリルート相対）
+        //! @param  [in] rotation 向き（度。X → Y → Z の順に回す）
+        //! @param  [in] longest  外形のいちばん長い向きの大きさ
+        //! @return 親のエンティティ（原点に置く。位置は呼んだ側が決める）
+        Tsukino::ECS::Entity CreateIconModel(Tsukino::ECS::Registry& registry, const std::string& path, const hlslpp::float3& rotation, float longest);
+
         //! 景品（コイン・果物）を破棄予約します。果物の飾りのパーツも一緒に破棄します。
         //! @param  [in] registry レジストリ
         //! @param  [in] entity   破棄する景品

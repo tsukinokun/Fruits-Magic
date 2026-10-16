@@ -1,0 +1,8 @@
+{
+  "name": "たまねぎ",
+  "model": "Assets/Models/Kenney/FoodKit/onion.glb",
+  "rarity": 0,
+  "effect": "offlineHours",
+  "perLevel": 1,
+  "maxLevel": 5
+}

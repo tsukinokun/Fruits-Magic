@@ -8,6 +8,7 @@
 #include <FruitMagic/Game/CollectionConfig.hpp>
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/SouvenirCatalog.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
 #include <FruitMagic/Game/OfflineReward.hpp>
 #include <FruitMagic/Game/Texts.hpp>
@@ -70,6 +71,11 @@ namespace FruitMagic::ECS {
                     case RecordItem::Moves: font.text = count("record.times", stats.moves); break;
                     case RecordItem::SeedsEarned: font.text = count("record.seeds", stats.seedsEarned); break;
                     case RecordItem::StarSeeds: font.text = count("record.seeds", state.starSeeds); break;
+                    case RecordItem::Souvenirs: {
+                        const long long total = registry.HasContext<SouvenirCatalog>() ? static_cast<long long>(registry.GetContext<SouvenirCatalog>().Souvenirs().size()) : 0;
+                        font.text             = texts.Format("record.ratio", {{"n", n(static_cast<long long>(state.souvenirLevels.size()))}, {"total", n(total)}});
+                        break;
+                    }
                 }
             });
     }

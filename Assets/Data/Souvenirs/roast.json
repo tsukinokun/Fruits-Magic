@@ -1,0 +1,8 @@
+{
+  "name": "ローストチキン",
+  "model": "Assets/Models/Kenney/FoodKit/turkey.glb",
+  "rarity": 3,
+  "effect": "fruitValue",
+  "perLevel": 15,
+  "maxLevel": 3
+}

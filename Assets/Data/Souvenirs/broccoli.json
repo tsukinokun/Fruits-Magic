@@ -1,0 +1,8 @@
+{
+  "name": "ブロッコリー",
+  "model": "Assets/Models/Kenney/FoodKit/broccoli.glb",
+  "rarity": 0,
+  "effect": "mana",
+  "perLevel": 3,
+  "maxLevel": 5
+}

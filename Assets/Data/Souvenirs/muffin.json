@@ -1,0 +1,8 @@
+{
+  "name": "マフィン",
+  "model": "Assets/Models/Kenney/FoodKit/muffin.glb",
+  "rarity": 1,
+  "effect": "seedGain",
+  "perLevel": 3,
+  "maxLevel": 5
+}

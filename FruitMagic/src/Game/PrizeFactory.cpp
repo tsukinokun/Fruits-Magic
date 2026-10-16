@@ -585,6 +585,28 @@ namespace FruitMagic {
     }
 
     //----------------------------------------------------------------------------
+    //! 見た目だけのモデルを、外接の箱の中心が原点に来るよう置きます（画面に出すアイコン用）。
+    //----------------------------------------------------------------------------
+    Tsukino::ECS::Entity PrizeFactory::CreateIconModel(Tsukino::ECS::Registry& registry, const std::string& path, const hlslpp::float3& rotation, float longest) {
+        const ModelInfo& info  = GetModel(path);
+        const float      size  = std::max({float(info.halfExtent.x), float(info.halfExtent.y), float(info.halfExtent.z)}) * 2.0f;
+        const float      scale = longest / std::max(size, 1.0e-4f);
+
+        // 親は向きだけを持つ。子は外接の箱の中心が親の原点に来るようずらす（親の向きで回るので、回しても中心はずれない）
+        Tsukino::ECS::Entity                       root          = registry.CreateEntity();
+        Tsukino::BuiltIn::ECS::TransformComponent& rootTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(root);
+        rootTransform.rotation                                   = EulerDegrees(rotation);
+        rootTransform.dirty                                      = true;
+
+        Tsukino::ECS::Entity child = CreateVisualModel(registry, path, -info.center * scale, hlslpp::float3(0.0f, 0.0f, 0.0f), hlslpp::float3(scale, scale, scale));
+        auto&                childTransform = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(child);
+        childTransform.parent               = root;
+        childTransform.dirty                = true;
+        registry.AddComponent<ECS::FruitPartsComponent>(root).parts.push_back(child);
+        return root;
+    }
+
+    //----------------------------------------------------------------------------
     //! 果物に飾りのパーツを付けます。
     //----------------------------------------------------------------------------
     void PrizeFactory::AttachParts(Tsukino::ECS::Registry& registry, Tsukino::ECS::Entity fruit, const FruitDef& def, const hlslpp::float3& fruitModelHalf) {

@@ -1,0 +1,8 @@
+{
+  "name": "クロワッサン",
+  "model": "Assets/Models/Kenney/FoodKit/croissant.glb",
+  "rarity": 1,
+  "effect": "mana",
+  "perLevel": 5,
+  "maxLevel": 5
+}

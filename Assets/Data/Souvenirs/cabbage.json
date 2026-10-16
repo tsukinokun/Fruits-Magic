@@ -1,0 +1,8 @@
+{
+  "name": "キャベツ",
+  "model": "Assets/Models/Kenney/FoodKit/cabbage.glb",
+  "rarity": 0,
+  "effect": "magicDuration",
+  "perLevel": 3,
+  "maxLevel": 5
+}

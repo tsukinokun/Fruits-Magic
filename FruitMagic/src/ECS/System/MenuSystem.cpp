@@ -6,7 +6,9 @@
 
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
+#include <FruitMagic/ECS/Component/FruitIconComponent.hpp>
 #include <FruitMagic/Game/ConfirmState.hpp>
+#include <FruitMagic/Game/FruitIcon.hpp>
 #include <FruitMagic/Game/UiMotion.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
@@ -96,6 +98,10 @@ namespace FruitMagic::ECS {
                     transform.scale = visible ? page.openScale : hlslpp::float3(0.0f, 0.0f, 1.0f);
                     transform.dirty = true;
                 }
+
+                // 画面に出す 3D（FruitIcon の置き台）: 閉じている間は隠す（モデルはスケールでは隠れないため）
+                if(registry.HasComponent<FruitIconComponent>(entity))
+                    SetFruitIconVisible(registry, entity, visible);
 
                 // 文字: 閉じている間は空文字（描画されない）。決まった文字はここで書く
                 if(auto* font = registry.try_get<Tsukino::BuiltIn::ECS::FontComponent>(entity)) {

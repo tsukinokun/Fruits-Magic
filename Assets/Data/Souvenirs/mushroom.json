@@ -1,0 +1,8 @@
+{
+  "name": "きのこ",
+  "model": "Assets/Models/Kenney/FoodKit/mushroom.glb",
+  "rarity": 0,
+  "effect": "variant",
+  "perLevel": 3,
+  "maxLevel": 5
+}

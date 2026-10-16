@@ -29,6 +29,7 @@
 #include <FruitMagic/Game/ConfirmState.hpp>
 #include <FruitMagic/Game/MoveConfig.hpp>
 #include <FruitMagic/Game/MoveRules.hpp>
+#include <FruitMagic/Game/SouvenirCatalog.hpp>
 #include <FruitMagic/Game/SceneRequest.hpp>
 #include <FruitMagic/Game/Settings.hpp>
 #include <FruitMagic/Game/StageConfig.hpp>
@@ -74,7 +75,6 @@
 #include <FruitMagic/ECS/System/MenuSystem.hpp>
 #include <FruitMagic/ECS/System/OptionsSystem.hpp>
 #include <FruitMagic/ECS/System/ConfirmDialogSystem.hpp>
-#include <FruitMagic/ECS/Event/NoticeEvent.hpp>
 #include <FruitMagic/ECS/System/MeteorMagicSystem.hpp>
 #include <FruitMagic/ECS/System/PopupSystem.hpp>
 #include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
@@ -394,6 +394,7 @@ namespace FruitMagic {
         collection.Load(dataRoot + "/Collection.json");
         MenuState& menu = registry.SetContext<MenuState>();
         registry.SetContext<UpgradeCatalog>().Load(dataRoot + "/Upgrades.json");
+        registry.SetContext<SouvenirCatalog>().Load(dataRoot);
         registry.SetContext<TableStats>().pusherAmplitude = layout.pusherAmplitude;
         OfflineConfig& offline = registry.SetContext<OfflineConfig>();
         offline.Load(dataRoot + "/Offline.json");
@@ -429,6 +430,12 @@ namespace FruitMagic {
             if(report.awaySeconds >= offline.minSeconds)
                 menu.open = MenuKind::Welcome;
         }
+
+        // おひっこしした回数で屋台の色（テーマ）を決める（台・屋根・柱を作る前に）
+        stage.ApplyTheme(state.moveCount);
+        // おひっこし直後なら「〇〇の屋台で開店！」の窓を出す（閉じていた時間は無いので、おかえりの窓とは重ならない）
+        if(m_moved)
+            menu.open = MenuKind::Moved;
 
         PrizeFactory& factory = registry.SetContext<PrizeFactory>();
         factory.Initialize(*context->assetManager, layout, stage);
@@ -481,13 +488,6 @@ namespace FruitMagic {
 
         m_scene.Update(simulationStep);
 
-        // おひっこし直後の屋台なら、最初のフレームで「新しい屋台で開店！」を出す
-        if(m_movedSeeds >= 0) {
-            const UiConfig& ui = GetUiConfig(registry);
-            m_scene.GetEventBus().Publish(ECS::NoticeEvent{GetTexts(registry).Format("move.opened", {{"seeds", std::to_wstring(m_movedSeeds)}}), ui.moveNoticeSeconds});
-            m_movedSeeds = -1;
-        }
-
         //--------------------------------------------------------------
         // 画面からの頼みごと（システムの更新が終わってから行う）
         //--------------------------------------------------------------
@@ -495,10 +495,10 @@ namespace FruitMagic {
             SceneRequest& request = registry.GetContext<SceneRequest>();
             if(request.move) {
                 // 星のたねを受け取って手持ちと強化を戻し、新しい台で始め直す（このシーンの終了時に今の状態がセーブされ、次のシーンが読む）
-                request.move          = false;
-                const long long seeds = MoveRules::Move(registry);
-                if(seeds > 0)
-                    api.ChangeScene(std::make_unique<PusherScene>(seeds));
+                request.move            = false;
+                const MoveResult result = MoveRules::Move(registry);
+                if(result.seeds > 0)
+                    api.ChangeScene(std::make_unique<PusherScene>(result));
             } else if(request.restart) {
                 // セーブを消し、このシーンの終了時に保存し直さないようにしてから、新しい台で始め直す
                 request.restart = false;
@@ -1705,78 +1705,158 @@ namespace FruitMagic {
         };
 
         //--------------------------------------------------------------
-        // 図鑑の画面（行＝果物、列＝バリエーション）。最初は閉じていて、ZukanSystem が開閉する。
-        // バリエーションの数は定義データから決まるので、列の間隔もそれに合わせる
+        // 図鑑の画面（タブ: 果物 / おみやげ）。最初は閉じていて、中身は ZukanSystem が書く
         //--------------------------------------------------------------
         {
-            const FruitCatalog&     catalog    = registry.GetContext<FruitCatalog>();
-            const CollectionConfig& collection = registry.GetContext<CollectionConfig>();
-            const int               rows       = static_cast<int>(catalog.Fruits().size());
-            const int               columns    = static_cast<int>(collection.Variants().size());
-
             auto addElement = [&](Tsukino::ECS::Entity e, ECS::ZukanElementKind kind, int fruitIndex = -1, int variantIndex = -1) {
                 addPage(e, MenuKind::Zukan);
                 ECS::ZukanElementComponent& element = registry.AddComponent<ECS::ZukanElementComponent>(e);
                 element.kind                        = kind;
                 element.fruitIndex                  = fruitIndex;
                 element.variantIndex                = variantIndex;
+                return e;
             };
 
             createMenuPanel(MenuKind::Zukan, texts.Get("zukan.title"));
 
-            // 列の配置（バリエーションが増えたら間隔を詰める）
-            const float columnsLeft  = menuLeft + ui.zukanColumnsLeft;
-            const float columnsWidth = ui.menuSize.x - ui.zukanColumnsLeft - ui.zukanColumnsRight;
-            const float columnPitch  = columnsWidth / static_cast<float>(std::max(1, columns));
-            auto        columnX      = [&](int v) { return columnsLeft + columnPitch * (static_cast<float>(v) + 0.5f); };
+            //--------------------------------------------------------------
+            // タブ（「果物」「おみやげ」）。左上の、果物の名前の列の上に並べる。
+            // タブごとに中身の親（UIVisibilityComponent）を作り、選んでいるタブの親だけを ZukanSystem が見せる。色も ZukanSystem が決める
+            //--------------------------------------------------------------
+            const float    headerY   = menuTop + ui.zukanHeaderOffsetY;
+            const float    rowsTop   = headerY + ui.zukanRowsGap;
+            const ZukanTab selected  = registry.GetContext<MenuState>().zukanTab;
+            auto           createTab = [&](ZukanTab tab, int order, const char* title) {
+                const hlslpp::float2 center(menuLeft + ui.zukanTabLeft + ui.zukanTabSize.x * 0.5f + (ui.zukanTabSize.x + ui.zukanTabGap) * static_cast<float>(order), headerY);
+                Tsukino::ECS::Entity button = createPill(center, ui.zukanTabSize, ui.upgradeTabColor, 21);
+                registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+                addPage(attachTo(createText(center, ui.upgradeTabLabelScale, kCenter, kWhite, 22, true, inside(ui.zukanTabSize.x)), button), MenuKind::Zukan,
+                        texts.Get(title));
+                addElement(button, ECS::ZukanElementKind::Tab);
+                registry.GetComponent<ECS::ZukanElementComponent>(button).tab = tab;
+                AddButtonMotion(registry, button, entt::null);
 
-            // 列の見出し（本に挟んだ栞。列ごとに色と傾きを変える）
-            const float headerY = menuTop + ui.zukanHeaderOffsetY;
-            for(int v = 0; v < columns; ++v) {
-                const std::wstring&  name   = collection.Variants()[v].name;
-                const hlslpp::float2 center(columnX(v), headerY);
-                const float          angle  = (v % 2 == 0) ? -ui.zukanHeaderTabAngle : ui.zukanHeaderTabAngle;
+                // 中身の親（画面の原点に置く。子の位置は画面の座標のまま）。画面の板の動きを写し、子もそれと一緒に動く
+                Tsukino::ECS::Entity group = m_scene.CreateEntity();
+                registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(group).dirty = true;
+                FollowUiMotion(registry, group, menuPanels[MenuKind::Zukan]);
+                registry.AddComponent<Tsukino::BuiltIn::ECS::UIVisibilityComponent>(group).visible = (tab == selected);
+                ECS::ZukanElementComponent& element = registry.AddComponent<ECS::ZukanElementComponent>(group);
+                element.kind                        = ECS::ZukanElementKind::TabGroup;
+                element.tab                         = tab;
+                return group;
+            };
+            const Tsukino::ECS::Entity fruitGroup    = createTab(ZukanTab::Fruits, 0, "zukan.fruitTab");
+            const Tsukino::ECS::Entity souvenirGroup = createTab(ZukanTab::Souvenirs, 1, "zukan.souvenirTab");
 
-                Tsukino::ECS::Entity tab = tilt(createSkinPanel("tab", center, ui.zukanHeaderTabSize, 21), angle);
-                if(!ui.zukanHeaderTabColors.empty())
-                    registry.GetComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(tab).tintColor =
-                        ui.zukanHeaderTabColors[std::min(static_cast<size_t>(v), ui.zukanHeaderTabColors.size() - 1)];
-                addPage(attachTo(createFontText(center, ui.zukanHeader, kCenter, 22, inside(ui.zukanHeaderTabSize.x)), tab), MenuKind::Zukan,
-                        name.empty() ? texts.Get("zukan.normalVariant") : name);
-                addPage(tab, MenuKind::Zukan);
+            //--------------------------------------------------------------
+            // 果物のタブ（行＝果物、列＝バリエーション）。バリエーションが増えたら列の間隔を詰める
+            //--------------------------------------------------------------
+            {
+                const FruitCatalog&     catalog    = registry.GetContext<FruitCatalog>();
+                const CollectionConfig& collection = registry.GetContext<CollectionConfig>();
+                const int               rows       = static_cast<int>(catalog.Fruits().size());
+                const int               columns    = static_cast<int>(collection.Variants().size());
+
+                const float columnsLeft  = menuLeft + ui.zukanColumnsLeft;
+                const float columnsWidth = ui.menuSize.x - ui.zukanColumnsLeft - ui.zukanColumnsRight;
+                const float columnPitch  = columnsWidth / static_cast<float>(std::max(1, columns));
+                auto        columnX      = [&](int v) { return columnsLeft + columnPitch * (static_cast<float>(v) + 0.5f); };
+
+                // 列の見出し（本に挟んだ栞。列ごとに色と傾きを変える）
+                for(int v = 0; v < columns; ++v) {
+                    const std::wstring&  name  = collection.Variants()[v].name;
+                    const hlslpp::float2 center(columnX(v), headerY);
+                    const float          angle = (v % 2 == 0) ? -ui.zukanHeaderTabAngle : ui.zukanHeaderTabAngle;
+
+                    Tsukino::ECS::Entity tab = tilt(createSkinPanel("tab", center, ui.zukanHeaderTabSize, 21), angle);
+                    if(!ui.zukanHeaderTabColors.empty())
+                        registry.GetComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(tab).tintColor =
+                            ui.zukanHeaderTabColors[std::min(static_cast<size_t>(v), ui.zukanHeaderTabColors.size() - 1)];
+                    addPage(attachTo(createFontText(center, ui.zukanHeader, kCenter, 22, inside(ui.zukanHeaderTabSize.x)), tab), MenuKind::Zukan,
+                            name.empty() ? texts.Get("zukan.normalVariant") : name);
+                    addPage(attachTo(tab, fruitGroup), MenuKind::Zukan);
+                }
+
+                // 行（果物が増えて枠に収まらなくなったらスクロールする。行の高さは変えない）
+                const float      pitch = ui.zukanRowPitch;
+                const ScrollList list  = createScrollList(MenuKind::Zukan, menuLeft + ui.zukanListLeft, rowsTop, menuRight - ui.zukanListRight,
+                                                          menuBottom - ui.zukanRowsBottom, pitch * static_cast<float>(rows), ui.zukanThumbColor, fruitGroup);
+                for(int f = 0; f < rows; ++f) {
+                    const float y = rowsTop + pitch * (static_cast<float>(f) + 0.5f);
+
+                    addElement(attach(list, createFontText(hlslpp::float2(menuLeft + ui.zukanNameX, y), ui.zukanName, kLeft, 22, ui.zukanColumnsLeft - ui.zukanNameX - ui.textPadding)),
+                               ECS::ZukanElementKind::RowName, f);
+
+                    for(int v = 0; v < columns; ++v) {
+                        const float x = columnX(v);
+
+                        // 枠の果物（3D。中身は ZukanSystem が入れる）。位置の基準はスクロールの中身の子に置き、
+                        // 行と一緒に動き、枠の外では切れるようにする。画面の板（20）より上、文字（22）より下
+                        Tsukino::ECS::Entity                       anchor          = m_scene.CreateEntity();
+                        Tsukino::BuiltIn::ECS::TransformComponent& anchorTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(anchor);
+                        anchorTransform.position                                   = hlslpp::float3(x, y + ui.zukanFruitOffsetY, 0.0f);
+                        anchorTransform.dirty                                      = true;
+                        attach(list, anchor);
+                        addElement(CreateFruitIconHolder(registry, hlslpp::float2(0.0f, 0.0f), 21, anchor), ECS::ZukanElementKind::Fruit, f, v);
+
+                        // 数（×3 など。果物の下に、列の中心で揃える）
+                        addElement(attach(list, createFontText(hlslpp::float2(x, y + ui.zukanCountOffsetY), ui.zukanCount, kCenter, 22, inside(columnPitch))),
+                                   ECS::ZukanElementKind::Count, f, v);
+                    }
+                }
+
+                // 下部の集計
+                addElement(attachTo(createFontText(hlslpp::float2(ui.menuCenter.x, menuBottom - ui.zukanFooterOffsetY), ui.zukanFooter, kCenter, 22, inside(ui.menuSize.x)),
+                                    fruitGroup),
+                           ECS::ZukanElementKind::Footer);
             }
 
-            // 行（果物が増えて枠に収まらなくなったらスクロールする。行の高さは変えない）
-            const float      rowsTop = headerY + ui.zukanRowsGap;
-            const float      pitch   = ui.zukanRowPitch;
-            const ScrollList list    = createScrollList(MenuKind::Zukan, menuLeft + ui.zukanListLeft, rowsTop, menuRight - ui.zukanListRight, menuBottom - ui.zukanRowsBottom,
-                                                        pitch * static_cast<float>(rows), ui.zukanThumbColor);
-            for(int f = 0; f < rows; ++f) {
-                const float y = rowsTop + pitch * (static_cast<float>(f) + 0.5f);
+            //--------------------------------------------------------------
+            // おみやげのタブ（カードを格子に並べる。増えたらスクロールする）。中身は ZukanSystem が書く
+            //--------------------------------------------------------------
+            {
+                const auto&      souvenirs = registry.GetContext<SouvenirCatalog>().Souvenirs();
+                const int        count     = static_cast<int>(souvenirs.size());
+                const int        perRow    = std::max(1, ui.souvenirColumns);
+                const int        lines     = (count + perRow - 1) / perRow;
+                const float      listLeft  = menuLeft + ui.zukanListLeft;
+                const float      listRight = menuRight - ui.zukanListRight;
+                const float      pitchX    = (listRight - listLeft) / static_cast<float>(perRow);
+                const float      pitchY    = ui.souvenirCardPitch;
+                const float      cardWidth = pitchX - ui.souvenirCardGap;
+                const ScrollList list      = createScrollList(MenuKind::Zukan, listLeft, rowsTop, listRight, menuBottom - ui.zukanRowsBottom, pitchY * static_cast<float>(lines),
+                                                              ui.zukanThumbColor, souvenirGroup);
+                for(int i = 0; i < count; ++i) {
+                    const float x = listLeft + pitchX * (static_cast<float>(i % perRow) + 0.5f);
+                    const float y = rowsTop + pitchY * (static_cast<float>(i / perRow) + 0.5f);
 
-                addElement(attach(list, createFontText(hlslpp::float2(menuLeft + ui.zukanNameX, y), ui.zukanName, kLeft, 22, ui.zukanColumnsLeft - ui.zukanNameX - ui.textPadding)), ECS::ZukanElementKind::RowName, f);
+                    // カード（紙）。3D はカードより上、文字はさらに上
+                    Tsukino::ECS::Entity card = createSkinPanel("paper", hlslpp::float2(x, y), hlslpp::float2(cardWidth, pitchY - ui.souvenirCardGap), 21);
+                    registry.GetComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(card).tintColor = ui.souvenirCardColor;
+                    addPage(attach(list, card), MenuKind::Zukan);
 
-                for(int v = 0; v < columns; ++v) {
-                    const float x = columnX(v);
-
-                    // 枠の果物（3D。中身は ZukanSystem が入れる）。位置の基準はスクロールの中身の子に置き、
-                    // 行と一緒に動き、枠の外では切れるようにする。画面の板（20）より上、文字（22）より下
                     Tsukino::ECS::Entity                       anchor          = m_scene.CreateEntity();
                     Tsukino::BuiltIn::ECS::TransformComponent& anchorTransform = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(anchor);
-                    anchorTransform.position                                   = hlslpp::float3(x, y + ui.zukanFruitOffsetY, 0.0f);
+                    anchorTransform.position                                   = hlslpp::float3(x, y + ui.souvenirIconOffsetY, 0.0f);
                     anchorTransform.dirty                                      = true;
                     attach(list, anchor);
-                    Tsukino::ECS::Entity icon = CreateFruitIconHolder(registry, hlslpp::float2(0.0f, 0.0f), 21, anchor);
-                    addElement(icon, ECS::ZukanElementKind::Fruit, f, v);
+                    addElement(CreateFruitIconHolder(registry, hlslpp::float2(0.0f, 0.0f), 22, anchor), ECS::ZukanElementKind::SouvenirIcon, i);
 
-                    // 数（×3 など。果物の下に、列の中心で揃える）
-                    addElement(attach(list, createFontText(hlslpp::float2(x, y + ui.zukanCountOffsetY), ui.zukanCount, kCenter, 22, inside(columnPitch))),
-                               ECS::ZukanElementKind::Count, f, v);
+                    const float textWidth = inside(cardWidth);
+                    addElement(attach(list, createFontText(hlslpp::float2(x, y + ui.souvenirNameOffsetY), ui.souvenirName, kCenter, 23, textWidth)),
+                               ECS::ZukanElementKind::SouvenirName, i);
+                    addElement(attach(list, createFontText(hlslpp::float2(x, y + ui.souvenirLevelOffsetY), ui.souvenirLevel, kCenter, 23, textWidth)),
+                               ECS::ZukanElementKind::SouvenirLevel, i);
+                    addElement(attach(list, createFontText(hlslpp::float2(x, y + ui.souvenirEffectOffsetY), ui.souvenirEffect, kCenter, 23, textWidth)),
+                               ECS::ZukanElementKind::SouvenirEffect, i);
                 }
-            }
 
-            // 下部の集計
-            addElement(createFontText(hlslpp::float2(ui.menuCenter.x, menuBottom - ui.zukanFooterOffsetY), ui.zukanFooter, kCenter, 22, inside(ui.menuSize.x)), ECS::ZukanElementKind::Footer);
+                // 下部の集計
+                addElement(attachTo(createFontText(hlslpp::float2(ui.menuCenter.x, menuBottom - ui.zukanFooterOffsetY), ui.zukanFooter, kCenter, 22, inside(ui.menuSize.x)),
+                                    souvenirGroup),
+                           ECS::ZukanElementKind::SouvenirFooter);
+            }
         }
 
         //--------------------------------------------------------------
@@ -1961,6 +2041,71 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
+        // おひっこし直後の窓（新しい屋台の名前・もらった星のたね・おみやげ）。おひっこしした直後にだけ開き、ボタンで閉じる。
+        // 中身は始まった時点で決まるので、「おかえり」の窓と同じく、すべて決まった文字として作る
+        //--------------------------------------------------------------
+        if(m_moved) {
+            const auto&      souvenirs = registry.GetContext<SouvenirCatalog>().Souvenirs();
+            const GameState& state     = registry.GetContext<GameState>();
+            const float      top       = ui.menuCenter.y - ui.movedSize.y * 0.5f;
+            const float      bottom    = ui.menuCenter.y + ui.movedSize.y * 0.5f;
+
+            Tsukino::ECS::Entity panel = createSkinPanel(ui.MenuStyleOf(MenuKind::Moved).skin, ui.menuCenter, ui.movedSize, 30);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(panel);
+            menuPanels[MenuKind::Moved] = panel;
+            addPage(panel, MenuKind::Moved);
+
+            auto addLine = [&](float x, float y, const UiFont& style, float width, const std::wstring& text) {
+                addPage(createFontText(hlslpp::float2(x, top + y), style, kCenter, 32, width), MenuKind::Moved, text);
+            };
+            const float center = ui.menuCenter.x;
+            addLine(center, ui.movedTitleY, ui.welcomeTitle, inside(ui.movedSize.x),
+                    texts.Format("move.title", {{"theme", GetStageConfig(registry).ThemeName(state.moveCount)}}));
+            addLine(center, ui.movedSeedsY, ui.welcomeReward, inside(ui.movedSize.x), texts.Format("move.seeds", {{"seeds", std::to_wstring(m_moved->seeds)}}));
+
+            //--------------------------------------------------------------
+            // おみやげを横に並べる（3D・名前・「NEW!」か「Lv n」）
+            //--------------------------------------------------------------
+            const int gifts = static_cast<int>(m_moved->gifts.size());
+            if(gifts == 0) {
+                addLine(center, ui.movedGiftY, ui.welcomeNoFairy, inside(ui.movedSize.x), texts.Get("move.noGift"));
+            } else {
+                addLine(center, ui.movedGiftTitleY, ui.welcomeAway, inside(ui.movedSize.x), texts.Get("move.giftTitle"));
+                for(int g = 0; g < gifts; ++g) {
+                    const SouvenirGift& gift = m_moved->gifts[g];
+                    if(gift.souvenirIndex < 0 || gift.souvenirIndex >= static_cast<int>(souvenirs.size()))
+                        continue;
+                    const SouvenirDef& def = souvenirs[gift.souvenirIndex];
+                    const float        x   = center + ui.movedGiftSpacing * (static_cast<float>(g) - static_cast<float>(gifts - 1) * 0.5f);
+
+                    Tsukino::ECS::Entity holder = CreateFruitIconHolder(registry, hlslpp::float2(x, top + ui.movedGiftY), 32);
+                    registry.GetComponent<ECS::FruitIconComponent>(holder).spinSpeed = ui.zukanFruitSpinSpeed;
+                    SetModelIcon(registry, holder, def.model, def.modelRotation, false, ui.movedGiftSize);
+                    addPage(holder, MenuKind::Moved);
+
+                    const float width = inside(ui.movedGiftSpacing);
+                    addLine(x, ui.movedGiftY + ui.movedGiftNameOffsetY, ui.souvenirName, width, def.name);
+                    addLine(x, ui.movedGiftY + ui.movedGiftLevelOffsetY, ui.movedGiftLevel, width,
+                            gift.isNew ? texts.Get("move.new") : texts.Format("move.level", {{"level", std::to_wstring(gift.level)}}));
+                }
+            }
+
+            // 閉じるボタン（Enter でも閉じる。閉じた後は開かない）
+            const hlslpp::float2 buttonCenter(center, bottom - ui.welcomeButtonOffsetY);
+            Tsukino::ECS::Entity button = createPill(buttonCenter, ui.welcomeButtonSize, ui.welcomeButtonColor, 31);
+            registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
+            addPage(button, MenuKind::Moved);
+
+            ECS::MenuButtonComponent& close = registry.AddComponent<ECS::MenuButtonComponent>(button);
+            close.menu                      = MenuKind::Moved;
+            close.key                       = Tsukino::Input::KeyCode::Enter;
+            close.label                     = addPage(createText(buttonCenter, ui.welcomeLabelScale, kCenter, kWhite, 32, true, inside(ui.welcomeButtonSize.x)), MenuKind::Moved);
+            close.openText                  = texts.Get("move.close");
+            close.canOpen                   = false;
+            AddButtonMotion(registry, button, close.label);
+        }
+
+        //--------------------------------------------------------------
         // 記録画面。左右2列に、見出しと「項目名 … 数」の行を並べる（数は RecordSystem が書く）。
         // 収まらないときはスクロールする
         //--------------------------------------------------------------
@@ -1998,7 +2143,8 @@ namespace FruitMagic {
                     {"record.moveTitle",
                      {{"record.moves", ECS::RecordItem::Moves},
                       {"record.seedsEarned", ECS::RecordItem::SeedsEarned},
-                      {"record.starSeeds", ECS::RecordItem::StarSeeds}}},
+                      {"record.starSeeds", ECS::RecordItem::StarSeeds},
+                      {"record.souvenirs", ECS::RecordItem::Souvenirs}}},
                     {"record.playTitle", {{"record.playTime", ECS::RecordItem::PlayTime}}},
                 },
             };

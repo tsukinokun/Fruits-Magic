@@ -1,16 +1,19 @@
 //----------------------------------------------------------------------------
 //! @file   DebugResourceSystem.cpp
-//! @brief  （開発用）コインと果実を増やすシステムの実装
+//! @brief  （開発用）手持ちを増やす・おみやげを引くシステムの実装
 //----------------------------------------------------------------------------
 #include <FruitMagic/ECS/System/DebugResourceSystem.hpp>
 
+#include <FruitMagic/ECS/System/UpgradeSystem.hpp>
 #include <FruitMagic/Game/GameState.hpp>
+#include <FruitMagic/Game/MoveRules.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/Input/InputSystem.hpp>
 #include <Tsukino/Core/Log.hpp>
 
+#include <random>
 #include <string>
 
 // 名前空間 : FruitMagic::ECS
@@ -28,6 +31,12 @@ namespace FruitMagic::ECS {
         Tsukino::EngineIntegration::EngineContext* ctx = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
         if(!ctx || !ctx->inputSystem || !registry.HasContext<GameState>())
             return;
+        // F3: 今おひっこししたらもらえるおみやげを1回分引く（おみやげの見た目と効果を試す）
+        if(ctx->inputSystem->IsKeyPressed(Tsukino::Input::KeyCode::F3)) {
+            std::mt19937 rng(std::random_device{}());
+            MoveRules::DrawSouvenirs(registry, rng);
+            UpgradeSystem::ApplyUpgrades(registry);
+        }
         if(!ctx->inputSystem->IsKeyPressed(Tsukino::Input::KeyCode::F2))
             return;
 

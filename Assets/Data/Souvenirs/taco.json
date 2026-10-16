@@ -1,0 +1,8 @@
+{
+  "name": "タコス",
+  "model": "Assets/Models/Kenney/FoodKit/taco.glb",
+  "rarity": 2,
+  "effect": "offlineHours",
+  "perLevel": 3,
+  "maxLevel": 4
+}

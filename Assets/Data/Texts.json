@@ -50,7 +50,13 @@
     "info": "今おひっこしすると 星のたね +{seeds}",
     "notYet": "もう少し収穫すると、星のたねがもらえる（今 +{seeds}）",
     "locked": "果樹の段階 {stage} の果物を収穫すると、おひっこしできるようになる",
-    "opened": "新しい屋台で開店！  星のたね +{seeds}",
+    "title": "{theme}の屋台で開店！",
+    "seeds": "星のたね +{seeds}",
+    "giftTitle": "おみやげをもらいました",
+    "noGift": "おみやげは、ぜんぶ集めきりました",
+    "new": "NEW!",
+    "level": "Lv {level}",
+    "close": "はじめる (Enter)",
     "confirm": {
       "message1": "おひっこしして 星のたね +{seeds}",
       "note1": "コイン・FP・強化は最初に戻ります（図鑑と魔法は残ります）",
@@ -133,6 +139,8 @@
     }
   },
   "zukan": {
+    "fruitTab": "果物",
+    "souvenirTab": "おみやげ",
     "title": "図鑑",
     "normalVariant": "通常",
     "rowName": "{name}",
@@ -163,6 +171,7 @@
     "moves": "おひっこしした",
     "seedsEarned": "もらった星のたね",
     "starSeeds": "今の星のたね",
+    "souvenirs": "おみやげ",
     "playTitle": "プレイ時間",
     "playTime": "遊んだ時間",
     "count": "{n}",
@@ -172,6 +181,21 @@
     "rate": "{n}回（{rate}%）",
     "seeds": "{n}個",
     "ratio": "{n} / {total}"
+  },
+  "souvenir": {
+    "level": "Lv {level} / {max}",
+    "notYet": "",
+    "footer": "おみやげ {n} / {total}（おひっこしでもらえる。コインが多いほどレアが出やすい）",
+    "effect": {
+      "fruitValue": "収穫の FP +{n}%",
+      "mana": "マナ +{n}%",
+      "variant": "色違い +{n}%",
+      "seedGain": "星のたね +{n}%",
+      "rouletteHit": "果物の当たり +{n}%",
+      "magicDuration": "魔法の時間 +{n}%",
+      "offlineHours": "おるすばん +{n}時間",
+      "startCoins": "最初のコイン +{n}枚"
+    }
   },
   "upgrade": {
     "title": "台の強化",

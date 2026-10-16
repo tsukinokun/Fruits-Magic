@@ -1,0 +1,8 @@
+{
+  "name": "ドーナツ",
+  "model": "Assets/Models/Kenney/FoodKit/donut.glb",
+  "rarity": 1,
+  "effect": "rouletteHit",
+  "perLevel": 1,
+  "maxLevel": 5
+}

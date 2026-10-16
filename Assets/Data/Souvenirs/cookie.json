@@ -1,0 +1,8 @@
+{
+  "name": "クッキー",
+  "model": "Assets/Models/Kenney/FoodKit/cookie.glb",
+  "rarity": 1,
+  "effect": "startCoins",
+  "perLevel": 40,
+  "maxLevel": 5
+}

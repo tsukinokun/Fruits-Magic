@@ -8,6 +8,7 @@
 #include <FruitMagic/Game/FruitCatalog.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/JsonReader.hpp>
+#include <FruitMagic/Game/SouvenirCatalog.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/IO/FileSystem.hpp>
@@ -29,8 +30,8 @@ namespace FruitMagic::SaveData {
         namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
 
         //! @brief セーブデータの形式の版。形式を変えたら上げ、読み込み側で古い版を変換する
-        //! @note  2: おひっこし（星のたね・おひっこしの回数・累計の収穫の価値）を足した
-        constexpr int kVersion = 2;
+        //! @note  2: おひっこし（星のたね・おひっこしの回数・累計の収穫の価値）を足した。3: おみやげのレベルを足した
+        constexpr int kVersion = 3;
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -84,6 +85,15 @@ namespace FruitMagic::SaveData {
         writer.Key("upgrades");
         writer.StartObject();
         for(const auto& [id, level] : state.upgradeLevels) {
+            writer.Key(id.c_str());
+            writer.Int(level);
+        }
+        writer.EndObject();
+
+        // おみやげのレベル（id → レベル）
+        writer.Key("souvenirs");
+        writer.StartObject();
+        for(const auto& [id, level] : state.souvenirLevels) {
             writer.Key(id.c_str());
             writer.Int(level);
         }
@@ -213,6 +223,25 @@ namespace FruitMagic::SaveData {
             for(auto it = upgrades->value.MemberBegin(); it != upgrades->value.MemberEnd(); ++it) {
                 if(it->value.IsInt() && it->value.GetInt() > 0)
                     state.upgradeLevels[it->name.GetString()] = it->value.GetInt();
+            }
+        }
+
+        //--------------------------------------------------------------
+        // おみやげのレベル。定義データから消えたおみやげは読み飛ばし、上限を超えた分は上限にそろえる
+        //--------------------------------------------------------------
+        state.souvenirLevels.clear();
+        auto souvenirs = doc.FindMember("souvenirs");
+        if(souvenirs != doc.MemberEnd() && souvenirs->value.IsObject()) {
+            const SouvenirCatalog* catalog = registry.HasContext<SouvenirCatalog>() ? &registry.GetContext<SouvenirCatalog>() : nullptr;
+            for(auto it = souvenirs->value.MemberBegin(); it != souvenirs->value.MemberEnd(); ++it) {
+                if(!it->value.IsInt() || it->value.GetInt() <= 0)
+                    continue;
+                const int index = catalog ? catalog->FindIndex(it->name.GetString()) : -1;
+                if(index < 0) {
+                    Tsukino::Core::Log::Warn(std::string("SaveData: souvenir \"") + it->name.GetString() + "\" is no longer defined. It was skipped.");
+                    continue;
+                }
+                state.souvenirLevels[it->name.GetString()] = std::min(it->value.GetInt(), catalog->Souvenirs()[index].maxLevel);
             }
         }
 

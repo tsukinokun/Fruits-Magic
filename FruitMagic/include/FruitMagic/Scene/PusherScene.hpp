@@ -5,6 +5,9 @@
 //!         コインの投入口と HUD を配置し、ゲームのシステムを登録します。
 //----------------------------------------------------------------------------
 #pragma once
+#include <FruitMagic/Game/MoveRules.hpp>
+
+#include <optional>
 #include <Tsukino/EngineIntegration/Scene/GameSceneBase.hpp>
 #include <Tsukino/Core/ECS/Entity/Entity.hpp>
 
@@ -20,9 +23,9 @@ namespace FruitMagic {
         //! コンストラクタです。
         PusherScene() = default;
 
-        //! おひっこしした直後の屋台として始めるコンストラクタです（始まったら「新しい屋台で開店！」を出す）。
-        //! @param  [in] movedSeeds おひっこしでもらった星のたねの数
-        explicit PusherScene(long long movedSeeds) : m_movedSeeds(movedSeeds) {}
+        //! おひっこしした直後の屋台として始めるコンストラクタです（始まったら「〇〇の屋台で開店！」の窓を出す）。
+        //! @param  [in] moved おひっこしの結果（もらった星のたねとおみやげ）
+        explicit PusherScene(const MoveResult& moved) : m_moved(moved) {}
 
         //! デストラクタです。
         ~PusherScene() override = default;
@@ -64,6 +67,6 @@ namespace FruitMagic {
         float                m_pusherTime = 0.0f;          // プッシャーの往復のどこまで進んだか（0〜1。1 で1往復）
         float                m_pusherAmplitude = 0.0f;     // 今のプッシャーの振幅（cm）。押し幅の強化の値へ少しずつ近づける
         bool                 m_skipSaveOnExit = false;     // 終了時にセーブしない（「データを消して最初から」でセーブを消した後）
-        long long            m_movedSeeds = -1;            // おひっこしでもらった星のたね（おひっこし直後でなければ -1。お知らせを出したら -1 に戻す）
+        std::optional<MoveResult> m_moved;                 // おひっこしの結果（おひっこし直後の屋台のときだけ）
     };
 }    // namespace FruitMagic

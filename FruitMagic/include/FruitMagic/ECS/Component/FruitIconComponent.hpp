@@ -5,13 +5,16 @@
 #pragma once
 #include <Tsukino/Core/ECS/Entity/Entity.hpp>
 
+#include <string>
+
 // 名前空間 : FruitMagic::ECS
 namespace FruitMagic::ECS {
 
     //! 画面に出す果物の置き台です。ScreenModelComponent と一緒に付け、果物の見た目を子に付けます。
     //! 作り方・中身の入れ替えは FruitIcon.hpp の関数で行い、回すのは FruitIconSystem です。
     struct FruitIconComponent {
-        int                  fruitIndex   = -1;            // 出している果物の添字（-1 は何も出していない）
+        int                  fruitIndex   = -1;            // 出している果物の添字（-1 は何も出していない。kFruitIconModel ならモデル）
+        std::string          model;                        // 出しているモデル（fruitIndex が kFruitIconModel のとき。SetModelIcon）
         int                  variantIndex = 0;             // 出している果物のバリエーションの添字
         bool                 silhouette   = false;         // 黒いシルエットで出しているか（図鑑のまだ取っていない枠）
         float                sizePixels   = 0.0f;          // 出している大きさ（果物の外形のいちばん長い向きのピクセル数）

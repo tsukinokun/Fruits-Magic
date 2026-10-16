@@ -1,0 +1,8 @@
+{
+  "name": "ハンバーガー",
+  "model": "Assets/Models/Kenney/FoodKit/burger.glb",
+  "rarity": 2,
+  "effect": "fruitValue",
+  "perLevel": 7,
+  "maxLevel": 4
+}

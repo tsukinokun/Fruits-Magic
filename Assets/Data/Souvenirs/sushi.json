@@ -1,0 +1,8 @@
+{
+  "name": "おすし",
+  "model": "Assets/Models/Kenney/FoodKit/sushi-salmon.glb",
+  "rarity": 2,
+  "effect": "seedGain",
+  "perLevel": 6,
+  "maxLevel": 4
+}
