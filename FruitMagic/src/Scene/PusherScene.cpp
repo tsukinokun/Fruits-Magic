@@ -1071,24 +1071,14 @@ namespace FruitMagic {
         // 待っている間だけ HudSystem が表示し、中身を真上から時計回りに塗る
         //--------------------------------------------------------------
         {
-            const Tsukino::Asset::AssetHandle ring       = context->assetManager->Load(Tsukino::Core::Path(AssetPaths::kRingTexture));
-            const float                       shownScale = ui.reliefRingDiameter / AssetPaths::kRingTextureSize;
-
             auto createRing = [&](ECS::ReliefGaugePart part, const hlslpp::float4& color, int sortOrder) {
-                Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
-                Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
-                t.position                                   = hlslpp::float3(ui.reliefRingCenter.x, ui.reliefRingCenter.y, 0.0f);
-                t.scale                                      = hlslpp::float3(0.0f, 0.0f, 1.0f);    // 待っていない間は隠す
-                t.dirty                                      = true;
-
-                Tsukino::BuiltIn::ECS::SpriteComponent& sprite = registry.AddComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e);
-                sprite.textureHandle                           = ring;
-                sprite.tintColor                               = color;
-                sprite.sortOrder                               = sortOrder;
+                Tsukino::ECS::Entity e = createImage(AssetPaths::kRingTexture, ui.reliefRingCenter, hlslpp::float2(ui.reliefRingDiameter, ui.reliefRingDiameter), color,
+                                                     sortOrder);
+                registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e).scale = hlslpp::float3(0.0f, 0.0f, 1.0f);    // 待っていない間は隠す
 
                 ECS::ReliefGaugeComponent& gauge = registry.AddComponent<ECS::ReliefGaugeComponent>(e);
                 gauge.part                       = part;
-                gauge.shownScale                 = shownScale;
+                gauge.shownScale                 = 1.0f;
                 return e;
             };
 
@@ -1395,9 +1385,15 @@ namespace FruitMagic {
                 // おすすめは妖精の吹き出し。しっぽを下（妖精の紙）へ向ける
                 const hlslpp::float2 center = paper(right.left, upgradeTop, right.y, ui.sideUpgradeCard);
                 const float          bottom = right.y + ui.sidePadding;
-                addElement(createImage(ui.sideBubbleTailTexture, hlslpp::float2(center.x - width * 0.22f, bottom + ui.sideBubbleTailSize.y * 0.5f - 6.0f),
-                                       ui.sideBubbleTailSize, kWhiteTint, -4),
-                           ECS::SidePanelElementKind::Static);
+                const hlslpp::float2 tail(center.x - width * 0.22f, bottom + ui.sideBubbleTailSize.y * 0.5f - 6.0f);
+                addElement(createImage(ui.sideBubbleTailTexture, tail, ui.sideBubbleTailSize, kWhiteTint, -4), ECS::SidePanelElementKind::Static);
+
+                // しっぽの先で話している妖精（紙より手前。ゆっくり呼吸させる）
+                const hlslpp::float2 tailTip(float(tail.x) - ui.sideBubbleTailSize.x * 0.25f, float(tail.y) + ui.sideBubbleTailSize.y * 0.5f);
+                Tsukino::ECS::Entity fairy =
+                    createImage(ui.sideFairyTexture, tailTip + ui.sideFairyOffset, hlslpp::float2(ui.sideFairySize, ui.sideFairySize), kWhiteTint, 4);
+                addElement(fairy, ECS::SidePanelElementKind::Static);
+                SetPulse(registry, fairy, true);
             }
             right.y += ui.sideSectionGap + ui.sidePadding * 2.0f;    // 紙の下の余白＋すき間＋次の紙の上の余白
 

@@ -120,14 +120,14 @@ namespace FruitMagic {
     //! 既定の HUD の文字の置き方を入れます。
     //----------------------------------------------------------------------------
     UiConfig::UiConfig() {
-        hudTexts["coins"]        = {hlslpp::float2(84.0f, 20.0f), 1.6f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), UiAlign::Left, true};
-        hudTexts["mana"]         = {hlslpp::float2(260.0f, 148.0f), 0.9f, hlslpp::float4(0.85f, 0.7f, 1.0f, 1.0f), UiAlign::Left};
-        hudTexts["dropPopup"]    = {hlslpp::float2(260.0f, 32.0f), 1.2f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f), UiAlign::Left, true};
-        hudTexts["fruitPoints"]  = {hlslpp::float2(72.0f, 86.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left, true};
+        hudTexts["coins"]        = {hlslpp::float2(100.0f, 18.0f), 1.5f, hlslpp::float4(1.0f, 0.92f, 0.4f, 1.0f), UiAlign::Left, true};
+        hudTexts["mana"]         = {hlslpp::float2(300.0f, 76.0f), 1.15f, hlslpp::float4(1.0f, 0.95f, 1.0f, 1.0f), UiAlign::Center, true, 60.0f};
+        hudTexts["dropPopup"]    = {hlslpp::float2(282.0f, 10.0f), 1.0f, hlslpp::float4(0.6f, 1.0f, 0.6f, 1.0f), UiAlign::Left, true};
+        hudTexts["fruitPoints"]  = {hlslpp::float2(106.0f, 98.0f), 1.2f, hlslpp::float4(1.0f, 0.6f, 0.7f, 1.0f), UiAlign::Left, true};
         hudTexts["harvestPopup"] = {hlslpp::float2(72.0f, 204.0f), 1.2f, hlslpp::float4(1.0f, 0.85f, 0.9f, 1.0f), UiAlign::Left, true};
         hudTexts["relief"]       = {hlslpp::float2(72.0f, 248.0f), 0.8f, hlslpp::float4(0.75f, 1.0f, 0.85f, 1.0f), UiAlign::Left};
         hudTexts["roulette"]     = {hlslpp::float2(640.0f, 126.0f), 0.85f, hlslpp::float4(1.0f, 0.95f, 0.6f, 1.0f), UiAlign::Center, true, 640.0f};
-        hudTexts["controlsHint"] = {hlslpp::float2(24.0f, 690.0f), 0.65f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f), UiAlign::Left};
+        hudTexts["controlsHint"] = {hlslpp::float2(24.0f, 700.0f), 0.58f, hlslpp::float4(1.0f, 1.0f, 1.0f, 0.85f), UiAlign::Left};
         hudTexts["notice"]       = {hlslpp::float2(640.0f, 250.0f), 1.15f, hlslpp::float4(1.0f, 0.75f, 0.95f, 1.0f), UiAlign::Center, true};
     }
 
@@ -313,6 +313,9 @@ namespace FruitMagic {
             Json::Read(*side, "pinSize", sidePinSize);
             Json::Read(*side, "bubbleTailTexture", sideBubbleTailTexture);
             Json::ReadVec(*side, "bubbleTailSize", sideBubbleTailSize);
+            Json::Read(*side, "fairyTexture", sideFairyTexture);
+            Json::Read(*side, "fairySize", sideFairySize);
+            Json::ReadVec(*side, "fairyOffset", sideFairyOffset);
             Json::ReadColor(*side, "outlineColor", sideOutlineColor);
             Json::Read(*side, "outlineWidth", sideOutlineWidth);
             Json::ReadColor(*side, "barBackColor", sideBarBackColor);

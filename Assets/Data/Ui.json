@@ -120,6 +120,9 @@
     "pinSize": 22,
     "bubbleTailTexture": "Assets/Textures/UI/BubbleTail.png",
     "bubbleTailSize": { "x": 30, "y": 24 },
+    "fairyTexture": "Assets/Textures/UI/Fairy.png",
+    "fairySize": 64,
+    "fairyOffset": { "x": -100, "y": 24 },
     "outlineColor":     { "r": 1.0,  "g": 1.0,  "b": 1.0,  "a": 0.6 },
     "outlineWidth": 0,
     "barBackColor":     { "r": 0.82, "g": 0.74, "b": 0.6,  "a": 1.0 },
@@ -290,7 +293,7 @@
     "dataTitle": { "scale": 0.95, "color": { "r": 1.0, "g": 0.6, "b": 0.6,  "a": 1.0 }, "bold": true },
     "dataNote":  { "scale": 0.72, "color": { "r": 0.9, "g": 0.9, "b": 0.95, "a": 1.0 } },
     "resetSize":  { "x": 340, "y": 46 },
-    "resetColor": { "r": 0.75, "g": 0.35, "b": 0.4,  "a": 1.0 }
+    "resetColor": { "r": 0.88, "g": 0.3,  "b": 0.3,  "a": 1.0 }
   },
   "confirm": {
     "size": { "x": 640, "y": 300 },

@@ -449,6 +449,71 @@ def bubble_tail(x, y, w=48, h=40):
     return PAPER + (1.0,)
 
 
+def ellipse_distance(x, y, cx, cy, rx, ry):
+    """楕円の縁からのおおよその距離（ピクセル。内側が正）。"""
+    k = math.hypot((x - cx) / rx, (y - cy) / ry)
+    return (1.0 - k) * min(rx, ry)
+
+
+def fairy(x, y, size=96):
+    """妖精（丸い顔・葉っぱの服・透けた羽）。右パネルのおすすめの吹き出しの横に置く。手前の部品から順に見る。"""
+    s = size / 96.0
+    outline = rgb(92, 54, 60)
+
+    def layer(d, color, alpha=1.0, edge=2.2):
+        """縁からの距離 d の部品を塗る（縁は濃い線）。外なら None。"""
+        if d <= 0.0:
+            return None
+        return (outline + (1.0,)) if d < edge * s else (color + (alpha,))
+
+    # 顔の中（目・ほっぺ・口）
+    head_cx, head_cy, head_r = 48.0 * s, 40.0 * s, 19.0 * s
+    for ex in (-7.0, 7.0):
+        if math.hypot(x - (head_cx + ex * s), y - (head_cy + 2.0 * s)) < 2.8 * s:
+            return outline + (1.0,)
+    for ex in (-12.0, 12.0):
+        if ellipse_distance(x, y, head_cx + ex * s, head_cy + 8.0 * s, 4.0 * s, 2.6 * s) > 0.0:
+            return rgb(255, 160, 170) + (1.0,)
+    mouth = math.hypot(x - head_cx, y - (head_cy + 6.0 * s))
+    if abs(mouth - 4.0 * s) < 1.1 * s and y > head_cy + 7.5 * s:
+        return outline + (1.0,)
+
+    # 髪（顔の上半分にかぶせる）と、頭の上の葉っぱ
+    hair = ellipse_distance(x, y, head_cx, head_cy - 6.0 * s, head_r + 2.0 * s, head_r * 0.8)
+    if y < head_cy - 3.0 * s or (abs(x - head_cx) > head_r * 0.82 and y < head_cy + 8.0 * s):
+        part = layer(hair, rgb(255, 176, 120))
+        if part:
+            return part
+    leaf = ellipse_distance(x, y, head_cx + 6.0 * s, head_cy - head_r - 5.0 * s, 8.0 * s, 4.5 * s)
+    part = layer(leaf, rgb(118, 196, 96))
+    if part:
+        return part
+
+    # 顔
+    part = layer(head_r - math.hypot(x - head_cx, y - head_cy), rgb(255, 228, 206))
+    if part:
+        return part
+
+    # 葉っぱの服（下に広がる台形）
+    top, bottom = head_cy + head_r - 4.0 * s, 88.0 * s
+    if top < y < bottom:
+        t = (y - top) / (bottom - top)
+        half = (8.0 + 16.0 * t) * s
+        d = min(half - abs(x - head_cx), y - top, bottom - y)
+        part = layer(d, mix(rgb(132, 210, 110), rgb(84, 160, 80), t))
+        if part:
+            return part
+
+    # 羽（左右に2枚ずつ。透けて見えるよう少し薄く）
+    for side in (-1.0, 1.0):
+        for cx, cy, rx, ry in ((30.0, 52.0, 17.0, 11.0), (34.0, 70.0, 11.0, 8.0)):
+            d = ellipse_distance(x, y, head_cx + side * cx * s, cy * s, rx * s, ry * s)
+            part = layer(d, rgb(196, 236, 255), 0.85, edge=1.8)
+            if part:
+                return part
+    return CLEAR
+
+
 def generate_ui():
     os.makedirs(UI_DIR, exist_ok=True)
     write_shape("WoodPanel", 128, 128, lambda x, y: wood_panel(x, y))
@@ -465,6 +530,7 @@ def generate_ui():
     write_shape("BookmarkTab", 64, 96, lambda x, y: bookmark_tab(x, y))
     write_shape("CloseButton", 64, 64, lambda x, y: close_button(x, y))
     write_shape("BubbleTail", 48, 40, lambda x, y: bubble_tail(x, y))
+    write_shape("Fairy", 96, 96, lambda x, y: fairy(x, y))
     print("wrote UI parts to", UI_DIR)
 
 

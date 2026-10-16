@@ -272,6 +272,9 @@ namespace FruitMagic {
         float          sidePinSize         = 22.0f;
         std::string    sideBubbleTailTexture = "Assets/Textures/UI/BubbleTail.png";
         hlslpp::float2 sideBubbleTailSize  = hlslpp::float2(30.0f, 24.0f);
+        std::string    sideFairyTexture    = "Assets/Textures/UI/Fairy.png";    // おすすめを話す妖精（吹き出しのしっぽの先に置く）
+        float          sideFairySize       = 64.0f;
+        hlslpp::float2 sideFairyOffset     = hlslpp::float2(-100.0f, 24.0f);     // しっぽの先から妖精の中心まで
         hlslpp::float4 sideOutlineColor    = hlslpp::float4(1.0f, 1.0f, 1.0f, 0.6f);    // 紙の上の文字の縁取り
         float          sideOutlineWidth    = 0.0f;
         hlslpp::float4 sideBarBackColor    = hlslpp::float4(0.1f, 0.05f, 0.15f, 0.8f);

@@ -22,6 +22,7 @@
 #include <Tsukino/BuiltIn/ECS/Component/CameraComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/FontComponent.hpp>
 #include <Tsukino/BuiltIn/ECS/Component/SpriteComponent.hpp>
+#include <Tsukino/BuiltIn/ECS/Component/UIRectComponent.hpp>
 
 #include <Tsukino/Core/IO/FileSystem.hpp>
 #include <Tsukino/Core/Path.hpp>
@@ -75,18 +76,13 @@ namespace FruitMagic {
         m_elapsed += deltaTime;
 
         //--------------------------------------------------------------
-        // 進み具合をバーと文字に反映する（バーは左端を揃えたまま伸ばす）
+        // 進み具合をバーと文字に反映する（バーは左端を基準にした四角なので、幅を変えるだけで左端が揃ったまま伸びる）
         //--------------------------------------------------------------
         const float             progress = m_preloader.Progress();
         Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
         const UiConfig&         ui       = GetUiConfig(registry);
-        if(m_barEntity != entt::null) {
-            const float width = ui.loadingBarWidth * progress;
-            auto&       t     = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(m_barEntity);
-            t.position        = hlslpp::float3((ui.screenWidth - ui.loadingBarWidth) * 0.5f + width * 0.5f, ui.loadingBarCenterY, 0.0f);
-            t.scale           = hlslpp::float3(width / AssetPaths::kWhiteTextureSize, ui.loadingBarHeight / AssetPaths::kWhiteTextureSize, 1.0f);
-            t.dirty           = true;
-        }
+        if(m_barEntity != entt::null)
+            registry.GetComponent<Tsukino::BuiltIn::ECS::UIRectComponent>(m_barEntity).size.x = ui.loadingBarWidth * progress;
         if(m_textEntity != entt::null) {
             const int percent = static_cast<int>(std::floor(progress * 100.0f));
             registry.GetComponent<Tsukino::BuiltIn::ECS::FontComponent>(m_textEntity).text = GetTexts(registry).Format("loading.progress", {{"n", std::to_wstring(percent)}});
@@ -158,8 +154,8 @@ namespace FruitMagic {
             Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
             t.position                                   = hlslpp::float3(center.x, center.y, 0.0f);
-            t.scale = hlslpp::float3(size.x / AssetPaths::kWhiteTextureSize, size.y / AssetPaths::kWhiteTextureSize, 1.0f);
-            t.dirty = true;
+            t.dirty                                      = true;
+            registry.AddComponent<Tsukino::BuiltIn::ECS::UIRectComponent>(e).size = size;
 
             Tsukino::BuiltIn::ECS::SpriteComponent& sprite = registry.AddComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e);
             sprite.textureHandle                           = white;
@@ -176,6 +172,7 @@ namespace FruitMagic {
         createPanel(hlslpp::float2(ui.ScreenCenter().x, ui.loadingBarCenterY),
                     hlslpp::float2(ui.loadingBarWidth + ui.loadingFramePadding, ui.loadingBarHeight + ui.loadingFramePadding), ui.loadingFrameColor, 1);
         m_barEntity = createPanel(hlslpp::float2(barLeft, ui.loadingBarCenterY), hlslpp::float2(0.0f, ui.loadingBarHeight), ui.loadingFillColor, 2);
+        registry.GetComponent<Tsukino::BuiltIn::ECS::UIRectComponent>(m_barEntity).pivot = hlslpp::float2(0.0f, 0.5f);    // 位置は左端
 
         //--------------------------------------------------------------
         // 「読み込み中」の文字（バーの上）
@@ -184,11 +181,11 @@ namespace FruitMagic {
             Tsukino::ECS::Entity                       e = m_scene.CreateEntity();
             Tsukino::BuiltIn::ECS::TransformComponent& t = registry.AddComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
             t.position                                   = hlslpp::float3(ui.ScreenCenter().x, ui.loadingTextY, 0.0f);
-            t.scale                                      = hlslpp::float3(ui.loadingText.scale, ui.loadingText.scale, 1.0f);
             t.dirty                                      = true;
 
             Tsukino::BuiltIn::ECS::FontComponent& font = registry.AddComponent<Tsukino::BuiltIn::ECS::FontComponent>(e);
             font.fontHandle                            = GetUiFont(registry, ui.loadingText.bold);
+            font.scale                                 = ui.loadingText.scale;
             font.maxWidth                              = ui.screenWidth - ui.textPadding * 2.0f;
             font.text                                  = GetTexts(registry).Format("loading.progress", {{"n", L"0"}});
             font.color                                 = ui.loadingText.color;
