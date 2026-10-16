@@ -26,7 +26,9 @@
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/RouletteState.hpp>
 #include <FruitMagic/Game/SaveData.hpp>
-#include <FruitMagic/Game/OptionsState.hpp>
+#include <FruitMagic/Game/ConfirmState.hpp>
+#include <FruitMagic/Game/MoveConfig.hpp>
+#include <FruitMagic/Game/MoveRules.hpp>
 #include <FruitMagic/Game/SceneRequest.hpp>
 #include <FruitMagic/Game/Settings.hpp>
 #include <FruitMagic/Game/StageConfig.hpp>
@@ -47,7 +49,7 @@
 #include <FruitMagic/ECS/Component/ManaGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/UpgradeAlertComponent.hpp>
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
-#include <FruitMagic/ECS/Component/OptionsDialogComponent.hpp>
+#include <FruitMagic/ECS/Component/ConfirmDialogComponent.hpp>
 #include <FruitMagic/ECS/Component/OptionsElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ReliefGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/SidePanelElementComponent.hpp>
@@ -71,6 +73,8 @@
 #include <FruitMagic/ECS/System/ManaSystem.hpp>
 #include <FruitMagic/ECS/System/MenuSystem.hpp>
 #include <FruitMagic/ECS/System/OptionsSystem.hpp>
+#include <FruitMagic/ECS/System/ConfirmDialogSystem.hpp>
+#include <FruitMagic/ECS/Event/NoticeEvent.hpp>
 #include <FruitMagic/ECS/System/MeteorMagicSystem.hpp>
 #include <FruitMagic/ECS/System/PopupSystem.hpp>
 #include <FruitMagic/ECS/System/ShakeMagicSystem.hpp>
@@ -243,6 +247,7 @@ namespace FruitMagic {
             Record,
             Upgrade,
             Options,
+            ConfirmDialog,       // 画面のシステムが出した確認ウィンドウ（データ消去・おひっこし）
             MagicInput,
             AutoPlay,            // （計測用）投入・魔法・強化
             CoinLauncher,        // 投入したコインを今フレームの Transform・物理に乗せる
@@ -297,6 +302,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::RecordSystem>(), (int)SystemPriority::Record);
         m_scene.AddSystem(std::make_shared<ECS::UpgradeSystem>(), (int)SystemPriority::Upgrade);
         m_scene.AddSystem(std::make_shared<ECS::OptionsSystem>(), (int)SystemPriority::Options);
+        m_scene.AddSystem(std::make_shared<ECS::ConfirmDialogSystem>(), (int)SystemPriority::ConfirmDialog);
         m_scene.AddSystem(std::make_shared<ECS::MagicInputSystem>(eventBus), (int)SystemPriority::MagicInput);
         m_scene.AddSystem(std::make_shared<ECS::CoinLauncherSystem>(), (int)SystemPriority::CoinLauncher);
         m_scene.AddSystem(std::make_shared<ECS::FairySystem>(), (int)SystemPriority::Fairy);
@@ -396,7 +402,8 @@ namespace FruitMagic {
         // オプションの設定（セーブデータとは別のファイル。自動プレイでは読み書きしない）
         registry.SetContext<Settings>().Load(autoPlay ? std::string() : Settings::DefaultPath());
         registry.SetContext<SceneRequest>();
-        registry.SetContext<OptionsState>();
+        registry.SetContext<ConfirmState>();
+        registry.SetContext<MoveConfig>().Load(dataRoot + "/Move.json");
 
         EconomyConfig& economy = registry.SetContext<EconomyConfig>();
         economy.Load(dataRoot + "/Economy.json");
@@ -474,12 +481,25 @@ namespace FruitMagic {
 
         m_scene.Update(simulationStep);
 
+        // おひっこし直後の屋台なら、最初のフレームで「新しい屋台で開店！」を出す
+        if(m_movedSeeds >= 0) {
+            const UiConfig& ui = GetUiConfig(registry);
+            m_scene.GetEventBus().Publish(ECS::NoticeEvent{GetTexts(registry).Format("move.opened", {{"seeds", std::to_wstring(m_movedSeeds)}}), ui.moveNoticeSeconds});
+            m_movedSeeds = -1;
+        }
+
         //--------------------------------------------------------------
-        // オプション画面からの頼みごと（システムの更新が終わってから行う）
+        // 画面からの頼みごと（システムの更新が終わってから行う）
         //--------------------------------------------------------------
         if(registry.HasContext<SceneRequest>()) {
             SceneRequest& request = registry.GetContext<SceneRequest>();
-            if(request.restart) {
+            if(request.move) {
+                // 星のたねを受け取って手持ちと強化を戻し、新しい台で始め直す（このシーンの終了時に今の状態がセーブされ、次のシーンが読む）
+                request.move          = false;
+                const long long seeds = MoveRules::Move(registry);
+                if(seeds > 0)
+                    api.ChangeScene(std::make_unique<PusherScene>(seeds));
+            } else if(request.restart) {
                 // セーブを消し、このシーンの終了時に保存し直さないようにしてから、新しい台で始め直す
                 request.restart = false;
                 if(registry.HasContext<OfflineConfig>() && !registry.GetContext<OfflineConfig>().savePath.empty()) {
@@ -1787,12 +1807,12 @@ namespace FruitMagic {
                 UpgradeCurrency currency;
                 const char*     title;
             };
-            const Tab   tabs[]    = {{UpgradeCurrency::Coins, "upgrade.coinSection"}, {UpgradeCurrency::Fruit, "upgrade.fruitSection"}};
+            const Tab   tabs[]    = {{UpgradeCurrency::Coins, "upgrade.coinSection"}, {UpgradeCurrency::Fruit, "upgrade.fruitSection"},
+                                     {UpgradeCurrency::Seeds, "upgrade.seedSection"}};
             const int   tabCount  = static_cast<int>(std::size(tabs));
             const float tabsWidth = ui.upgradeTabSize.x * static_cast<float>(tabCount) + ui.upgradeTabGap * static_cast<float>(tabCount - 1);
             const UpgradeCurrency selected = registry.GetContext<MenuState>().upgradeTab;
 
-            const float rowsTop = menuTop + ui.upgradeRowsTop;
             const float pitch   = ui.upgradeRowPitch;
             const float buttonX = menuRight - ui.upgradeButtonRight - ui.upgradeButtonWidth * 0.5f;
             const float nameX   = menuLeft + ui.upgradeNameX;
@@ -1824,6 +1844,26 @@ namespace FruitMagic {
                 ECS::UpgradeElementComponent& groupElement = registry.AddComponent<ECS::UpgradeElementComponent>(group);
                 groupElement.kind                          = ECS::UpgradeElementKind::TabGroup;
                 groupElement.currency                      = tab.currency;
+
+                //--------------------------------------------------------------
+                // 星のたねのタブだけ、一覧の上に「おひっこし」のボタンと案内（もらえる星のたね・解放の条件）を置き、一覧はその下から並べる。
+                // 色・文字・押せるかは UpgradeSystem が決める
+                //--------------------------------------------------------------
+                const bool  seedTab = tab.currency == UpgradeCurrency::Seeds;
+                const float rowsTop = menuTop + (seedTab ? ui.upgradeSeedRowsTop : ui.upgradeRowsTop);
+                if(seedTab) {
+                    const hlslpp::float2 moveCenter(nameX + ui.upgradeMoveSize.x * 0.5f, menuTop + ui.upgradeMoveY);
+                    Tsukino::ECS::Entity moveButton = createPill(moveCenter, ui.upgradeMoveSize, ui.upgradeCannotBuyColor, 21);
+                    registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(moveButton);
+                    Tsukino::ECS::Entity moveLabel = createText(moveCenter, ui.upgradeMoveLabelScale, kCenter, kWhite, 22, true, inside(ui.upgradeMoveSize.x));
+                    addElement(attachTo(moveLabel, moveButton), ECS::UpgradeElementKind::MoveLabel);
+                    addElement(attachTo(moveButton, group), ECS::UpgradeElementKind::MoveButton);
+                    AddButtonMotion(registry, moveButton, entt::null);
+
+                    const float infoX = menuLeft + ui.upgradeMoveInfoX;
+                    addElement(attachTo(createFontText(hlslpp::float2(infoX, menuTop + ui.upgradeMoveY), ui.upgradeMoveInfo, kLeft, 22, menuRight - ui.upgradeListRight - infoX), group),
+                               ECS::UpgradeElementKind::MoveInfo);
+                }
 
                 // このタブの強化（定義の順のまま）。増えて枠に収まらなくなったらスクロールする。行の高さは変えない
                 std::vector<int> order;
@@ -1955,6 +1995,10 @@ namespace FruitMagic {
                       {"record.jackpotChances", ECS::RecordItem::JackpotChances},
                       {"record.jackpots", ECS::RecordItem::Jackpots},
                       {"record.magicsCast", ECS::RecordItem::MagicsCast}}},
+                    {"record.moveTitle",
+                     {{"record.moves", ECS::RecordItem::Moves},
+                      {"record.seedsEarned", ECS::RecordItem::SeedsEarned},
+                      {"record.starSeeds", ECS::RecordItem::StarSeeds}}},
                     {"record.playTitle", {{"record.playTime", ECS::RecordItem::PlayTime}}},
                 },
             };
@@ -2070,16 +2114,16 @@ namespace FruitMagic {
         }
 
         //--------------------------------------------------------------
-        // データ消去の確認ウィンドウ（3回）。ほかのすべての画面より手前に出し、後ろは暗い板で覆ってクリックを受け止める。
-        // 出しているかどうか・文字・色は OptionsSystem が OptionsState を見て決める（最初は隠す）
+        // 確認ウィンドウ（データ消去・おひっこし）。ほかのすべての画面より手前に出し、後ろは暗い板で覆ってクリックを受け止める。
+        // 出しているかどうか・文字・色は ConfirmDialogSystem が ConfirmState を見て決める（最初は隠す）
         //--------------------------------------------------------------
         {
             const float top    = ui.menuCenter.y - ui.confirmSize.y * 0.5f;
             const float bottom = ui.menuCenter.y + ui.confirmSize.y * 0.5f;
 
             // 確認ウィンドウの部品にする（スプライトは出すときのスケールを覚えて隠す）
-            auto addPart = [&](Tsukino::ECS::Entity e, ECS::OptionsDialogPart part) {
-                ECS::OptionsDialogComponent& component = registry.AddComponent<ECS::OptionsDialogComponent>(e);
+            auto addPart = [&](Tsukino::ECS::Entity e, ECS::ConfirmDialogPart part) {
+                ECS::ConfirmDialogComponent& component = registry.AddComponent<ECS::ConfirmDialogComponent>(e);
                 component.part                         = part;
                 if(registry.HasComponent<Tsukino::BuiltIn::ECS::SpriteComponent>(e)) {
                     Tsukino::BuiltIn::ECS::TransformComponent& t = registry.GetComponent<Tsukino::BuiltIn::ECS::TransformComponent>(e);
@@ -2091,31 +2135,31 @@ namespace FruitMagic {
 
             Tsukino::ECS::Entity dimmer = createPanel(ui.ScreenCenter(), ui.FullScreenCover(), ui.confirmDimColor, 40);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(dimmer);
-            addPart(dimmer, ECS::OptionsDialogPart::Dimmer);
+            addPart(dimmer, ECS::ConfirmDialogPart::Dimmer);
             Tsukino::ECS::Entity window = createSkinPanel("wood", ui.menuCenter, ui.confirmSize, 41);
             registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(window);
-            addPart(window, ECS::OptionsDialogPart::Window);
+            addPart(window, ECS::ConfirmDialogPart::Window);
 
             // ウィンドウの中の部品（出すときにウィンドウと一緒にポップする）
-            auto addWindowPart = [&](Tsukino::ECS::Entity e, ECS::OptionsDialogPart part) {
+            auto addWindowPart = [&](Tsukino::ECS::Entity e, ECS::ConfirmDialogPart part) {
                 FollowUiMotion(registry, e, window);
                 return addPart(e, part);
             };
-            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmStepY), ui.confirmStep, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Step);
-            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmMessageY), ui.confirmMessage, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Message);
-            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmNoteY), ui.confirmNote, kCenter, 42, inside(ui.confirmSize.x)), ECS::OptionsDialogPart::Note);
+            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmStepY), ui.confirmStep, kCenter, 42, inside(ui.confirmSize.x)), ECS::ConfirmDialogPart::Step);
+            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmMessageY), ui.confirmMessage, kCenter, 42, inside(ui.confirmSize.x)), ECS::ConfirmDialogPart::Message);
+            addWindowPart(createFontText(hlslpp::float2(ui.menuCenter.x, top + ui.confirmNoteY), ui.confirmNote, kCenter, 42, inside(ui.confirmSize.x)), ECS::ConfirmDialogPart::Note);
 
-            auto addButton = [&](ECS::OptionsDialogPart part, float offsetX) {
+            auto addButton = [&](ECS::ConfirmDialogPart part, float offsetX) {
                 const hlslpp::float2 center(ui.menuCenter.x + offsetX, bottom - ui.confirmButtonOffsetY);
                 Tsukino::ECS::Entity button = createPill(center, ui.confirmButtonSize, ui.confirmNoColor, 42);
                 registry.AddComponent<Tsukino::BuiltIn::ECS::PointerTargetComponent>(button);
                 addWindowPart(button, part);
-                Tsukino::ECS::Entity label = addPart(createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 43, true, inside(ui.confirmButtonSize.x)), ECS::OptionsDialogPart::ButtonLabel);
-                registry.GetComponent<ECS::OptionsDialogComponent>(button).label = label;
+                Tsukino::ECS::Entity label = addPart(createText(center, ui.optionsButtonLabelScale, kCenter, kWhite, 43, true, inside(ui.confirmButtonSize.x)), ECS::ConfirmDialogPart::ButtonLabel);
+                registry.GetComponent<ECS::ConfirmDialogComponent>(button).label = label;
                 AddButtonMotion(registry, button, label);
             };
-            addButton(ECS::OptionsDialogPart::Yes, ui.confirmYesOffsetX);
-            addButton(ECS::OptionsDialogPart::No, ui.confirmNoOffsetX);
+            addButton(ECS::ConfirmDialogPart::Yes, ui.confirmYesOffsetX);
+            addButton(ECS::ConfirmDialogPart::No, ui.confirmNoOffsetX);
         }
     }
 

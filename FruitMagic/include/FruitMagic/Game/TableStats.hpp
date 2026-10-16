@@ -31,5 +31,9 @@ namespace FruitMagic {
         float rouletteHitChance      = 0.4f;    // ルーレットで果物が当たる確率（Roulette.json の値から強化で上がる）
         float manaMultiplier         = 1.0f;    // マナの獲得量の倍率
         float magicDurationMultiplier = 1.0f;   // 魔法の効果時間の倍率
+        //--------------------------------------------------------------
+        // おひっこしをまたいで残る強化（星のたね）。上の FP の強化の倍率には、ここの分も掛けてある
+        //--------------------------------------------------------------
+        float seedGainMultiplier = 1.0f;    // おひっこしでもらう星のたねの倍率
     };
 }    // namespace FruitMagic

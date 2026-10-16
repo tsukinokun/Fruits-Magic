@@ -17,11 +17,12 @@
 namespace FruitMagic::ECS {
     namespace {
         //! @brief 1回で増やす量
-        constexpr int kAmount = 100;
+        constexpr int kAmount     = 100;
+        constexpr int kSeedAmount = 5;    // 星のたね（おひっこしをしなくても星のたねの強化を試せるように）
     }    // namespace
 
     //----------------------------------------------------------------------------
-    //! F2 が押されたらコインと果実を増やし、マナを満タンにします。
+    //! F2 が押されたらコイン・FP・星のたねを増やし、マナを満タンにします。
     //----------------------------------------------------------------------------
     void DebugResourceSystem::Update(Tsukino::ECS::Registry& registry, float /*deltaTime*/) {
         Tsukino::EngineIntegration::EngineContext* ctx = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
@@ -33,7 +34,9 @@ namespace FruitMagic::ECS {
         GameState& state = registry.GetContext<GameState>();
         state.coins += kAmount;
         state.fruitPoints += kAmount;
+        state.starSeeds += kSeedAmount;
         state.mana = state.maxMana;    // 魔法をすぐ試せるように
-        Tsukino::Core::Log::Info("DebugResource: coins = " + std::to_string(state.coins) + ", fruit = " + std::to_string(state.fruitPoints));
+        Tsukino::Core::Log::Info("DebugResource: coins = " + std::to_string(state.coins) + ", fruit = " + std::to_string(state.fruitPoints) +
+                                 ", seeds = " + std::to_string(state.starSeeds));
     }
 }    // namespace FruitMagic::ECS

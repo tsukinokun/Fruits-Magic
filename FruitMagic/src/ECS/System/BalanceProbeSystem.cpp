@@ -8,6 +8,7 @@
 #include <FruitMagic/ECS/Event/PrizeDroppedEvent.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/MagicCatalog.hpp>
+#include <FruitMagic/Game/MoveRules.hpp>
 #include <FruitMagic/Game/PlayStats.hpp>
 
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
@@ -97,7 +98,8 @@ namespace FruitMagic::ECS {
         const int coinsIn = stats.coinsLaunched + stats.fairyCoins + stats.showerCoins;
         const int ratio   = (stats.coinsLaunched > 0) ? m_coinPayout * 100 / stats.coinsLaunched : 0;
         Tsukino::Core::Log::Info("BALANCE " + Clock(m_elapsed) + " coins=" + std::to_string(state.coins) + " fruit=" + std::to_string(state.fruitPoints) +
-                                 " mana=" + std::to_string(state.mana) + " | in launched=" + std::to_string(stats.coinsLaunched) +
+                                 " mana=" + std::to_string(state.mana) + " seedsIfMoved=" + std::to_string(MoveRules::SeedsIfMovedNow(registry)) +
+                                 " (value " + std::to_string(state.harvestValue) + ") | in launched=" + std::to_string(stats.coinsLaunched) +
                                  " fairy=" + std::to_string(stats.fairyCoins) + " shower=" + std::to_string(stats.showerCoins) + " (total " +
                                  std::to_string(coinsIn) + ") | out payout=" + std::to_string(m_coinPayout) + " gutter=" + std::to_string(m_coinGutter) +
                                  " payout/launched=" + std::to_string(ratio) + "% | fruits harvest=" + std::to_string(m_fruitPayout) +

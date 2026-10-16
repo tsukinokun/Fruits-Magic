@@ -29,7 +29,8 @@ namespace FruitMagic::SaveData {
         namespace rj = CEREAL_RAPIDJSON_NAMESPACE;
 
         //! @brief セーブデータの形式の版。形式を変えたら上げ、読み込み側で古い版を変換する
-        constexpr int kVersion = 1;
+        //! @note  2: おひっこし（星のたね・おひっこしの回数・累計の収穫の価値）を足した
+        constexpr int kVersion = 2;
     }    // namespace
 
     //----------------------------------------------------------------------------
@@ -74,6 +75,10 @@ namespace FruitMagic::SaveData {
         writer.Int64(state.harvestValue);
         writer.Key("mana");
         writer.Int(state.mana);
+        writer.Key("starSeeds");
+        writer.Int64(state.starSeeds);
+        writer.Key("moveCount");
+        writer.Int(state.moveCount);
 
         // 強化のレベル（id → レベル）。果樹の段階はここから計算し直すので保存しない
         writer.Key("upgrades");
@@ -122,6 +127,9 @@ namespace FruitMagic::SaveData {
         writeCount("jackpotChances", stats.jackpotChances);
         writeCount("jackpots", stats.jackpots);
         writeCount("magicsCast", stats.magicsCast);
+        writeCount("harvestValue", stats.harvestValue);
+        writeCount("moves", stats.moves);
+        writeCount("seedsEarned", stats.seedsEarned);
         writer.Key("playSeconds");
         writer.Double(stats.playSeconds);
         writer.EndObject();
@@ -188,8 +196,12 @@ namespace FruitMagic::SaveData {
         Json::Read(doc, "fruitPoints", state.fruitPoints);
         Json::Read(doc, "harvestValue", state.harvestValue);
         Json::Read(doc, "mana", state.mana);
+        Json::Read(doc, "starSeeds", state.starSeeds);
+        Json::Read(doc, "moveCount", state.moveCount);
         state.coins       = std::max(0, state.coins);
         state.fruitPoints = std::max(0LL, state.fruitPoints);
+        state.starSeeds   = std::max(0LL, state.starSeeds);
+        state.moveCount   = std::max(0, state.moveCount);
         state.mana        = std::clamp(state.mana, 0, state.maxMana);
 
         //--------------------------------------------------------------
@@ -231,6 +243,8 @@ namespace FruitMagic::SaveData {
         // これまでのプレイの累計（無いセーブは 0 から）
         //--------------------------------------------------------------
         state.stats = LifetimeStats{};
+        // 版 1 のセーブには累計の収穫の価値が無い。おひっこしが無かったので、今回の屋台の値がそのまま累計
+        state.stats.harvestValue = state.harvestValue;
         if(const Json::Value* stats = Json::FindObject(doc, "stats")) {
             LifetimeStats& s = state.stats;
             Json::Read(*stats, "coinsLaunched", s.coinsLaunched);
@@ -243,6 +257,9 @@ namespace FruitMagic::SaveData {
             Json::Read(*stats, "jackpotChances", s.jackpotChances);
             Json::Read(*stats, "jackpots", s.jackpots);
             Json::Read(*stats, "magicsCast", s.magicsCast);
+            Json::Read(*stats, "moves", s.moves);
+            Json::Read(*stats, "seedsEarned", s.seedsEarned);
+            Json::Read(*stats, "harvestValue", s.harvestValue);
             auto playSeconds = stats->FindMember("playSeconds");
             if(playSeconds != stats->MemberEnd() && playSeconds->value.IsNumber())
                 s.playSeconds = std::max(0.0, playSeconds->value.GetDouble());

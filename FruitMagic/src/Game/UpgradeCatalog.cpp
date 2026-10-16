@@ -74,11 +74,13 @@ namespace FruitMagic {
             Json::Read(u, "zeroText", def.zeroText);
             Json::Read(u, "base", def.baseValue);
 
-            // 払うもの（"coins" か "fp"）
+            // 払うもの（"coins"・"fp"・"seeds"）
             std::string currency = "coins";
             Json::Read(u, "currency", currency);
             if(currency == "fp") {
                 def.currency = UpgradeCurrency::Fruit;
+            } else if(currency == "seeds") {
+                def.currency = UpgradeCurrency::Seeds;
             } else if(currency != "coins") {
                 Tsukino::Core::Log::Warn("UpgradeCatalog: upgrade \"" + def.id + "\" has unknown currency \"" + currency + "\". Coins are used.");
             }

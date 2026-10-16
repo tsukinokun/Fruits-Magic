@@ -45,6 +45,19 @@
     "growNoFruit": "台の上に果物がない…（マナは戻った）",
     "grown": "{name} が おおきくなった！"
   },
+  "move": {
+    "button": "おひっこし",
+    "info": "今おひっこしすると 星のたね +{seeds}",
+    "notYet": "もう少し収穫すると、星のたねがもらえる（今 +{seeds}）",
+    "locked": "果樹の段階 {stage} の果物を収穫すると、おひっこしできるようになる",
+    "opened": "新しい屋台で開店！  星のたね +{seeds}",
+    "confirm": {
+      "message1": "おひっこしして 星のたね +{seeds}",
+      "note1": "コイン・FP・強化は最初に戻ります（図鑑と魔法は残ります）",
+      "yes1": "おひっこし",
+      "no": "やめる (Esc)"
+    }
+  },
   "side": {
     "recentTitle": "最近とれた果物",
     "recentEmpty": "まだ何もとれていません",
@@ -131,7 +144,7 @@
     "title": "記録",
     "harvestTitle": "収穫",
     "harvestCount": "収穫した果物",
-    "harvestValue": "収穫で得た FP",
+    "harvestValue": "収穫で得た FP（累計）",
     "zukan": "図鑑の登録",
     "fruitPoints": "今の FP",
     "coinTitle": "コイン",
@@ -146,6 +159,10 @@
     "jackpotChances": "ジャックポットチャンス",
     "jackpots": "ジャックポット当選",
     "magicsCast": "魔法を使った",
+    "moveTitle": "おひっこし",
+    "moves": "おひっこしした",
+    "seedsEarned": "もらった星のたね",
+    "starSeeds": "今の星のたね",
     "playTitle": "プレイ時間",
     "playTime": "遊んだ時間",
     "count": "{n}",
@@ -153,18 +170,21 @@
     "coins": "{n}枚",
     "times": "{n}回",
     "rate": "{n}回（{rate}%）",
+    "seeds": "{n}個",
     "ratio": "{n} / {total}"
   },
   "upgrade": {
     "title": "台の強化",
-    "wallet": "手持ち   コイン {coins}     フルーツポイント(FP) {fruit}",
+    "wallet": "手持ち   コイン {coins}   FP {fruit}   星のたね {seeds}",
     "name": "{name}   Lv {level} / {max}",
     "effectMax": "{now}（最大）",
     "effectNext": "{now} → {next}",
     "coinSection": "コインで強化",
     "fruitSection": "FP で強化",
+    "seedSection": "星のたね",
     "costCoins": "コイン {n}",
     "costFruit": "FP {n}",
+    "costSeeds": "星のたね {n}",
     "maxed": "最大",
     "buy": "強化する",
     "short": "足りない"

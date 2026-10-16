@@ -8,7 +8,7 @@
 namespace FruitMagic {
 
     //! これまでのプレイの累計です。GameState に持ち、セーブします（StatsSystem が数える）。
-    //! 収穫の記録は GameState の収穫数・収穫した価値から出すので、ここには持たない。
+    //! 収穫した数は GameState の収穫数（図鑑。おひっこしでも残る）から出すので、ここには持たない。
     struct LifetimeStats {
         long long coinsLaunched  = 0;       // プレイヤーが入れたコイン
         long long coinsPaidOut   = 0;       // 払い出し口に落ちたコイン
@@ -21,5 +21,8 @@ namespace FruitMagic {
         long long jackpots       = 0;       // ジャックポット（チャンスで当たった回数）
         long long magicsCast     = 0;       // 魔法を使った回数
         double    playSeconds    = 0.0;     // 遊んだ時間（秒。閉じていた間は含めない）
+        long long harvestValue   = 0;       // 収穫した果物の価値の合計（GameState::harvestValue と違い、おひっこしでも戻さない）
+        long long moves          = 0;       // おひっこしした回数
+        long long seedsEarned    = 0;       // おひっこしでもらった星のたね
     };
 }    // namespace FruitMagic

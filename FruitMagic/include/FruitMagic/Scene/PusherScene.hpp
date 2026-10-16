@@ -20,6 +20,10 @@ namespace FruitMagic {
         //! コンストラクタです。
         PusherScene() = default;
 
+        //! おひっこしした直後の屋台として始めるコンストラクタです（始まったら「新しい屋台で開店！」を出す）。
+        //! @param  [in] movedSeeds おひっこしでもらった星のたねの数
+        explicit PusherScene(long long movedSeeds) : m_movedSeeds(movedSeeds) {}
+
         //! デストラクタです。
         ~PusherScene() override = default;
 
@@ -60,5 +64,6 @@ namespace FruitMagic {
         float                m_pusherTime = 0.0f;          // プッシャーの往復のどこまで進んだか（0〜1。1 で1往復）
         float                m_pusherAmplitude = 0.0f;     // 今のプッシャーの振幅（cm）。押し幅の強化の値へ少しずつ近づける
         bool                 m_skipSaveOnExit = false;     // 終了時にセーブしない（「データを消して最初から」でセーブを消した後）
+        long long            m_movedSeeds = -1;            // おひっこしでもらった星のたね（おひっこし直後でなければ -1。お知らせを出したら -1 に戻す）
     };
 }    // namespace FruitMagic

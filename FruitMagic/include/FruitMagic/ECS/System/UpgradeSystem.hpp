@@ -20,8 +20,9 @@ namespace FruitMagic {
 namespace FruitMagic::ECS {
 
     //! 台の強化のシステムです。強化画面が開いている間、購入ボタンのクリックで
-    //! コインか FP（強化ごとに決まっている方）を払ってレベルを上げ、画面の文字・ボタンの色を更新します。
+    //! コイン・FP・星のたね（強化ごとに決まっている物）を払ってレベルを上げ、画面の文字・ボタンの色を更新します。
     //! 効果の値が何に効くかは強化の id で決まります（"pusherStroke" → プッシャーの振幅 など）。
+    //! 星のたねのタブの「おひっこし」ボタンは、おひっこしの確認ウィンドウを出します（ConfirmState。実行は PusherScene）。
     class UpgradeSystem : public Tsukino::ECS::ISystem {
     public:
 
@@ -44,7 +45,7 @@ namespace FruitMagic::ECS {
         //! 強化の次のレベルの値段を「コイン 30」「FP 5」のような文字にします。
         //! @param  [in] def   強化の定義
         //! @param  [in] state プレイヤーの資源
-        //! @param  [in] texts 文言（"upgrade.costCoins"・"upgrade.costFruit"）
+        //! @param  [in] texts 文言（"upgrade.costCoins"・"upgrade.costFruit"・"upgrade.costSeeds"）
         //! @return 値段の文字（最大レベルなら空）
         static std::wstring CostText(const UpgradeDef& def, const GameState& state, const Texts& texts);
 
@@ -58,6 +59,7 @@ namespace FruitMagic::ECS {
 
         CountUpValue m_walletCoins;        // 手持ちの表示に出しているコイン（買うと減っていく）
         CountUpValue m_walletFruit;        // 手持ちの表示に出している FP
+        CountUpValue m_walletSeeds;        // 手持ちの表示に出している星のたね
         bool         m_wasOpen = false;    // 前のフレームに強化画面が開いていたか（開いた瞬間に表示をそろえる）
     };
 }    // namespace FruitMagic::ECS

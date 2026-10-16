@@ -217,6 +217,104 @@
         { "cost": 100, "value": 150 },
         { "cost": 250, "value": 200 }
       ]
+    },
+    {
+      "id": "startCoins",
+      "currency": "seeds",
+      "name": "最初のコイン",
+      "description": "おひっこしした屋台を、多めのコインで始められる",
+      "format": "+{v}枚",
+      "base": 0,
+      "levels": [
+        { "cost": 1, "value": 50 },
+        { "cost": 2, "value": 100 },
+        { "cost": 4, "value": 200 },
+        { "cost": 7, "value": 350 },
+        { "cost": 12, "value": 500 }
+      ]
+    },
+    {
+      "id": "startFairy",
+      "currency": "seeds",
+      "name": "最初の妖精",
+      "description": "おひっこしした屋台で、妖精の自動投入が最初からこの段階になっている",
+      "format": "Lv {v}",
+      "zeroText": "なし",
+      "base": 0,
+      "levels": [
+        { "cost": 2, "value": 1 },
+        { "cost": 4, "value": 2 },
+        { "cost": 8, "value": 3 }
+      ]
+    },
+    {
+      "id": "seedFruitValue",
+      "currency": "seeds",
+      "name": "星の実り",
+      "description": "収穫でもらえる FP がずっと増える（FP の強化に掛け算）",
+      "format": "{v}%",
+      "base": 100,
+      "levels": [
+        { "cost": 2, "value": 120 },
+        { "cost": 4, "value": 140 },
+        { "cost": 8, "value": 170 },
+        { "cost": 15, "value": 200 },
+        { "cost": 25, "value": 250 }
+      ]
+    },
+    {
+      "id": "seedGain",
+      "currency": "seeds",
+      "name": "星のたねの実り",
+      "description": "おひっこしでもらえる星のたねが増える",
+      "format": "{v}%",
+      "base": 100,
+      "levels": [
+        { "cost": 3, "value": 120 },
+        { "cost": 6, "value": 145 },
+        { "cost": 12, "value": 175 },
+        { "cost": 24, "value": 210 }
+      ]
+    },
+    {
+      "id": "seedMana",
+      "currency": "seeds",
+      "name": "星の魔力",
+      "description": "マナの獲得量がずっと増える（FP の強化に掛け算）",
+      "format": "{v}%",
+      "base": 100,
+      "levels": [
+        { "cost": 2, "value": 120 },
+        { "cost": 5, "value": 145 },
+        { "cost": 10, "value": 175 }
+      ]
+    },
+    {
+      "id": "seedVariant",
+      "currency": "seeds",
+      "name": "星のきらめき",
+      "description": "色違い・金色がずっと出やすくなる（FP の強化に掛け算）",
+      "format": "{v}%",
+      "base": 100,
+      "levels": [
+        { "cost": 3, "value": 125 },
+        { "cost": 7, "value": 160 },
+        { "cost": 15, "value": 200 }
+      ]
+    },
+    {
+      "id": "seedOffline",
+      "currency": "seeds",
+      "name": "星のおるすばん",
+      "description": "閉じている間に妖精が働く時間がずっと延びる（コインの強化に足し算）",
+      "format": "+{v}時間",
+      "zeroText": "なし",
+      "base": 0,
+      "levels": [
+        { "cost": 1, "value": 2 },
+        { "cost": 3, "value": 6 },
+        { "cost": 6, "value": 12 }
+      ]
     }
   ]
 }

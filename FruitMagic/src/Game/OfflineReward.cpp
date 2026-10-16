@@ -87,6 +87,7 @@ namespace FruitMagic {
         state.coins += report.coins;
         state.fruitPoints += report.fruitPoints;
         state.harvestValue += report.fruitPoints;
+        state.stats.harvestValue += report.fruitPoints;
 
         Tsukino::Core::Log::Info("OfflineReward: away " + std::to_string(report.awaySeconds) + "s (counted " + std::to_string(report.countedSeconds) +
                                  "s), coins +" + std::to_string(report.coins) + ", fruits " + std::to_string(report.fruitCount) + " (+" +

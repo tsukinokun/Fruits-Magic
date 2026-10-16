@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------
 //! @file   UpgradeElementComponent.hpp
-//! @brief  強化画面の中身が変わる要素（強化の名前・効果・価格・購入ボタン・手持ち）のコンポーネント
+//! @brief  強化画面の中身が変わる要素（強化の名前・効果・価格・購入ボタン・手持ち・おひっこし）のコンポーネント
 //----------------------------------------------------------------------------
 #pragma once
 #include <FruitMagic/Game/UpgradeCatalog.hpp>
@@ -19,6 +19,9 @@ namespace FruitMagic::ECS {
         Wallet,       // 手持ちのコインと FP
         Tab,          // タブのボタン（スプライト。PointerTargetComponent と一緒に付ける。currency のタブに切り替える）
         TabGroup,     // タブの中身の親（UIVisibilityComponent を持つ。currency のタブを選んでいる間だけ見せる）
+        MoveButton,   // おひっこしのボタン（星のたねのタブ。スプライト。PointerTargetComponent と一緒に付ける）
+        MoveLabel,    // おひっこしのボタンの文字
+        MoveInfo,     // おひっこしの案内（もらえる星のたね・解放の条件）
     };
 
     //! 強化画面の中身が変わる要素です。MenuPageComponent と一緒に付け、強化画面が開いている間 UpgradeSystem が更新します

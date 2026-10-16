@@ -12,7 +12,7 @@
 | M6 ✅ | セーブ/放置 | セーブ・ロード（自動セーブ＋終了時）、オフライン報酬と「おかえり」画面、おるすばん時間の強化 | 閉じても進む |
 | M7 ✅ | 魔法拡張・ギミック | 魔法4つ追加（図鑑の登録数で解放）、ジャックポットチャンス、自動プレイでの計測とバランス調整 | 中盤の厚み |
 | M8 ✅ | 見た目・演出 | 球・箱を組み合わせた果物の飾りと屋台、落ちたときのポップ、光の粒と画面の光、合成した効果音 | ポップな見た目 |
-| M9 | 転生 | 転生ボタン（果樹の段階 2 以上の果物の収穫で解放）、星のたねの計算、リセット処理、永続強化の画面。M6 のセーブが前提 | 周回するほど速くなる |
+| M9 | 転生「屋台のおひっこし」 | ① おひっこし ✅（解放・星のたねの計算・リセット・強化画面の「星のたね」タブと永続強化・確認ウィンドウ・記録）→ ② 屋台の色（おひっこしのたびに順番に変わる）→ ③ おみやげ（果物以外の食べ物。図鑑と効果） | 周回するほど速くなる |
 
 ## 技術メモ（M1〜で使うエンジン機能）
 - 落下判定: `CollisionComponent.isSensor` の箱を落下口と側溝に置き、`CollisionEnterEvent`（EventBus）で検出
@@ -31,7 +31,7 @@
 - モデルの大きさ: `MeshData::bounds` はノードの拡縮を掛けた後の値で、回転は掛かっていない（Block.fbx は Z-up）。描画時の大きさはノードの回転・移動だけを掛けて求める（`PrizeFactory.cpp` の `MeasureModelHalfExtent`）
 - 作り込んだモデル（Kenney）: 原点が底にあり大きさもまちまちなので、`PrizeFactory::AttachModelVisual` で子のエンティティに置き、外接の箱の中心を当たり判定の中心へずらし、当たり判定に収まる大きさへ拡大する（果物は縦横比を保つ。コインは軸ごと）。親（当たり判定）は拡縮しない。果物 JSON の `modelRotation`・`modelScale`・`tintBase`（false ならモデル自身の色のまま。色違い・金色は掛ける）。glb のテクスチャは `Textures/colormap.png` を指しているが、エンジンの取り込みはモデルの隣の同名ファイルを探すので、glb と同じフォルダに置く
 - コインは見た目だけ丸く（`Table.json` の `coin.model`）、当たり判定は箱のまま。円柱の当たり判定を試したところ、プッシャーの前でコインが乗り上げて重なり、押す力が手前へ伝わらなかった（自動プレイで払い出し/投入 100% → 8%）
-- 開発用キー（Debug のみ）: F2 でコインとFPを +100・マナ満タン、F5 でコリジョン表示
+- 開発用キー（Debug のみ）: F2 でコインとFPを +100・星のたねを +5・マナ満タン、F5 でコリジョン表示
 - 画面スプライト（魔法ボタン・マナゲージ）: エンジンはメインでないカメラを画面スプライトの描画に使う。正射影の2Dカメラを置き、Debug のデバッグカメラより先に作る（後から作ったメインでないカメラが上書きするため）
 - 魔法: 名前・コスト・キー・解放・数値は `Assets/Data/Magic.json`、効果の中身は id ごとのシステム（`shake` → `ShakeMagicSystem`）。マナの獲得量は `Assets/Data/Mana.json`
 - 図鑑・バリエーション: バリエーション（通常・色違い・金色）と確率・価値の倍率・図鑑ボーナスは `Assets/Data/Collection.json`。果物やバリエーションを足すと図鑑の行・列も増える。Tab か右上のボタンで開閉
@@ -65,5 +65,7 @@
 - BGM: `Sounds.json` の `"music"`。mp3 はエンジンが WAV 経由で XWB に変換する（重いのでロード画面で先に変換する。`SoundSystem::ListSoundFiles` が BGM も返す）。エンジンは再生中の音量を変えられないので、BGM の音量を変えたら少し待ってから止めて流し直す（曲は頭からになる。待ち時間は `Ui.json` の `timing.musicRestart`）
 - 側壁と横の溝: 側壁は `TableLayout::SideWallFrontZ()`（手前端 − `openLength`）まで。プッシャーが最も前に出た位置（`PusherMaxFrontZ()`）より手前まで要る（`Validate` で確かめる）。落ちた場所は `PrizeDropSystem` が、落ちた時点で手前の端（z − fieldFrontZ）と横の端（|x| − fieldHalfWidth）のどちらをより大きく越えたかで決める（手前なら幅のどこでも取得、横なら溝）。`payoutHalfWidth` は判定に使わず、チェッカーとルーレットの補充の範囲だけ。魔法「かべ」は開いた所に沿った壁だけを立てる
 - フォント: `UiFonts`（コンテキスト。ふつう・太字のハンドル）を `LoadingScene` で先に読み、`PusherScene` はキャッシュから取る。文字を作る所（HUD・魔法ボタン・`createText`・ポップ・ロード画面）で `FontComponent::fontHandle` に入れる。どれを太字にするかは `UiText` / `UiFont` の `bold`（`Ui.json`）。`.dfont` の `Size` はエンジンの標準フォントと同じ 32（変えると全部の文字の大きさが変わる）。エンジンは文字を実際に描く大きさでラスタライズする（グレースケールのアンチエイリアス）ので、`scale` を変えても文字はにじまない。文字は `FontComponent::maxWidth` で枠に収める（超えたらエンジンが縮めて描く）。ゲーム側は置く枠から幅を決めて渡す（`createText` / `createFontText` の最後の引数、余白は `Ui.json` の `outline.textPadding`。HUD は `hud.<種類>.maxWidth`、無ければ画面の端まで）。`.dfont` を書き換えたときは `Cache/Assets/Fonts/` の同名ファイルを消すと作り直される
-- オプション: `MenuKind::Options`・`OptionsSystem`。設定（音量・消音・操作説明の表示）は `Settings`（`Saves/settings.json`。セーブとは別）。中身は `createScrollList` のスクロール領域に並べ、「データを消して最初から」は最初に見える範囲の下に置く。データ消去の確認ウィンドウは `OptionsDialogComponent`（MenuPageComponent は付けず OptionsSystem が表示を切り替える）で、何回目かは `OptionsState`。確認中は MenuSystem が Esc で確認だけ閉じ、ほかの開閉とスクロールを止める。「最初から」と「終了」は `SceneRequest` に立て、`PusherScene::OnUpdate` がシステムの更新後に実行する（最初から＝セーブを消して `ChangeScene`、終了＝`WM_CLOSE`）。シーンを変えるときは `OnExit` で音を全部止める（BGM が重ならないように）
+- オプション: `MenuKind::Options`・`OptionsSystem`。設定（音量・消音・操作説明の表示）は `Settings`（`Saves/settings.json`。セーブとは別）。中身は `createScrollList` のスクロール領域に並べ、「データを消して最初から」は最初に見える範囲の下に置く。データ消去の確認ウィンドウは共用の確認ウィンドウ（`ConfirmDialogSystem`。何回目かは `ConfirmState`）。確認中は MenuSystem が Esc で確認だけ閉じ、ほかの開閉とスクロールを止める。「最初から」と「終了」は `SceneRequest` に立て、`PusherScene::OnUpdate` がシステムの更新後に実行する（最初から＝セーブを消して `ChangeScene`、終了＝`WM_CLOSE`）。シーンを変えるときは `OnExit` で音を全部止める（BGM が重ならないように）
+- おひっこし: 決まり（解放・もらえる星のたね・リセット）は `Game/MoveRules`、設定は `Assets/Data/Move.json`（`MoveConfig`）。星のたねの強化は `Upgrades.json` の `"currency": "seeds"` で、`UpgradeSystem::ApplyUpgrades` がコインと FP の強化の後に重ねる（`startCoins`・`startFairy` はおひっこしの時に `MoveRules::Move` が使う）。「おひっこし」ボタンは確認ウィンドウを出し、実行は `SceneRequest::move` を見た `PusherScene::OnUpdate`（`MoveRules::Move` → `ChangeScene(PusherScene(もらった数))`。終了時のセーブで新しい状態が書かれ、次のシーンが読む）。累計の収穫の価値は `LifetimeStats::harvestValue`（`GameState::harvestValue` は今回の屋台の分）。セーブの版は 2
+- 確認ウィンドウ: データ消去とおひっこしで共用（`ConfirmState`・`ConfirmDialogComponent`・`ConfirmDialogSystem`）。画面のシステムが `ConfirmState::Open(目的, 出した画面)` で出し、文言は目的ごとに `Texts.json` の `options.confirm`・`move.confirm`。出した画面が閉じたら取り消す
 - 画面（図鑑・強化）: 開閉と表示切替は `MenuSystem`（同時に開くのは1つ）。要素に `MenuPageComponent` を付けると開閉に合わせて表示され、中身は `ZukanSystem` / `UpgradeSystem` が書く。新しい画面は `MenuKind` を足し、`MenuButtonComponent` のボタンを置く

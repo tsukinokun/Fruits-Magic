@@ -21,9 +21,11 @@ namespace FruitMagic {
         int                           treeLevel    = 0;      // 果樹の段階（出現できる果物が決まる。果樹の強化のレベルと同じ）
         std::map<std::string, int>    upgradeLevels;         // 強化のレベル [強化の id]（無ければ 0）
         std::vector<std::vector<int>> harvestCounts;         // 収穫数 [果物（FruitCatalog の添字）][バリエーション（CollectionConfig の添字）]
-        long long                     harvestValue = 0;      // 収穫した果物の価値の合計（価値 × バリエーションの倍率。転生ポイントに使う）
+        long long                     harvestValue = 0;      // 今回の屋台で収穫した果物の価値の合計（価値 × バリエーションの倍率。星のたねの計算に使い、おひっこしで 0 に戻す）
         int                           mana         = 0;      // 今のマナ（魔法を撃つと減る）
         int                           maxMana      = 100;    // マナの上限
+        long long                     starSeeds    = 0;      // 手持ちの星のたね（おひっこしでもらい、星のたねの強化に使う。おひっこしでも残る）
+        int                           moveCount    = 0;      // おひっこしした回数
         LifetimeStats                 stats;                 // これまでのプレイの累計（記録画面に出す）
 
         //! 強化のレベルを返します。

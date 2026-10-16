@@ -51,6 +51,8 @@
 | `Saves/settings.json` | オプションの設定（音量・消音・操作説明の表示・果物のカットイン）。セーブとは別なので「データを消して最初から」でも残る |
 
 強化に使うポイントは画面では「フルーツポイント（FP）」と呼ぶ（コードでは `GameState::fruitPoints`。旧称「果実」）。
+転生は「屋台のおひっこし」、そのポイントは「星のたね」（`GameState::starSeeds`）。決まりは `Game/MoveRules`、設定は `Assets/Data/Move.json`、
+星のたねの強化は `Upgrades.json` の `"currency": "seeds"`。確認ウィンドウはデータ消去と共用（`ConfirmState`・`ConfirmDialogSystem`）。
 収穫数やコイン・ルーレットなどの累計は記録画面（P）に出す。累計は `GameState::stats`（`LifetimeStats`。`StatsSystem` が数えてセーブする）。
 
 単位はエンジン規約どおり 1unit ≒ 1cm。

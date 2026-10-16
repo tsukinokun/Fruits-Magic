@@ -67,6 +67,7 @@ namespace FruitMagic::ECS {
                     const float bonus = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().fruitValueMultiplier : 1.0f;
                     value = std::llround(static_cast<double>(fruits[fruitIndex].value) * variants[variantIndex].valueMultiplier * std::max(1, pending.valueMultiplier) * bonus);
                     state.harvestValue += value;
+                    state.stats.harvestValue += value;
                     state.fruitPoints += value;
                 }
             }

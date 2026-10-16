@@ -401,6 +401,15 @@ namespace FruitMagic {
         hlslpp::float4 upgradeMaxedColor      = hlslpp::float4(0.75f, 0.6f, 0.25f, 1.0f);     // 最大レベル
         hlslpp::float4 upgradeAffordableColor = hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f);      // 価格の文字（足りる）
         hlslpp::float4 upgradeShortColor      = hlslpp::float4(1.0f, 0.55f, 0.55f, 1.0f);     // 価格の文字（足りない）
+        // 星のたねのタブの上の「おひっこし」（ボタンと案内。強化の行はその下から並べる）
+        float          upgradeSeedRowsTop     = 230.0f;    // 星のたねのタブの、画面の上端から行の始まりまで
+        float          upgradeMoveY           = 182.0f;    // おひっこしのボタンの中心の高さ（画面の上端から）
+        hlslpp::float2 upgradeMoveSize        = hlslpp::float2(240.0f, 52.0f);
+        float          upgradeMoveLabelScale  = 1.0f;
+        float          upgradeMoveInfoX       = 330.0f;    // 案内の左端（画面の左端から。ボタンは案内の左に置く）
+        UiFont         upgradeMoveInfo        = {0.75f, hlslpp::float4(1.0f, 0.95f, 0.8f, 1.0f)};
+        hlslpp::float4 upgradeMoveColor       = hlslpp::float4(0.55f, 0.6f, 0.95f, 1.0f);     // おひっこしできる
+        hlslpp::float4 upgradeMoveHoverColor  = hlslpp::float4(0.7f, 0.75f, 1.0f, 1.0f);      // おひっこしできる（カーソルが重なっている）
 
         //--------------------------------------------------------------
         // 「おかえり」画面
@@ -504,6 +513,7 @@ namespace FruitMagic {
         float magicLearnedSeconds    = 4.0f;    // 「新しい魔法を覚えた！」
         float muteNoticeSeconds      = 1.5f;    // 消音の切り替え
         float growNoticeSeconds      = 2.5f;    // おおきくなーれの結果
+        float moveNoticeSeconds      = 4.0f;    // おひっこし直後の「新しい屋台で開店！」
         float musicRestartDelay      = 0.4f;    // BGM の音量を変えてから流し直すまで（−/＋を続けて押しても1回だけ流し直す）
 
         //--------------------------------------------------------------

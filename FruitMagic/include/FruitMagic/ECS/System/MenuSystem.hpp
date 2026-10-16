@@ -14,7 +14,7 @@ namespace FruitMagic::ECS {
     //! （別の画面を開くと前の画面は閉じる。Esc は開いている画面を閉じ、何も開いていなければオプションを開く）、画面の要素（MenuPageComponent）の表示・非表示を切り替えます。
     //! 開いている画面の中身は、画面ごとのシステム（ZukanSystem・UpgradeSystem）が書きます。
     //! 画面の行のスクロール（MenuPageComponent を持つ ScrollViewComponent）は、開いている画面のものだけ受け付けさせ、開いたときは一番上へ戻します。
-    //! オプションのデータ消去の確認（OptionsState）を出している間は、Esc で確認だけ閉じ、ほかの開閉とスクロールは受け付けません。
+    //! 確認ウィンドウ（ConfirmState。データ消去・おひっこし）を出している間は、Esc で確認だけ閉じ、ほかの開閉とスクロールは受け付けません。
     class MenuSystem : public Tsukino::ECS::ISystem {
     public:
 

@@ -5,9 +5,12 @@
 #include <FruitMagic/ECS/System/UpgradeSystem.hpp>
 
 #include <FruitMagic/ECS/Component/UpgradeElementComponent.hpp>
+#include <FruitMagic/Game/ConfirmState.hpp>
 #include <FruitMagic/Game/GameState.hpp>
 #include <FruitMagic/Game/ManaConfig.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
+#include <FruitMagic/Game/MoveConfig.hpp>
+#include <FruitMagic/Game/MoveRules.hpp>
 #include <FruitMagic/Game/RouletteConfig.hpp>
 #include <FruitMagic/Game/TableLayout.hpp>
 #include <FruitMagic/Game/TableStats.hpp>
@@ -45,18 +48,24 @@ namespace FruitMagic::ECS {
         const auto&           defs    = catalog.Upgrades();
 
         //--------------------------------------------------------------
-        // タブと購入ボタンのクリック（隠れているタブの中身はエンジンが当たり判定から外す）
+        // タブ・購入ボタン・おひっこしボタンのクリック（隠れているタブの中身はエンジンが当たり判定から外す。
+        // 確認ウィンドウを出している間は受け付けない）
         //--------------------------------------------------------------
-        MenuState& menu         = registry.GetContext<MenuState>();
-        int        clickedIndex = -1;
+        MenuState&    menu         = registry.GetContext<MenuState>();
+        ConfirmState* confirm      = registry.HasContext<ConfirmState>() ? &registry.GetContext<ConfirmState>() : nullptr;
+        const bool    confirming   = confirm && confirm->IsConfirming();
+        const bool    canMove      = MoveRules::CanMove(registry);
+        int           clickedIndex = -1;
         registry.View<UpgradeElementComponent, Tsukino::BuiltIn::ECS::PointerTargetComponent>().each(
             [&](Tsukino::ECS::Entity, UpgradeElementComponent& element, Tsukino::BuiltIn::ECS::PointerTargetComponent& pointer) {
-                if(!pointer.clicked)
+                if(!pointer.clicked || confirming)
                     return;
                 if(element.kind == UpgradeElementKind::BuyButton)
                     clickedIndex = element.upgradeIndex;
                 else if(element.kind == UpgradeElementKind::Tab)
                     menu.upgradeTab = element.currency;
+                else if(element.kind == UpgradeElementKind::MoveButton && canMove && confirm)
+                    confirm->Open(ConfirmPurpose::Move, MenuKind::Upgrade);
             });
         if(clickedIndex >= 0)
             Purchase(registry, clickedIndex);
@@ -79,16 +88,46 @@ namespace FruitMagic::ECS {
         if(justOpened) {
             m_walletCoins.Snap(state.coins);
             m_walletFruit.Snap(state.fruitPoints);
+            m_walletSeeds.Snap(state.starSeeds);
         }
         const long long shownCoins = m_walletCoins.Update(state.coins, ui.motion.countUpSpeed, deltaTime);
         const long long shownFruit = m_walletFruit.Update(state.fruitPoints, ui.motion.countUpSpeed, deltaTime);
+        const long long shownSeeds = m_walletSeeds.Update(state.starSeeds, ui.motion.countUpSpeed, deltaTime);
 
         registry.View<UpgradeElementComponent>().each([&](Tsukino::ECS::Entity entity, UpgradeElementComponent& element) {
             if(element.kind == UpgradeElementKind::Wallet) {
                 if(auto* font = registry.try_get<Tsukino::BuiltIn::ECS::FontComponent>(entity))
-                    font->text = texts.Format("upgrade.wallet", {{"coins", std::to_wstring(shownCoins)}, {"fruit", std::to_wstring(shownFruit)}});
-                if(m_walletCoins.Increased() || m_walletFruit.Increased())
+                    font->text = texts.Format("upgrade.wallet", {{"coins", std::to_wstring(shownCoins)}, {"fruit", std::to_wstring(shownFruit)},
+                                                                 {"seeds", std::to_wstring(shownSeeds)}});
+                if(m_walletCoins.Increased() || m_walletFruit.Increased() || m_walletSeeds.Increased())
                     PlayPunch(registry, entity);
+                return;
+            }
+
+            //--------------------------------------------------------------
+            // おひっこし（星のたねのタブの上）: ボタンの色・文字と、もらえる星のたねの案内
+            //--------------------------------------------------------------
+            if(element.kind == UpgradeElementKind::MoveButton) {
+                auto* sprite  = registry.try_get<Tsukino::BuiltIn::ECS::SpriteComponent>(entity);
+                auto* pointer = registry.try_get<Tsukino::BuiltIn::ECS::PointerTargetComponent>(entity);
+                if(sprite)
+                    sprite->tintColor = !canMove ? ui.upgradeCannotBuyColor : (pointer && pointer->hovered) ? ui.upgradeMoveHoverColor : ui.upgradeMoveColor;
+                SetButtonInteractable(registry, entity, canMove);
+                SetPulse(registry, entity, canMove);
+                return;
+            }
+            if(element.kind == UpgradeElementKind::MoveLabel || element.kind == UpgradeElementKind::MoveInfo) {
+                auto* font = registry.try_get<Tsukino::BuiltIn::ECS::FontComponent>(entity);
+                if(!font)
+                    return;
+                if(element.kind == UpgradeElementKind::MoveLabel) {
+                    font->text = texts.Get("move.button");
+                } else if(!MoveRules::IsUnlocked(registry)) {
+                    const int stage = registry.HasContext<MoveConfig>() ? registry.GetContext<MoveConfig>().unlockTreeStage : MoveConfig{}.unlockTreeStage;
+                    font->text      = texts.Format("move.locked", {{"stage", std::to_wstring(stage)}});
+                } else {
+                    font->text = texts.Format(canMove ? "move.info" : "move.notYet", {{"seeds", std::to_wstring(MoveRules::SeedsIfMovedNow(registry))}});
+                }
                 return;
             }
             if(element.kind == UpgradeElementKind::Tab) {
@@ -172,7 +211,12 @@ namespace FruitMagic::ECS {
         if(level >= def.MaxLevel())
             return false;
         const long long cost = def.levels[level].cost;
-        return (def.currency == UpgradeCurrency::Coins) ? state.coins >= cost : state.fruitPoints >= cost;
+        switch(def.currency) {
+            case UpgradeCurrency::Coins: return state.coins >= cost;
+            case UpgradeCurrency::Fruit: return state.fruitPoints >= cost;
+            case UpgradeCurrency::Seeds: return state.starSeeds >= cost;
+        }
+        return false;
     }
 
     //----------------------------------------------------------------------------
@@ -182,7 +226,9 @@ namespace FruitMagic::ECS {
         const int level = state.UpgradeLevelOf(def.id);
         if(level >= def.MaxLevel())
             return std::wstring();
-        const char* key = (def.currency == UpgradeCurrency::Coins) ? "upgrade.costCoins" : "upgrade.costFruit";
+        const char* key = (def.currency == UpgradeCurrency::Coins)   ? "upgrade.costCoins"
+                          : (def.currency == UpgradeCurrency::Fruit) ? "upgrade.costFruit"
+                                                                     : "upgrade.costSeeds";
         return texts.Format(key, {{"n", std::to_wstring(def.levels[level].cost)}});
     }
 
@@ -210,7 +256,10 @@ namespace FruitMagic::ECS {
         stats.rouletteHitChance  = roulette.hitChance;
         state.maxMana            = registry.HasContext<ManaConfig>() ? registry.GetContext<ManaConfig>().maxMana : ManaConfig{}.maxMana;
 
-        for(const UpgradeDef& def : registry.GetContext<UpgradeCatalog>().Upgrades()) {
+        const auto& defs = registry.GetContext<UpgradeCatalog>().Upgrades();
+        for(const UpgradeDef& def : defs) {
+            if(def.currency == UpgradeCurrency::Seeds)
+                continue;    // 星のたねの強化は、下でコインと FP の強化の値に重ねる
             const float value = def.ValueAt(state.UpgradeLevelOf(def.id));
 
             //--------------------------------------------------------------
@@ -260,6 +309,31 @@ namespace FruitMagic::ECS {
                 Tsukino::Core::Log::Warn("UpgradeSystem: upgrade \"" + def.id + "\" has no effect.");
             }
         }
+
+        //--------------------------------------------------------------
+        // おひっこしをまたいで残る強化（星のたね）。倍率は FP の強化の倍率に掛け、おるすばんは時間を足す
+        //--------------------------------------------------------------
+        for(const UpgradeDef& def : defs) {
+            if(def.currency != UpgradeCurrency::Seeds)
+                continue;
+            const float value = def.ValueAt(state.UpgradeLevelOf(def.id));
+            if(def.id == "seedFruitValue") {
+                stats.fruitValueMultiplier *= std::max(1.0f, value / 100.0f);
+            } else if(def.id == "seedMana") {
+                stats.manaMultiplier *= std::max(1.0f, value / 100.0f);
+            } else if(def.id == "seedVariant") {
+                stats.variantChanceMultiplier *= std::max(1.0f, value / 100.0f);
+            } else if(def.id == "seedOffline") {
+                // データは足す時間
+                stats.offlineMaxHours += std::max(0.0f, value);
+            } else if(def.id == "seedGain") {
+                stats.seedGainMultiplier = std::max(1.0f, value / 100.0f);
+            } else if(def.id == "startCoins" || def.id == "startFairy") {
+                // おひっこしの時に MoveRules::Move が使う（台の性能には効かない）
+            } else {
+                Tsukino::Core::Log::Warn("UpgradeSystem: upgrade \"" + def.id + "\" has no effect.");
+            }
+        }
         state.mana = std::min(state.mana, state.maxMana);
     }
 
@@ -278,10 +352,11 @@ namespace FruitMagic::ECS {
 
         const int       level = state.UpgradeLevelOf(def.id);
         const long long cost  = def.levels[level].cost;
-        if(def.currency == UpgradeCurrency::Coins)
-            state.coins -= static_cast<int>(cost);
-        else
-            state.fruitPoints -= cost;
+        switch(def.currency) {
+            case UpgradeCurrency::Coins: state.coins -= static_cast<int>(cost); break;
+            case UpgradeCurrency::Fruit: state.fruitPoints -= cost; break;
+            case UpgradeCurrency::Seeds: state.starSeeds -= cost; break;
+        }
         state.upgradeLevels[def.id] = level + 1;
 
         ApplyUpgrades(registry);

@@ -47,7 +47,7 @@ namespace FruitMagic::ECS {
             [&](Tsukino::ECS::Entity, RecordElementComponent& element, Tsukino::BuiltIn::ECS::FontComponent& font) {
                 switch(element.item) {
                     case RecordItem::HarvestCount: font.text = count("record.fruits", state.HarvestTotal()); break;
-                    case RecordItem::HarvestValue: font.text = count("record.count", state.harvestValue); break;
+                    case RecordItem::HarvestValue: font.text = count("record.count", stats.harvestValue); break;
                     case RecordItem::Zukan:
                         font.text = texts.Format("record.ratio", {{"n", n(state.RegisteredCount())}, {"total", n(zukanTotal)}});
                         break;
@@ -67,6 +67,9 @@ namespace FruitMagic::ECS {
                     case RecordItem::Jackpots: font.text = count("record.times", stats.jackpots); break;
                     case RecordItem::MagicsCast: font.text = count("record.times", stats.magicsCast); break;
                     case RecordItem::PlayTime: font.text = FormatDuration(static_cast<long long>(stats.playSeconds), texts); break;
+                    case RecordItem::Moves: font.text = count("record.times", stats.moves); break;
+                    case RecordItem::SeedsEarned: font.text = count("record.seeds", stats.seedsEarned); break;
+                    case RecordItem::StarSeeds: font.text = count("record.seeds", state.starSeeds); break;
                 }
             });
     }

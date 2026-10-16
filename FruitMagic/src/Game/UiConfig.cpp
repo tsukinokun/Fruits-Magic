@@ -453,6 +453,14 @@ namespace FruitMagic {
             Json::ReadColor(*upgrade, "maxedColor", upgradeMaxedColor);
             Json::ReadColor(*upgrade, "affordableColor", upgradeAffordableColor);
             Json::ReadColor(*upgrade, "shortColor", upgradeShortColor);
+            Json::Read(*upgrade, "seedRowsTop", upgradeSeedRowsTop);
+            Json::Read(*upgrade, "moveY", upgradeMoveY);
+            Json::ReadVec(*upgrade, "moveSize", upgradeMoveSize);
+            Json::Read(*upgrade, "moveLabelScale", upgradeMoveLabelScale);
+            Json::Read(*upgrade, "moveInfoX", upgradeMoveInfoX);
+            ReadFont(*upgrade, "moveInfo", upgradeMoveInfo);
+            Json::ReadColor(*upgrade, "moveColor", upgradeMoveColor);
+            Json::ReadColor(*upgrade, "moveHoverColor", upgradeMoveHoverColor);
             upgradeRowPitch = std::max(1.0f, upgradeRowPitch);
         }
         if(const Json::Value* welcome = Json::FindObject(doc, "welcome")) {
@@ -547,6 +555,7 @@ namespace FruitMagic {
             Json::Read(*timing, "magicLearned", magicLearnedSeconds);
             Json::Read(*timing, "muteNotice", muteNoticeSeconds);
             Json::Read(*timing, "growNotice", growNoticeSeconds);
+            Json::Read(*timing, "moveNotice", moveNoticeSeconds);
             Json::Read(*timing, "musicRestart", musicRestartDelay);
         }
         ReadSlot(doc, "slot", slot);

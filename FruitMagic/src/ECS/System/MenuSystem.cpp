@@ -6,7 +6,7 @@
 
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
 #include <FruitMagic/Game/MenuState.hpp>
-#include <FruitMagic/Game/OptionsState.hpp>
+#include <FruitMagic/Game/ConfirmState.hpp>
 #include <FruitMagic/Game/UiMotion.hpp>
 
 #include <Tsukino/EngineIntegration/EngineContext.hpp>
@@ -32,11 +32,11 @@ namespace FruitMagic::ECS {
         Tsukino::EngineIntegration::EngineContext* ctx   = registry.GetContext<Tsukino::EngineIntegration::EngineContext*>();
         Tsukino::Input::InputSystem*               input = ctx ? ctx->inputSystem : nullptr;
 
-        // データ消去の確認を出している間は、Esc で確認だけ閉じ、ほかの開閉とスクロールは受け付けない
-        OptionsState* options    = registry.HasContext<OptionsState>() ? &registry.GetContext<OptionsState>() : nullptr;
-        const bool    confirming = options && options->IsConfirming();
+        // 確認ウィンドウを出している間は、Esc で確認だけ閉じ、ほかの開閉とスクロールは受け付けない
+        ConfirmState* confirm    = registry.HasContext<ConfirmState>() ? &registry.GetContext<ConfirmState>() : nullptr;
+        const bool    confirming = confirm && confirm->IsConfirming();
         if(confirming && input && input->IsKeyPressed(Tsukino::Input::KeyCode::Escape))
-            options->confirmStep = 0;
+            confirm->Close();
 
         //--------------------------------------------------------------
         // 開閉（ボタンのクリック、またはボタンに割り当てたキー）。
