@@ -1,5 +1,5 @@
 {
-  "valuePerExtra": 400,
+  "valuePerExtra": 1500,
   "maxPerMove": 3,
   "rarityWeights": [
     60,
@@ -13,5 +13,5 @@
     3,
     8
   ],
-  "coinsForFullBoost": 3000
+  "coinsForFullBoost": 10000
 }

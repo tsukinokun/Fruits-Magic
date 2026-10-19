@@ -58,11 +58,11 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // もらい方（Souvenir.json）
         //--------------------------------------------------------------
-        float              valuePerExtra     = 400.0f;                        // 今回の屋台の収穫の価値がこれだけ増えるごとに1つ多くもらえる（最低1つ）
+        float              valuePerExtra     = 1500.0f;                        // 今回の屋台の収穫の価値がこれだけ増えるごとに1つ多くもらえる（最低1つ）
         int                maxPerMove        = 3;                             // 1回のおひっこしでもらえる数の上限
         std::vector<float> rarityWeights     = {60.0f, 28.0f, 10.0f, 2.0f};   // レア度ごとの出やすさ（手持ちのコインが0のとき）
         std::vector<float> rarityBoost       = {0.0f, 1.0f, 3.0f, 8.0f};      // コインを最大まで持っていたとき、重みに足す倍率（重み × (1 + これ × コインの割合)）
-        float              coinsForFullBoost = 3000.0f;                       // このコインを持っておひっこしすると、レアの上げ幅が最大になる
+        float              coinsForFullBoost = 10000.0f;                       // このコインを持っておひっこしすると、レアの上げ幅が最大になる
 
     private:
         std::vector<SouvenirDef> m_souvenirs;    // おみやげの一覧

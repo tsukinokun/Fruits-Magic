@@ -91,7 +91,8 @@ namespace FruitMagic::ECS {
         }
 
         //--------------------------------------------------------------
-        // 強化: 買えるもののうち、手持ちに対していちばん安いもの（コインの強化は投入用のコインを残す）
+        // 強化: 買えるもののうち、手持ちに対していちばん安いもの（コインの強化は投入用のコインを残す。
+        // 星のたねの強化は、自動プレイではおひっこししないので星のたねを持たず、買わない）
         //--------------------------------------------------------------
         if(registry.HasContext<UpgradeCatalog>()) {
             const auto& defs     = registry.GetContext<UpgradeCatalog>().Upgrades();
@@ -101,9 +102,13 @@ namespace FruitMagic::ECS {
                 const int level = state.UpgradeLevelOf(defs[i].id);
                 if(level >= defs[i].MaxLevel())
                     continue;
-                const long long cost   = defs[i].levels[level].cost;
-                const bool      coins  = defs[i].currency == UpgradeCurrency::Coins;
-                const long long held   = coins ? state.coins - kCoinReserve : state.fruitPoints;
+                const long long cost = defs[i].levels[level].cost;
+                long long       held = 0;
+                switch(defs[i].currency) {
+                    case UpgradeCurrency::Coins: held = state.coins - kCoinReserve; break;
+                    case UpgradeCurrency::Fruit: held = state.fruitPoints; break;
+                    case UpgradeCurrency::Seeds: held = state.starSeeds; break;
+                }
                 if(held < cost)
                     continue;
                 const double relative = static_cast<double>(cost) / std::max(1.0, static_cast<double>(held));

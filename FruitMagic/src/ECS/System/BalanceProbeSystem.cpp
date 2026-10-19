@@ -78,6 +78,11 @@ namespace FruitMagic::ECS {
             }
             m_lastRegistered = registered;
         }
+        // おひっこしの解放（最初のおひっこしまでの時間の目安）
+        if(!m_moveUnlocked && MoveRules::IsUnlocked(registry)) {
+            m_moveUnlocked = true;
+            Tsukino::Core::Log::Info("BALANCE " + Clock(m_elapsed) + " move unlocked (value " + std::to_string(state.harvestValue) + ")");
+        }
 
         //--------------------------------------------------------------
         // 一定間隔の集計
