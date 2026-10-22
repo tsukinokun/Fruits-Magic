@@ -29,6 +29,7 @@
 #include <FruitMagic/Game/ConfirmState.hpp>
 #include <FruitMagic/Game/MoveConfig.hpp>
 #include <FruitMagic/Game/MoveRules.hpp>
+#include <FruitMagic/Game/CoinScatter.hpp>
 #include <FruitMagic/Game/SouvenirCatalog.hpp>
 #include <FruitMagic/Game/SceneRequest.hpp>
 #include <FruitMagic/Game/Settings.hpp>
@@ -51,6 +52,7 @@
 #include <FruitMagic/ECS/Component/UpgradeAlertComponent.hpp>
 #include <FruitMagic/ECS/Component/MenuComponent.hpp>
 #include <FruitMagic/ECS/Component/ConfirmDialogComponent.hpp>
+#include <FruitMagic/ECS/Component/PrizeComponent.hpp>
 #include <FruitMagic/ECS/Component/OptionsElementComponent.hpp>
 #include <FruitMagic/ECS/Component/ReliefGaugeComponent.hpp>
 #include <FruitMagic/ECS/Component/SidePanelElementComponent.hpp>
@@ -144,6 +146,7 @@
 #include <entt/entt.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -308,8 +311,10 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::FairySystem>(), (int)SystemPriority::Fairy);
         m_scene.AddSystem(std::make_shared<ECS::CoinShowerSystem>(eventBus), (int)SystemPriority::CoinShower);
         m_scene.AddSystem(std::make_shared<ECS::CheckerSystem>(eventBus), (int)SystemPriority::Checker);
-        m_scene.AddSystem(std::make_shared<Tsukino::BuiltIn::ECS::TransformSystem>(), (int)SystemPriority::Transform);
+        m_transformSystem = std::make_shared<Tsukino::BuiltIn::ECS::TransformSystem>();
+        m_scene.AddSystem(m_transformSystem, (int)SystemPriority::Transform);
         auto physicsSystem = std::make_shared<Tsukino::BuiltIn::ECS::PhysicsSystem>(eventBus);
+        m_physicsSystem    = physicsSystem;
         // このゲームは 1unit=1cm。物理エンジンの重力・接触の許容値をcmに合わせる
         physicsSystem->SetUnitsPerMeter(100.0f);
         // 上の換算でめり込みの許容値なども 2cm 相当になり、厚み 0.8cm のコインに果物が沈むので、cm 向けに小さくする
@@ -400,8 +405,13 @@ namespace FruitMagic {
         offline.Load(dataRoot + "/Offline.json");
         offline.savePath = autoPlay ? std::string() : SaveData::DefaultPath();
 
-        // オプションの設定（セーブデータとは別のファイル。自動プレイでは読み書きしない）
-        registry.SetContext<Settings>().Load(autoPlay ? std::string() : Settings::DefaultPath());
+        // オプションの設定（セーブデータとは別のファイル）。保存していない項目は Settings.json の既定の値。
+        // 自動プレイ（バランスの計測）は読むだけで保存せず、いつも消音にする（裏で回しても音を出さない）
+        Settings& settings = registry.SetContext<Settings>();
+        settings.LoadDefaults(dataRoot + "/Settings.json");
+        settings.Load(Settings::DefaultPath(), !autoPlay);
+        if(autoPlay)
+            settings.muted = true;
         registry.SetContext<SceneRequest>();
         registry.SetContext<ConfirmState>();
         registry.SetContext<MoveConfig>().Load(dataRoot + "/Move.json");
@@ -442,6 +452,7 @@ namespace FruitMagic {
 
         CreateCabinet(factory);
         CreateInitialPrizes(factory);
+        SettleInitialPrizes();
         CreateEnvironment();
         CreatePlayerInterface(factory);
 
@@ -699,40 +710,26 @@ namespace FruitMagic {
         Tsukino::ECS::Registry& registry  = m_scene.GetRegistry();
         const TableLayout&      layout    = GetTableLayout(registry);
         const hlslpp::float3    coinHalf  = factory.CoinHalfExtent();
-        const float             coinHalfX = coinHalf.x;
         const float             coinHalfY = coinHalf.y;
         const float             lift      = layout.initialLift;    // 床・コインから浮かせる高さ（めり込み防止）
 
-        // プッシャー前の床にコインを手前端まで敷き詰める（実機と同じく、押せばすぐ縁から落ちる状態にしておく）。
-        // 最前列はプッシャーが届く位置から
-        const float pusherFrontMax = layout.pusherMinFrontZ + layout.pusherAmplitude * 2.0f;
-        // 隙間があると押した分が隙間に吸われて縁まで伝わらないので、ほぼ接するくらいに詰める
-        const float firstRowZ      = pusherFrontMax - layout.initialCoinFrontBack;
-        const float pitch          = coinHalfX * 2.0f + layout.initialCoinGap;
-        const int   rowCount       = static_cast<int>((layout.fieldFrontZ - coinHalfX - firstRowZ) / pitch) + 1;
-        const int   halfColCount   = static_cast<int>((layout.fieldHalfWidth - coinHalfX - layout.initialCoinSideMargin) / pitch);
-        for(int row = 0; row < rowCount; ++row) {
-            for(int col = -halfColCount; col <= halfColCount; ++col) {
-                const float x = static_cast<float>(col) * pitch;
-                const float z = firstRowZ + static_cast<float>(row) * pitch;
-                factory.CreateCoin(registry, hlslpp::float3(x, coinHalfY + lift, z));
-            }
-        }
-
-        // プッシャーの上にもコインを数枚
-        const float pusherStartZ = layout.PusherCenterZ(layout.pusherAmplitude);
-        for(int col = -layout.pusherTopCoinHalfCount; col <= layout.pusherTopCoinHalfCount; ++col) {
-            const float x = static_cast<float>(col) * layout.pusherTopCoinSpacing;
-            factory.CreateCoin(registry, hlslpp::float3(x, layout.PusherTopY() + coinHalfY + lift, pusherStartZ + layout.pusherTopCoinOffsetZ));
-        }
+        //--------------------------------------------------------------
+        // コイン。本物のプッシャーのように、ばらばらの向きと間隔で、手前ほど密に、ところどころ重ね、
+        // 縁から少しはみ出したものも置く（CoinScatter）。毎回違う並びになる。プッシャーの上にも散らす
+        //--------------------------------------------------------------
+        std::mt19937 rng(std::random_device{}());
+        for(const CoinPlacement& coin : CoinScatter::ScatterFloor(layout, coinHalf, rng))
+            factory.CreateCoin(registry, coin.position, coin.rotation);
+        for(const CoinPlacement& coin : CoinScatter::ScatterPusherTop(layout, coinHalf, rng))
+            factory.CreateCoin(registry, coin.position, coin.rotation);
 
         //--------------------------------------------------------------
-        // 最初から台にある果物。今の果樹の段階で出る果物から選び、敷き詰めたコインのすぐ上に置く
+        // 最初から台にある果物。今の果樹の段階で出る果物から選び、重なったコインのすぐ上（2枚分）に、少しずらして置く
         // （高い所から落とすと下のコインを床へめり込ませてしまう）
         //--------------------------------------------------------------
         const FruitCatalog& catalog = registry.GetContext<FruitCatalog>();
         const int           level   = registry.GetContext<GameState>().treeLevel;
-        std::mt19937        rng(std::random_device{}());
+        auto                jitter  = [&]() { return std::uniform_real_distribution<float>(-layout.initialFruitJitter, layout.initialFruitJitter)(rng); };
 
         for(size_t i = 0; i < layout.initialFruitX.size(); ++i) {
             const int fruitIndex = catalog.PickSpawnable(level, rng);
@@ -740,11 +737,54 @@ namespace FruitMagic {
                 break;
 
             const FruitDef&   def    = catalog.Fruits()[fruitIndex];
-            const float       y      = coinHalfY * 2.0f + lift + def.HalfHeightOfBounds() + lift;
-            const float       z      = static_cast<float>(i % 2) * layout.initialFruitStepZ;
+            const float       y      = (coinHalfY * 2.0f + lift) * 2.0f + def.HalfHeightOfBounds() + lift;
+            const float       z      = static_cast<float>(i % 2) * layout.initialFruitStepZ + jitter();
             const VariantDef& normal = registry.GetContext<CollectionConfig>().Variants()[0];
-            factory.CreateFruit(registry, def, fruitIndex, 0, normal.ColorOf(def), normal.glow, hlslpp::float3(layout.initialFruitX[i], y, z));
+            factory.CreateFruit(registry, def, fruitIndex, 0, normal.ColorOf(def), normal.glow, hlslpp::float3(layout.initialFruitX[i] + jitter(), y, z));
         }
+    }
+
+    //----------------------------------------------------------------------------
+    //! 起動時に置いた景品を、物理だけを動かして落ち着かせます。
+    //----------------------------------------------------------------------------
+    void PusherScene::SettleInitialPrizes() {
+        Tsukino::ECS::Registry& registry = m_scene.GetRegistry();
+        const TableLayout&      layout   = GetTableLayout(registry);
+        if(!m_transformSystem || !m_physicsSystem || layout.initialSettleSeconds <= 0.0f)
+            return;
+
+        //--------------------------------------------------------------
+        // Transform と物理だけを固定の刻みで回す（プッシャーは止めたまま）。
+        // ぶつかりの出来事を受け取るゲームのシステムは無く、落ちた判定は PrizeDropSystem（ここでは回さない）だけなので、
+        // 払い出しや音は起きない
+        //--------------------------------------------------------------
+        constexpr float kStep = 1.0f / 60.0f;
+        const int       steps = static_cast<int>(std::ceil(layout.initialSettleSeconds / kStep));
+        const auto      begin = std::chrono::steady_clock::now();
+        for(int i = 0; i < steps; ++i) {
+            m_transformSystem->Update(registry, kStep);
+            m_physicsSystem->Update(registry, kStep);
+        }
+        const long long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin).count();
+
+        //--------------------------------------------------------------
+        // 台から落ちた物は報酬なしで消す（PrizeComponent を外してから消すので、最初のフレームの落ちた判定にもかからない）
+        //--------------------------------------------------------------
+        std::vector<Tsukino::ECS::Entity> fallen;
+        int                               coins = 0;
+        registry.View<ECS::PrizeComponent, Tsukino::BuiltIn::ECS::TransformComponent>().each(
+            [&](Tsukino::ECS::Entity entity, ECS::PrizeComponent& prize, Tsukino::BuiltIn::ECS::TransformComponent& transform) {
+                if(float(transform.position.y) < layout.dropJudgeY)
+                    fallen.push_back(entity);
+                else if(prize.kind == ECS::PrizeKind::Coin)
+                    ++coins;
+            });
+        for(Tsukino::ECS::Entity entity : fallen) {
+            registry.RemoveComponent<ECS::PrizeComponent>(entity);
+            PrizeFactory::DestroyPrize(registry, entity);
+        }
+        Tsukino::Core::Log::Info("PusherScene: initial prizes settled in " + std::to_string(elapsedMs) + " ms (" + std::to_string(coins) + " coins, " +
+                                 std::to_string(fallen.size()) + " fell and were removed).");
     }
 
     //----------------------------------------------------------------------------

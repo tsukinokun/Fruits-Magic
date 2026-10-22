@@ -32,25 +32,43 @@ namespace FruitMagic {
         return (Tsukino::IO::FileSystem::GetAssetRootPath() / "Saves/settings.json").string();
     }
 
+    namespace {
+        //! 設定の項目を読みます（既定の値のファイルと保存先で同じ書き方）。
+        void ReadSettings(const Json::Document& doc, Settings& settings) {
+            Json::Read(doc, "bgmVolume", settings.bgmVolume);
+            Json::Read(doc, "seVolume", settings.seVolume);
+            Json::Read(doc, "muted", settings.muted);
+            Json::Read(doc, "showControlsHint", settings.showControlsHint);
+            Json::Read(doc, "showCutIn", settings.showCutIn);
+            Settings::StepVolume(settings.bgmVolume, 0);
+            Settings::StepVolume(settings.seVolume, 0);
+        }
+    }    // namespace
+
+    //----------------------------------------------------------------------------
+    //! 既定の値を読み込みます。
+    //----------------------------------------------------------------------------
+    bool Settings::LoadDefaults(const std::string& defaultsPath) {
+        Json::Document doc;
+        if(!Json::ParseFile(defaultsPath, doc, "Settings"))
+            return false;
+        ReadSettings(doc, *this);
+        return true;
+    }
+
     //----------------------------------------------------------------------------
     //! 保存先から読み込みます。
     //----------------------------------------------------------------------------
-    bool Settings::Load(const std::string& filePath) {
-        path = filePath;
-        if(path.empty() || !Tsukino::IO::FileSystem::Exists(Tsukino::Core::Path(path)))
+    bool Settings::Load(const std::string& filePath, bool saveBack) {
+        path = saveBack ? filePath : std::string();
+        if(filePath.empty() || !Tsukino::IO::FileSystem::Exists(Tsukino::Core::Path(filePath)))
             return false;
 
         Json::Document doc;
-        if(!Json::ParseFile(path, doc, "Settings"))
+        if(!Json::ParseFile(filePath, doc, "Settings"))
             return false;
 
-        Json::Read(doc, "bgmVolume", bgmVolume);
-        Json::Read(doc, "seVolume", seVolume);
-        Json::Read(doc, "muted", muted);
-        Json::Read(doc, "showControlsHint", showControlsHint);
-        Json::Read(doc, "showCutIn", showCutIn);
-        StepVolume(bgmVolume, 0);
-        StepVolume(seVolume, 0);
+        ReadSettings(doc, *this);
         return true;
     }
 

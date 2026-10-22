@@ -48,7 +48,7 @@
 | `Assets/Icon/App.ico` | exe とウィンドウのアイコン。`premake5.lua` の `tsukino_icon()` で exe に埋め込む。`Tools/GenerateIcon.py` で合成したもの |
 | `Assets/Sounds/`・`Assets/Textures/` | 効果音（WAV）と光の画像・HUD のお金のマーク（`CoinIcon.png`・`FpIcon.png`）。どちらも `Tools/GenerateSounds.py`・`Tools/GenerateTextures.py` で合成したもの（作り直すときはスクリプトを直して実行） |
 | `Saves/save.json` | セーブデータ（実行時に作られる。git 管理外）。消すと最初から |
-| `Saves/settings.json` | オプションの設定（音量・消音・操作説明の表示・果物のカットイン）。セーブとは別なので「データを消して最初から」でも残る |
+| `Saves/settings.json` | オプションの設定（音量・消音・操作説明の表示・果物のカットイン）。セーブとは別なので「データを消して最初から」でも残る。まだ保存していないときの値（初めての音量など）は `Assets/Data/Settings.json`。自動プレイは読むだけで保存せず、いつも消音 |
 
 強化に使うポイントは画面では「フルーツポイント（FP）」と呼ぶ（コードでは `GameState::fruitPoints`。旧称「果実」）。
 転生は「屋台のおひっこし」、そのポイントは「星のたね」（`GameState::starSeeds`）。決まりは `Game/MoveRules`、設定は `Assets/Data/Move.json`、

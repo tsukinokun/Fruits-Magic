@@ -7,6 +7,7 @@
 #pragma once
 #include <FruitMagic/Game/MoveRules.hpp>
 
+#include <memory>
 #include <optional>
 #include <Tsukino/EngineIntegration/Scene/GameSceneBase.hpp>
 #include <Tsukino/Core/ECS/Entity/Entity.hpp>
@@ -52,9 +53,13 @@ namespace FruitMagic {
         //! @param  [in] factory 生成に使うファクトリ
         void CreateStall(PrizeFactory& factory);
 
-        //! 起動時に台に置いておく景品を生成します。
+        //! 起動時に台に置いておく景品を生成します（コインは CoinScatter で散らばらせる）。
         //! @param  [in] factory 生成に使うファクトリ
         void CreateInitialPrizes(PrizeFactory& factory);
+
+        //! 起動時に置いた景品を、物理だけを動かして落ち着かせます（読み込み中。重なったコインが自然に崩れて止まる）。
+        //! 台から落ちた物は報酬なしで消します。
+        void SettleInitialPrizes();
 
         //! ライト・空・カメラを生成します。
         void CreateEnvironment();
@@ -64,6 +69,8 @@ namespace FruitMagic {
         void CreatePlayerInterface(PrizeFactory& factory);
 
         Tsukino::ECS::Entity m_pusherEntity{entt::null};    // 往復するプッシャー
+        std::shared_ptr<Tsukino::ECS::ISystem> m_transformSystem;    // 物理の前の Transform（起動時に景品を落ち着かせるのに直接呼ぶ）
+        std::shared_ptr<Tsukino::ECS::ISystem> m_physicsSystem;      // 物理（同上）
         float                m_pusherTime = 0.0f;          // プッシャーの往復のどこまで進んだか（0〜1。1 で1往復）
         float                m_pusherAmplitude = 0.0f;     // 今のプッシャーの振幅（cm）。押し幅の強化の値へ少しずつ近づける
         bool                 m_skipSaveOnExit = false;     // 終了時にセーブしない（「データを消して最初から」でセーブを消した後）

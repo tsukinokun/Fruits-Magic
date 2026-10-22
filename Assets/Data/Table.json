@@ -69,13 +69,27 @@
   },
   "initialPrizes": {
     "coinFrontBack": 5.0,
-    "coinGap": 0.3,
+    "coinGap": 0.1,
+    "yawJitter": 3.0,
+    "positionJitter": 0.1,
+    "holeChanceBack": 0.25,
     "coinSideMargin": 0.5,
     "lift": 0.5,
-    "pusherTopCoinHalfCount": 3,
-    "pusherTopCoinSpacing": 7.0,
-    "pusherTopCoinOffsetZ": 8.0,
+    "edgeCoins": 6,
+    "edgeOverhangMin": 0.15,
+    "edgeOverhangMax": 0.35,
+    "densityCurve": 1.5,
+    "stackRatio": 0.35,
+    "stackFrontBias": 3.0,
+    "stackOffsetMin": 0.3,
+    "stackOffsetMax": 0.6,
+    "stackTiltMin": 4.0,
+    "stackTiltMax": 12.0,
+    "pileChance": 0.3,
+    "pusherTopCoins": 8,
+    "settleSeconds": 1.5,
     "fruitX": [-16.0, -6.0, 6.0, 16.0],
-    "fruitStepZ": 10.0
+    "fruitStepZ": 10.0,
+    "fruitJitter": 3.0
   }
 }

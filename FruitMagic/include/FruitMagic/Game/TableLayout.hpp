@@ -120,15 +120,30 @@ namespace FruitMagic {
         //--------------------------------------------------------------
         // 起動時の台の上
         //--------------------------------------------------------------
-        float              initialCoinFrontBack = 5.0f;     // コインを敷き始める列の、プッシャーが届く最前の位置からの戻り
-        float              initialCoinGap       = 0.3f;     // 敷き詰めるコインの間の隙間
+        // コインの散らばらせ方は Game/CoinScatter（詰めた床の層・縁のはみ出し・重なり）。置いた後に物理を settleSeconds 動かして落ち着かせる
+        float              initialCoinFrontBack = 5.0f;     // コインを置き始める位置の、プッシャーが届く最前の位置からの戻り
+        float              initialCoinGap       = 0.1f;     // コインどうしの最小のすき間
+        float              initialYawJitter     = 3.0f;     // 床の層のコインの向きを揺らす最大の角度（度。大きいと間隔が広がり詰まり方が減る）
+        float              initialPositionJitter = 0.1f;    // 床の層のコインの位置を揺らす最大の量
+        float              initialHoleChanceBack = 0.25f;   // 床の層の奥（プッシャーの前）でコインを抜く確率（手前へ densityCurve 乗で減り、手前の列は抜かない）
         float              initialCoinSideMargin = 0.5f;    // 側壁との余白
         float              initialLift          = 0.5f;     // 床・コインから浮かせる高さ（めり込み防止）
-        int                pusherTopCoinHalfCount = 3;      // プッシャーの上に置くコインの列（中央から左右にこの数）
-        float              pusherTopCoinSpacing = 7.0f;     // その間隔
-        float              pusherTopCoinOffsetZ = 8.0f;     // プッシャーの中心から手前へずらす量
+        int                initialEdgeCoins     = 6;        // 手前の縁からはみ出させて置くコインの数
+        float              initialEdgeOverhangMin = 0.15f;  // そのはみ出す割合（コインの大きさに対して。重心は台に残す）
+        float              initialEdgeOverhangMax = 0.35f;
+        float              initialDensityCurve  = 1.5f;     // 抜けの奥から手前への減り方（大きいほど奥だけが抜ける）
+        float              initialStackRatio    = 0.35f;     // 床の層の枚数に対して、上に重ねる枚数の割合
+        float              initialStackFrontBias = 3.0f;    // 重ねる場所の手前への寄り方（大きいほど手前に集まる。手前が詰まると最初から払い出しが出る）
+        float              initialStackOffsetMin = 0.3f;    // 重ねるコインを下のコインからずらす量（コインの大きさに対して）
+        float              initialStackOffsetMax = 0.6f;
+        float              initialStackTiltMin  = 4.0f;     // 重ねるコインの傾き（度）
+        float              initialStackTiltMax  = 12.0f;
+        float              initialPileChance    = 0.3f;     // 重ねたコインの上にもう1段乗せる確率
+        int                initialPusherTopCoins = 8;       // プッシャーの上に散らすコインの数
+        float              initialSettleSeconds = 1.5f;     // 置いた後に物理だけを動かして落ち着かせる時間（読み込み中。0 なら動かさない）
         std::vector<float> initialFruitX        = {-16.0f, -6.0f, 6.0f, 16.0f};    // 最初から置く果物のX
         float              initialFruitStepZ    = 10.0f;    // 果物を1つおきに奥へずらす量
+        float              initialFruitJitter   = 3.0f;     // 果物の位置を X・Z にずらす最大の量
 
         //--------------------------------------------------------------
         // ここから下は上の値から計算する位置

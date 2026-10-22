@@ -9,6 +9,8 @@
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/Log.hpp>
 
+#include <algorithm>
+
 // 名前空間 : FruitMagic
 namespace FruitMagic {
 
@@ -103,11 +105,36 @@ namespace FruitMagic {
             Json::Read(*initial, "coinGap", loaded.initialCoinGap);
             Json::Read(*initial, "coinSideMargin", loaded.initialCoinSideMargin);
             Json::Read(*initial, "lift", loaded.initialLift);
-            Json::Read(*initial, "pusherTopCoinHalfCount", loaded.pusherTopCoinHalfCount);
-            Json::Read(*initial, "pusherTopCoinSpacing", loaded.pusherTopCoinSpacing);
-            Json::Read(*initial, "pusherTopCoinOffsetZ", loaded.pusherTopCoinOffsetZ);
+            Json::Read(*initial, "edgeCoins", loaded.initialEdgeCoins);
+            Json::Read(*initial, "edgeOverhangMin", loaded.initialEdgeOverhangMin);
+            Json::Read(*initial, "edgeOverhangMax", loaded.initialEdgeOverhangMax);
+            Json::Read(*initial, "yawJitter", loaded.initialYawJitter);
+            Json::Read(*initial, "positionJitter", loaded.initialPositionJitter);
+            Json::Read(*initial, "holeChanceBack", loaded.initialHoleChanceBack);
+            Json::Read(*initial, "densityCurve", loaded.initialDensityCurve);
+            Json::Read(*initial, "stackRatio", loaded.initialStackRatio);
+            Json::Read(*initial, "stackFrontBias", loaded.initialStackFrontBias);
+            Json::Read(*initial, "stackOffsetMin", loaded.initialStackOffsetMin);
+            Json::Read(*initial, "stackOffsetMax", loaded.initialStackOffsetMax);
+            Json::Read(*initial, "stackTiltMin", loaded.initialStackTiltMin);
+            Json::Read(*initial, "stackTiltMax", loaded.initialStackTiltMax);
+            Json::Read(*initial, "pileChance", loaded.initialPileChance);
+            Json::Read(*initial, "pusherTopCoins", loaded.initialPusherTopCoins);
+            Json::Read(*initial, "settleSeconds", loaded.initialSettleSeconds);
             Json::ReadArray(*initial, "fruitX", loaded.initialFruitX);
             Json::Read(*initial, "fruitStepZ", loaded.initialFruitStepZ);
+            Json::Read(*initial, "fruitJitter", loaded.initialFruitJitter);
+            // はみ出しは重心が台に残る範囲（半分未満）、確率は 0〜1 に丸める
+            loaded.initialEdgeOverhangMin = std::clamp(loaded.initialEdgeOverhangMin, 0.0f, 0.45f);
+            loaded.initialEdgeOverhangMax = std::clamp(loaded.initialEdgeOverhangMax, loaded.initialEdgeOverhangMin, 0.45f);
+            loaded.initialCoinGap         = std::max(0.0f, loaded.initialCoinGap);
+            loaded.initialYawJitter       = std::clamp(loaded.initialYawJitter, 0.0f, 45.0f);
+            loaded.initialPositionJitter  = std::max(0.0f, loaded.initialPositionJitter);
+            loaded.initialHoleChanceBack  = std::clamp(loaded.initialHoleChanceBack, 0.0f, 1.0f);
+            loaded.initialDensityCurve    = std::max(0.1f, loaded.initialDensityCurve);
+            loaded.initialStackRatio      = std::max(0.0f, loaded.initialStackRatio);
+            loaded.initialPileChance      = std::clamp(loaded.initialPileChance, 0.0f, 1.0f);
+            loaded.initialSettleSeconds   = std::clamp(loaded.initialSettleSeconds, 0.0f, 5.0f);
         }
 
         //--------------------------------------------------------------
