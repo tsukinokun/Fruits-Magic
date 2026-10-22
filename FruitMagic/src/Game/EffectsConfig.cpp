@@ -50,6 +50,8 @@ namespace FruitMagic {
             Json::Read(*style, "rise", popup.rise);
             Json::Read(*style, "fadeStart", popup.fadeStart);
             Json::ReadColor(*style, "coinColor", popup.coinColor);
+            Json::ReadColor(*style, "gutterColor", popup.gutterColor);
+            Json::Read(*style, "gutterInset", popup.gutterInset);
             Json::ReadColor(*style, "outlineColor", popup.outlineColor);
             Json::Read(*style, "outlineWidth", popup.outlineWidth);
             Json::Read(*style, "coinLife", popup.coinLife);

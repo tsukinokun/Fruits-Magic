@@ -68,6 +68,7 @@
 #include <FruitMagic/ECS/System/CutInSystem.hpp>
 #include <FruitMagic/ECS/System/FairySystem.hpp>
 #include <FruitMagic/ECS/System/HarvestSystem.hpp>
+#include <FruitMagic/ECS/System/DropFeedbackSystem.hpp>
 #include <FruitMagic/ECS/System/EffectsSystem.hpp>
 #include <FruitMagic/ECS/System/FruitIconSystem.hpp>
 #include <FruitMagic/ECS/System/GrowMagicSystem.hpp>
@@ -269,6 +270,7 @@ namespace FruitMagic {
             WallMagic,           // 壁を作って動かす（次のフレームの Physics で反映）
             GrowMagic,           // 果物を作り直す（次のフレームの Physics に乗る）
             MeteorMagic,         // シャワーを依頼する（次のフレームの CoinShower で降る）
+            DropFeedback,        // 落ちた所の光の粒を頼み、台の縁の帯を光らせる（このフレームの Effects で粒が出る）
             Effects,             // 光の粒・画面の光・ぽよん（このフレームの出来事の分を出す）
             Popup,               // 落ちたときのポップ
             Sound,               // このフレームの出来事の効果音
@@ -334,6 +336,7 @@ namespace FruitMagic {
         m_scene.AddSystem(std::make_shared<ECS::WallMagicSystem>(eventBus), (int)SystemPriority::WallMagic);
         m_scene.AddSystem(std::make_shared<ECS::GrowMagicSystem>(eventBus), (int)SystemPriority::GrowMagic);
         m_scene.AddSystem(std::make_shared<ECS::MeteorMagicSystem>(eventBus), (int)SystemPriority::MeteorMagic);
+        m_scene.AddSystem(std::make_shared<ECS::DropFeedbackSystem>(eventBus), (int)SystemPriority::DropFeedback);
         m_scene.AddSystem(std::make_shared<ECS::EffectsSystem>(eventBus), (int)SystemPriority::Effects);
         m_scene.AddSystem(std::make_shared<ECS::PopupSystem>(eventBus), (int)SystemPriority::Popup);
         m_scene.AddSystem(std::make_shared<ECS::SoundSystem>(eventBus, (Tsukino::IO::FileSystem::GetAssetRootPath() / "Assets/Data/Sounds.json").string()),
@@ -589,7 +592,8 @@ namespace FruitMagic {
 
         //--------------------------------------------------------------
         // 景品受け。手前の端から落ちた物は幅のどこでも取得なので、手前のトレイは台の幅いっぱいにする。
-        // 側壁の無い所の外側には一段低い横の溝を置く（判定は PrizeDropSystem が落ちた位置で行うので、ここは見た目と受け止め用）
+        // 側壁の無い所の外側には一段低い横の溝を置き、トレイとの境に仕切り板を立てる。
+        // 角からこぼれた物は仕切りのどちらかへ必ず落ち、PrizeDropSystem も同じ境（TrayBackZ）で判定する
         //--------------------------------------------------------------
         const float trayCenterZ  = layout.fieldFrontZ + layout.trayOffsetZ;
         const float outerHalfX   = layout.fieldHalfWidth + layout.gutterExtraWidth;
@@ -597,7 +601,7 @@ namespace FruitMagic {
                           RigidbodyType::Static, stage.trayColor);
 
         const float sideGutterBackZ  = layout.SideWallFrontZ();
-        const float sideGutterFrontZ = trayCenterZ - layout.trayHalfDepth;
+        const float sideGutterFrontZ = layout.TrayBackZ();
         if(sideGutterFrontZ > sideGutterBackZ) {
             for(float side : {-1.0f, 1.0f}) {
                 factory.CreateBox(registry,
@@ -605,6 +609,40 @@ namespace FruitMagic {
                                                  (sideGutterBackZ + sideGutterFrontZ) * 0.5f),
                                   hlslpp::float3(layout.gutterExtraWidth * 0.5f, thick, (sideGutterFrontZ - sideGutterBackZ) * 0.5f), RigidbodyType::Static,
                                   stage.gutterColor);
+
+                // 仕切り板（溝の底から台の上面の少し下まで）
+                const float dividerBottomY = layout.trayTopY - layout.gutterDepth;
+                const float dividerHalfY   = (layout.dividerTopY - dividerBottomY) * 0.5f;
+                factory.CreateBox(registry,
+                                  hlslpp::float3(side * (layout.fieldHalfWidth + layout.gutterExtraWidth * 0.5f), dividerBottomY + dividerHalfY, layout.TrayBackZ()),
+                                  hlslpp::float3(layout.gutterExtraWidth * 0.5f, dividerHalfY, layout.dividerHalfThickness), RigidbodyType::Static,
+                                  stage.sideWallColor);
+            }
+        }
+
+        //--------------------------------------------------------------
+        // 台の横の開いた縁の光の帯（見た目だけ。こぼれる物は通り抜ける）。縁のすぐ外に平らに置き、
+        // 仕切りより手前は払い出しの色（角を回り込むよう手前の端の外まで）、奥は溝の色。
+        // そこからこぼれたときに DropFeedbackSystem が光らせる
+        //--------------------------------------------------------------
+        {
+            const DropEdgeStyle& edges   = stage.dropEdges;
+            const float          y       = -edges.topInset - edges.halfThickness;
+            const float          payoutZ = layout.TrayBackZ();
+            const float          frontZ  = layout.fieldFrontZ + edges.halfWidth * 2.0f;
+            auto addEdge = [&](int side, float z0, float z1, bool payout) {
+                const hlslpp::float3 color  = payout ? edges.payoutColor : edges.gutterColor;
+                const hlslpp::float3 center = hlslpp::float3(static_cast<float>(side) * (layout.fieldHalfWidth + edges.halfWidth), y, (z0 + z1) * 0.5f);
+                Tsukino::ECS::Entity e      = factory.CreateVisualBox(registry, center, hlslpp::float3(edges.halfWidth, edges.halfThickness, (z1 - z0) * 0.5f), 1.0f, color);
+                AddGlow(registry, e, RimGlowStyle{color, edges.intensity, edges.glow});
+                ECS::DropEdgeComponent& edge = registry.AddComponent<ECS::DropEdgeComponent>(e);
+                edge.payout                  = payout;
+                edge.side                    = side;
+            };
+            for(int side : {-1, 1}) {
+                addEdge(side, payoutZ, frontZ, true);
+                if(payoutZ > layout.SideWallFrontZ())
+                    addEdge(side, layout.SideWallFrontZ(), payoutZ, false);
             }
         }
 

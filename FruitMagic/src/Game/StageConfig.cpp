@@ -162,6 +162,19 @@ namespace FruitMagic {
             Json::Read(*checker, "halfDepth", checkerMarkerHalfDepth);
             ReadGlow(*checker, "glow", checkerMarkerGlow);
         }
+        if(const Json::Value* edges = Json::FindObject(doc, "dropEdges")) {
+            Json::ReadColor(*edges, "payoutColor", dropEdges.payoutColor);
+            Json::ReadColor(*edges, "gutterColor", dropEdges.gutterColor);
+            Json::Read(*edges, "halfWidth", dropEdges.halfWidth);
+            Json::Read(*edges, "halfThickness", dropEdges.halfThickness);
+            Json::Read(*edges, "topInset", dropEdges.topInset);
+            Json::Read(*edges, "intensity", dropEdges.intensity);
+            Json::Read(*edges, "glow", dropEdges.glow);
+            Json::Read(*edges, "flashIntensity", dropEdges.flashIntensity);
+            Json::Read(*edges, "flashGlow", dropEdges.flashGlow);
+            Json::Read(*edges, "flashSeconds", dropEdges.flashSeconds);
+            dropEdges.flashSeconds = std::max(0.05f, dropEdges.flashSeconds);
+        }
         if(const Json::Value* prize = Json::FindObject(doc, "prize")) {
             Json::ReadColor(*prize, "coinColor", coinColor);
             Json::Read(*prize, "coinGlow", coinGlow);

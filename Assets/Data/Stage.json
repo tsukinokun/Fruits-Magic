@@ -128,6 +128,18 @@
     "halfDepth": 2.5,
     "glow": { "color": { "r": 1.0, "g": 0.7, "b": 0.1 }, "intensity": 1.0, "glow": 0.4 }
   },
+  "dropEdges": {
+    "payoutColor": { "r": 1.0, "g": 0.65, "b": 0.05 },
+    "gutterColor": { "r": 0.15, "g": 0.4, "b": 1.0 },
+    "halfWidth": 1.0,
+    "halfThickness": 0.3,
+    "topInset": 0.2,
+    "intensity": 0.6,
+    "glow": 0.1,
+    "flashIntensity": 2.0,
+    "flashGlow": 1.0,
+    "flashSeconds": 0.35
+  },
   "prize": {
     "coinColor": { "r": 1.0, "g": 0.78, "b": 0.25 },
     "coinGlow": 0.25,

@@ -36,26 +36,11 @@ namespace FruitMagic::ECS {
             return;
         }
 
-        GameState&       state  = registry.GetContext<GameState>();
-        const ManaConfig config = registry.HasContext<ManaConfig>() ? registry.GetContext<ManaConfig>() : ManaConfig{};
-
-        // 図鑑ボーナス: 登録した枠の数だけマナの獲得量が増える
-        const float bonusPerEntry = registry.HasContext<CollectionConfig>() ? registry.GetContext<CollectionConfig>().ManaBonusPerEntry() : 0.0f;
-        // 強化「マナの獲得」の倍率も掛ける
-        const float upgrade       = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().manaMultiplier : 1.0f;
-        const float multiplier    = (1.0f + bonusPerEntry * static_cast<float>(state.RegisteredCount())) * upgrade;
+        GameState&  state      = registry.GetContext<GameState>();
+        const float multiplier = GainMultiplier(registry);
 
         for(const PrizeDroppedEvent& e : m_pendingDrops) {
-            int gain = 0;
-            if(e.kind == PrizeKind::Coin) {
-                gain = (e.zone == DropZone::Payout) ? config.coinPayout : config.coinGutter;
-            } else if(registry.HasContext<FruitCatalog>()) {
-                const auto& fruits = registry.GetContext<FruitCatalog>().Fruits();
-                if(e.fruitIndex >= 0 && e.fruitIndex < static_cast<int>(fruits.size())) {
-                    const int fruitMana = fruits[e.fruitIndex].mana;
-                    gain = (e.zone == DropZone::Payout) ? fruitMana : static_cast<int>(std::ceil(fruitMana * config.fruitGutterRatio));
-                }
-            }
+            const int gain = BaseGain(registry, e);
             //--------------------------------------------------------------
             // 図鑑ボーナスを掛けた端数は持ち越す（切り上げると、1 のマナに 5% 掛けただけで 2 になってしまう）
             //--------------------------------------------------------------
@@ -65,5 +50,33 @@ namespace FruitMagic::ECS {
             state.mana = std::min(state.maxMana, state.mana + whole);
         }
         m_pendingDrops.clear();
+    }
+
+    //----------------------------------------------------------------------------
+    //! 落ちた物1つで増えるマナ（倍率を掛ける前）を返します。
+    //----------------------------------------------------------------------------
+    int ManaSystem::BaseGain(Tsukino::ECS::Registry& registry, const PrizeDroppedEvent& drop) {
+        const ManaConfig config = registry.HasContext<ManaConfig>() ? registry.GetContext<ManaConfig>() : ManaConfig{};
+        if(drop.kind == PrizeKind::Coin)
+            return (drop.zone == DropZone::Payout) ? config.coinPayout : config.coinGutter;
+        if(!registry.HasContext<FruitCatalog>())
+            return 0;
+        const auto& fruits = registry.GetContext<FruitCatalog>().Fruits();
+        if(drop.fruitIndex < 0 || drop.fruitIndex >= static_cast<int>(fruits.size()))
+            return 0;
+        const int fruitMana = fruits[drop.fruitIndex].mana;
+        return (drop.zone == DropZone::Payout) ? fruitMana : static_cast<int>(std::ceil(fruitMana * config.fruitGutterRatio));
+    }
+
+    //----------------------------------------------------------------------------
+    //! マナの獲得量に掛ける倍率を返します。
+    //----------------------------------------------------------------------------
+    float ManaSystem::GainMultiplier(Tsukino::ECS::Registry& registry) {
+        // 図鑑ボーナス: 登録した枠の数だけマナの獲得量が増える
+        const float bonusPerEntry = registry.HasContext<CollectionConfig>() ? registry.GetContext<CollectionConfig>().ManaBonusPerEntry() : 0.0f;
+        const int   registered    = registry.HasContext<GameState>() ? registry.GetContext<GameState>().RegisteredCount() : 0;
+        // 強化「マナの獲得」の倍率も掛ける
+        const float upgrade       = registry.HasContext<TableStats>() ? registry.GetContext<TableStats>().manaMultiplier : 1.0f;
+        return (1.0f + bonusPerEntry * static_cast<float>(registered)) * upgrade;
     }
 }    // namespace FruitMagic::ECS

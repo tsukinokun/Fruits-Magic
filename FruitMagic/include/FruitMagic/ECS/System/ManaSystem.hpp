@@ -32,6 +32,17 @@ namespace FruitMagic::ECS {
         //! @param  [in] deltaTime 前フレームからの経過時間（秒）
         void Update(Tsukino::ECS::Registry& registry, float deltaTime) override;
 
+        //! 落ちた物1つで増えるマナ（倍率を掛ける前）を返します。
+        //! @param  [in] registry レジストリ
+        //! @param  [in] drop     落ちた物
+        //! @return 増えるマナ
+        static int BaseGain(Tsukino::ECS::Registry& registry, const PrizeDroppedEvent& drop);
+
+        //! マナの獲得量に掛ける倍率（図鑑ボーナス × 強化「マナの獲得」）を返します。
+        //! @param  [in] registry レジストリ
+        //! @return 倍率
+        static float GainMultiplier(Tsukino::ECS::Registry& registry);
+
     private:
         Tsukino::ECS::ScopedConnection m_dropConnection;    // 購読解除を自動で行う接続
         std::vector<PrizeDroppedEvent> m_pendingDrops;      // 次の Update で処理する落下

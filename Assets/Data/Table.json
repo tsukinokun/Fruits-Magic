@@ -29,7 +29,9 @@
     "trayOffsetZ": 15.0,
     "trayHalfDepth": 18.0,
     "gutterExtraWidth": 5.0,
-    "gutterDepth": 6.0
+    "gutterDepth": 6.0,
+    "dividerHalfThickness": 0.3,
+    "dividerTopY": -2.0
   },
   "sideWall": {
     "halfThickness": 1.0,

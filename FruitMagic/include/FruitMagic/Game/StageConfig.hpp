@@ -49,6 +49,22 @@ namespace FruitMagic {
         std::optional<hlslpp::float3> post;           // 柱
     };
 
+    //! 台の縁の光の帯の設定です（Stage.json の "dropEdges"）。
+    //! 台の横の開いた縁のすぐ外に、平らな帯を置きます。仕切りより手前は払い出しの色、奥は溝の色です。
+    //! （台の側面はカメラから見えないので、上から見える平らな帯にする。手前の端は全部払い出しなので帯は無い）
+    struct DropEdgeStyle {
+        hlslpp::float3 payoutColor    = hlslpp::float3(1.0f, 0.65f, 0.05f);   // 払い出しの帯の色（金）
+        hlslpp::float3 gutterColor    = hlslpp::float3(0.15f, 0.4f, 1.0f);    // 溝の帯の色（青）
+        float          halfWidth      = 1.0f;     // 帯の幅（台の外へ出す量）の半分
+        float          halfThickness  = 0.3f;     // 帯の厚みの半分
+        float          topInset       = 0.2f;     // 台の上面から帯の上面までの距離
+        float          intensity      = 0.6f;     // ふだんの輪郭の光の強さ
+        float          glow           = 0.1f;     // ふだんの全体の白い光
+        float          flashIntensity = 2.0f;     // 落ちたときの輪郭の光の強さ
+        float          flashGlow      = 1.0f;     // 落ちたときの全体の白い光
+        float          flashSeconds   = 0.35f;    // 落ちたときに強く光ってから元に戻るまでの時間（秒）
+    };
+
     //! 台と屋台の見た目・光・カメラの設定です。Registry のコンテキストに置きます。
     struct StageConfig {
         //--------------------------------------------------------------
@@ -155,6 +171,7 @@ namespace FruitMagic {
         float          checkerMarkerHalfThickness = 0.3f;    // 厚みの半分
         float          checkerMarkerHalfDepth    = 2.5f;     // 奥行の半分
         RimGlowStyle   checkerMarkerGlow         = {hlslpp::float3(1.0f, 0.7f, 0.1f), 1.0f, 0.4f};    // 台の上で見失わないよう金色に光らせる
+        DropEdgeStyle  dropEdges;                                // 台の縁の光の帯（どこから落ちたら払い出しか溝か）
 
         //--------------------------------------------------------------
         // 景品の見た目

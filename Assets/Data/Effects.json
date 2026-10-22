@@ -23,6 +23,8 @@
     "rise": 12.0,
     "fadeStart": 2.5,
     "coinColor": { "r": 1.0, "g": 0.9, "b": 0.35, "a": 1.0 },
+    "gutterColor": { "r": 0.55, "g": 0.8, "b": 1.0, "a": 1.0 },
+    "gutterInset": 4.0,
     "outlineColor": { "r": 0.2, "g": 0.08, "b": 0.12 },
     "outlineWidth": 2.0,
     "coinLife": 1.0,
@@ -34,6 +36,14 @@
     "variantScale": 1.1
   },
   "presets": {
+    "drop_payout": {
+      "texture": "sparkle", "count": 3, "speed": 6, "up": 8, "gravity": 10, "life": 0.5, "size": 4.0, "spread": 1,
+      "colors": [{ "r": 1.0, "g": 0.85, "b": 0.3 }, { "r": 1.0, "g": 1.0, "b": 0.7 }]
+    },
+    "drop_gutter": {
+      "texture": "glow", "count": 3, "speed": 4, "up": 6, "gravity": 4, "life": 0.6, "size": 5.0, "spread": 1,
+      "colors": [{ "r": 0.4, "g": 0.65, "b": 1.0 }, { "r": 0.7, "g": 0.85, "b": 1.0 }]
+    },
     "variant_shiny": {
       "texture": "sparkle", "count": 14, "speed": 14, "up": 12, "gravity": 10, "life": 0.9, "size": 6.0, "spread": 2,
       "colors": [{ "r": 1.0, "g": 0.6, "b": 0.95 }, { "r": 0.6, "g": 0.9, "b": 1.0 }]

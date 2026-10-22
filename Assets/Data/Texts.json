@@ -94,7 +94,8 @@
   },
   "popup": {
     "fruit": "{name}！",
-    "coins": "+{n}"
+    "coins": "+{n}",
+    "gutter": "マナ +{n}"
   },
   "menu": {
     "zukanButton": "図鑑 (Tab)",

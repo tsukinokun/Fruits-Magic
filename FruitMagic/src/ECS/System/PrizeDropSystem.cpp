@@ -13,7 +13,6 @@
 #include <Tsukino/Core/ECS/Registry/Registry.hpp>
 #include <Tsukino/Core/ECS/Event/EventBus.hpp>
 
-#include <cmath>
 #include <vector>
 
 // 名前空間 : FruitMagic::ECS
@@ -42,11 +41,10 @@ namespace FruitMagic::ECS {
             if(float(transform.position.y) >= layout.dropJudgeY)
                 return;
 
-            // 手前の端から落ちた物は幅のどこでも取得、横（側壁の無い所）から落ちた物は溝。
-            // 落ちた時点で、手前の端と横の端のどちらをより大きく越えているかで決める（角から落ちた物もこれで決まる）
-            const float beyondFront = float(transform.position.z) - layout.fieldFrontZ;
-            const float beyondSide  = std::abs(float(transform.position.x)) - layout.fieldHalfWidth;
-            const bool  isPayout    = beyondFront >= beyondSide;
+            // 落ちた先で決める。トレイと横の溝の間には仕切り板が立っているので（PusherScene::CreateCabinet）、
+            // 判定の高さでの前後位置が仕切りより手前ならトレイ、奥なら溝に必ず落ちる（見た目と判定が食い違わない）。
+            // 手前の端から落ちた物は仕切りより手前なので、幅のどこでも取得
+            const bool isPayout = float(transform.position.z) >= layout.TrayBackZ();
 
             PrizeDroppedEvent e;
             e.prize = entity;
@@ -57,6 +55,7 @@ namespace FruitMagic::ECS {
             e.valueMultiplier = prize.valueMultiplier;
             e.zone  = isPayout ? DropZone::Payout : DropZone::Gutter;
             e.x     = transform.position.x;
+            e.z     = transform.position.z;
             dropped.push_back(e);
         });
 

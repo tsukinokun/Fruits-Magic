@@ -60,6 +60,8 @@ namespace FruitMagic {
         float          rise              = 12.0f;    // 寿命の間に浮かぶ高さ（cm）
         float          fadeStart         = 2.5f;     // 薄くし始める速さ（寿命の残りの割合 × これ が 1 を下回ると薄くなる）
         hlslpp::float4 coinColor         = hlslpp::float4(1.0f, 0.9f, 0.35f, 1.0f);    // コインの文字の色
+        hlslpp::float4 gutterColor       = hlslpp::float4(0.55f, 0.8f, 1.0f, 1.0f);    // 溝に落ちたときの「マナ +N」の色
+        float          gutterInset       = 4.0f;     // 「マナ +N」を台の横の端からどれだけ内側に出すか（外側だと画面の左右のパネルに重なる）
         hlslpp::float3 outlineColor      = hlslpp::float3(0.2f, 0.08f, 0.12f);         // 文字の縁の色
         float          outlineWidth      = 2.0f;     // 文字の縁の太さ
         float          coinLife          = 1.0f;     // コインの文字の寿命（秒）

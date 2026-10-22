@@ -37,6 +37,14 @@ namespace FruitMagic::ECS {
         bool glowing = false;    // 今「ふくらむ」で輪郭を光らせているか（EffectsSystem が書く）
     };
 
+    //! 台の横の開いた縁に沿う光の帯です（そこからこぼれたら払い出しか溝かの目印）。RimGlowComponent と一緒に付けます。
+    //! DropFeedbackSystem が、その帯の所から物がこぼれたときに一瞬強く光らせます。
+    struct DropEdgeComponent {
+        bool  payout = true;    // 払い出しの帯か（false は溝の帯）
+        int   side   = 1;       // どちらの縁か（-1 / +1。x の符号）
+        float flash  = 0.0f;    // 強く光らせる残り（1 → 0）
+    };
+
     //! 払い出し口に落ちたときにふわっと浮かんで消える文字です。FontComponent と WorldAnchorComponent と一緒に付けます。
     struct PopupComponent {
         hlslpp::float4 color   = hlslpp::float4(1.0f, 1.0f, 1.0f, 1.0f);    // 文字の色（a は寿命に合わせて下げる）

@@ -63,6 +63,8 @@ namespace FruitMagic {
             Json::Read(*payout, "trayHalfDepth", loaded.trayHalfDepth);
             Json::Read(*payout, "gutterExtraWidth", loaded.gutterExtraWidth);
             Json::Read(*payout, "gutterDepth", loaded.gutterDepth);
+            Json::Read(*payout, "dividerHalfThickness", loaded.dividerHalfThickness);
+            Json::Read(*payout, "dividerTopY", loaded.dividerTopY);
         }
         if(const Json::Value* wall = Json::FindObject(doc, "sideWall")) {
             Json::Read(*wall, "halfThickness", loaded.sideWallHalfThickness);
@@ -168,6 +170,9 @@ namespace FruitMagic {
             return fail("the pusher stroke must be positive and within maxAmplitude");
         if(payoutHalfWidth <= 0.0f || payoutHalfWidth > fieldHalfWidth || dropJudgeY <= trayTopY)
             return fail("the payout must be inside the field and the drop line above the tray");
+        // 仕切りが判定の高さより上まで来ていないと、判定の時点ではまだどちらへ落ちるか決まっていない
+        if(dividerHalfThickness <= 0.0f || dividerTopY <= dropJudgeY || TrayBackZ() > fieldFrontZ || TrayBackZ() < SideWallFrontZ())
+            return fail("the tray divider must reach above the drop line and stand between the side walls and the front edge");
         if(float(coinHalfExtent.x) <= 0.0f || float(coinHalfExtent.y) <= 0.0f || float(coinHalfExtent.z) <= 0.0f || maxSimulationStep <= 0.0f)
             return fail("the coin size and the simulation step must be positive");
 

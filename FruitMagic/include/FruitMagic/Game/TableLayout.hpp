@@ -69,6 +69,8 @@ namespace FruitMagic {
         float trayHalfDepth   = 18.0f;     // トレイの半分の奥行
         float gutterExtraWidth = 5.0f;     // トレイと横の溝がフィールドの外へはみ出す幅
         float gutterDepth     = 6.0f;      // 横の溝の底がトレイより低い量
+        float dividerHalfThickness = 0.3f;    // トレイと横の溝の間の仕切り板の厚みの半分（角からこぼれた物をどちらかへ分ける）
+        float dividerTopY     = -2.0f;     // 仕切り板の上端の高さ（台の上面より少し下。台の横の縁を滑る物が引っかからないように）
 
         //--------------------------------------------------------------
         // 側壁
@@ -168,6 +170,9 @@ namespace FruitMagic {
 
         //! 側壁の手前端のZを返します。ここより手前は左右が開いている。
         float SideWallFrontZ() const { return fieldFrontZ - sideWallOpenLength; }
+
+        //! 手前のトレイの奥の端（横の溝との仕切り）のZを返します。落ちた物はここより手前なら払い出し、奥なら溝。
+        float TrayBackZ() const { return fieldFrontZ + trayOffsetZ - trayHalfDepth; }
 
         //! 背面パネルの中心のZを返します。
         float BackPanelZ() const { return pusherMinFrontZ - backPanelDistance; }

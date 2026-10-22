@@ -12,8 +12,8 @@ namespace FruitMagic::ECS {
 
     //! 景品が落ちた場所です。
     enum class DropZone {
-        Payout,    // 手前の端から落ちた（幅のどこでも。手に入る）
-        Gutter,    // 横の溝（側壁の無い所から横へ落ちた。失う）
+        Payout,    // 手前のトレイに落ちた（手前の端から落ちた物と、角から仕切りより手前へこぼれた物。手に入る）
+        Gutter,    // 横の溝に落ちた（側壁の無い所から、仕切りより奥へこぼれた。失う）
     };
 
     //! 景品が台から落ちたことを知らせるイベントです。PrizeDropSystem が発行します。
@@ -27,5 +27,6 @@ namespace FruitMagic::ECS {
         int                  valueMultiplier = 1;         // 果物のとき、収穫したときの価値の倍率
         DropZone             zone  = DropZone::Payout;    // 落ちた場所
         float                x     = 0.0f;                // 落ちた時点の左右位置（チェッカーの判定に使う）
+        float                z     = 0.0f;                // 落ちた時点の前後位置（落ちた所に演出を出すのに使う）
     };
 }    // namespace FruitMagic::ECS
